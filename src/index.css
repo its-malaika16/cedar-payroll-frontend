@@ -1,0 +1,75 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Montserrat", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Montserrat", ui-sans-serif, system-ui, sans-serif;
+  --color-cedar-950: #17375e;
+  --color-cedar-900: #17375e;
+  --color-cedar-800: #17375e;
+  --color-cedar-700: #3d5572;
+  --color-cedar-600: #3d5572;
+  --color-cedar-500: #3d5572;
+  --color-cedar-100: #d7dee8;
+  --color-cedar-50: #f8f7f4;
+  --color-gold-500: #d32027;
+  --color-gold-600: #b51b21;
+  --color-navy: #17375e;
+  --color-navy-mid: #3d5572;
+  --color-brand: #d32027;
+  --color-cream: #f8f7f4;
+  --color-input: #d9d9d9;
+  --color-muted: #9b9a9a;
+  --color-paper: #f8f7f4;
+  --color-ink: #17375e;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  color: var(--color-ink);
+  background: var(--color-cream);
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+.brand-knockout {
+  mix-blend-mode: screen;
+}
+
+.brand-on-light {
+  filter: brightness(0) saturate(100%) invert(17%) sepia(32%) saturate(1418%) hue-rotate(183deg) brightness(93%) contrast(92%);
+}
+
+.invoice-a4-page {
+  width: 210mm;
+  min-height: 297mm;
+  max-width: 100%;
+}
+
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 0;
+  }
+
+  .invoice-a4-page {
+    box-shadow: none;
+    width: 210mm;
+    min-height: 297mm;
+  }
+}

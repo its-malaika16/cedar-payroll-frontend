@@ -1,0 +1,94 @@
+export type ComplianceDocumentType = {
+  key: string
+  label: string
+  requiresExpiry: boolean
+  employerOnly: boolean
+}
+
+export const SHARED_COMPLIANCE_TYPES: ComplianceDocumentType[] = [
+  { key: 'RIGHT_TO_WORK', label: 'Right to work', requiresExpiry: false, employerOnly: false },
+  { key: 'PASSPORT', label: 'Passport', requiresExpiry: true, employerOnly: false },
+  {
+    key: 'VISA',
+    label: 'Visa / immigration document',
+    requiresExpiry: true,
+    employerOnly: false,
+  },
+  {
+    key: 'SHARE_CODE',
+    label: 'Share code / RTW check result',
+    requiresExpiry: true,
+    employerOnly: false,
+  },
+  {
+    key: 'UK_BIRTH_CERTIFICATE',
+    label: 'UK birth certificate',
+    requiresExpiry: false,
+    employerOnly: false,
+  },
+  { key: 'PREVIOUS_P45', label: 'Previous P45', requiresExpiry: false, employerOnly: false },
+  {
+    key: 'NI_EVIDENCE',
+    label: 'National Insurance evidence',
+    requiresExpiry: false,
+    employerOnly: false,
+  },
+  {
+    key: 'STUDENT_LOAN',
+    label: 'Student / PG loan information',
+    requiresExpiry: false,
+    employerOnly: false,
+  },
+  {
+    key: 'QUALIFICATION',
+    label: 'Professional qualification / certification',
+    requiresExpiry: false,
+    employerOnly: false,
+  },
+  { key: 'DRIVING_LICENCE', label: 'Driving licence', requiresExpiry: true, employerOnly: false },
+]
+
+export const EMPLOYER_COMPLIANCE_TYPES: ComplianceDocumentType[] = [
+  {
+    key: 'EMPLOYMENT_CONTRACT',
+    label: 'Employment contract',
+    requiresExpiry: false,
+    employerOnly: true,
+  },
+  {
+    key: 'HOLIDAY_POLICY',
+    label: 'Holiday entitlement / policy',
+    requiresExpiry: false,
+    employerOnly: true,
+  },
+  { key: 'COMPANY_POLICIES', label: 'Company policies', requiresExpiry: false, employerOnly: true },
+  {
+    key: 'SALARY_LETTER',
+    label: 'Salary / compensation letter',
+    requiresExpiry: false,
+    employerOnly: true,
+  },
+]
+
+export const ALL_COMPLIANCE_TYPES = [...SHARED_COMPLIANCE_TYPES, ...EMPLOYER_COMPLIANCE_TYPES]
+
+export function typesFor(role: 'employee' | 'employer') {
+  return role === 'employer' ? ALL_COMPLIANCE_TYPES : SHARED_COMPLIANCE_TYPES
+}
+
+export type ComplianceFile = {
+  id: string
+  document_type: string
+  title: string
+  file_name: string
+  expiry_date?: string | null
+  visible_to_employee: boolean
+  uploaded_by_kind?: string | null
+  employer_only: boolean
+  requires_expiry: boolean
+  status?: string
+  uploaded_at?: string | null
+  expiry_state?: 'none' | 'ok' | 'soon' | 'expired'
+  download_path: string
+  can_change_visibility?: boolean
+}
