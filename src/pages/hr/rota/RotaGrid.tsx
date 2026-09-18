@@ -169,7 +169,7 @@ function MonthPersonBlock({
                 inMonth={inRange(day)}
                 shifts={shiftsForDay(day)}
                 onLeave={Boolean(leaveForDay?.(day))}
-                leaveTitle={leaveForDay?.(day)?.leave_type}
+                leaveTitle={leaveForDay?.(day)?.leave_type ?? undefined}
                 onAdd={() => onAdd(day)}
                 onAction={onAction}
               />
@@ -341,7 +341,7 @@ export function RotaWeekGrid({
                   <Cell
                     shifts={employeeShifts(employeeId, key)}
                     onLeave={Boolean(employeeLeave(employeeId, key))}
-                    leaveTitle={employeeLeave(employeeId, key)?.leave_type}
+                    leaveTitle={employeeLeave(employeeId, key)?.leave_type ?? undefined}
                     compact={compact}
                     muted={muted}
                     showDayOff={isWeekend(day)}

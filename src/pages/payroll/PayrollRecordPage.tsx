@@ -75,8 +75,6 @@ import { PayslipPeriodSwitcher, findRunForPeriod, runScheduleId } from './Paysli
 const inputClass =
   'h-[35px] rounded-[6px] border-[0.5px] border-[#d9d9d9] bg-white px-3 text-xs text-navy outline-none'
 
-const menuPanel =
-  'absolute z-30 mt-1 rounded-[8px] border-[0.5px] border-[#d9d9d9] bg-white py-1 shadow-sm'
 const floatingMenuPanel =
   'fixed z-[80] overflow-y-auto rounded-[8px] border-[0.5px] border-[#d9d9d9] bg-white py-1 shadow-lg'
 
@@ -301,7 +299,7 @@ export function PayrollRecordPage() {
   const [typeError, setTypeError] = useState<string | null>(null)
   const [savedTypes, setSavedTypes] = useState<SavedPayType[]>([])
   const [customAdditions, setCustomAdditions] = useState<{ name: string; amount: string }[]>([])
-  const [customDeductions, setCustomDeductions] = useState<{ name: string; amount: string }[]>([])
+  const [, setCustomDeductions] = useState<{ name: string; amount: string }[]>([])
   const [leaveAmount, setLeaveAmount] = useState('')
   const [ratePrompt, setRatePrompt] = useState<{ kind: 'hourly' | 'daily'; value: string } | null>(null)
   const skipHydrate = useRef(false)
@@ -412,7 +410,7 @@ export function PayrollRecordPage() {
     const unmappedStored = storedAdditions.filter((line) => !mappedAdditionFields.has(line.label ?? ''))
     const mappedStoredLabels = storedAdditions
       .map((line) => line.label)
-      .filter((label): label is string => Boolean(label) && mappedAdditionFields.has(label))
+      .filter((label): label is string => typeof label === 'string' && mappedAdditionFields.has(label))
     setVisibleAdditions([
       ...fromRecord.map((item) => item.label),
       ...mappedStoredLabels.filter((label) => !fromRecord.some((item) => item.label === label)),
@@ -504,17 +502,19 @@ export function PayrollRecordPage() {
 
   const leaveSummary = (record?.calendar_leave_summary ?? {}) as Record<string, unknown>
   const leaveAmounts = (leaveSummary.amounts ?? {}) as Record<string, number>
-  const leaveLines = [
-    ['Annual leave', leaveSummary.annual, leaveAmounts.annual, 'Paid — already in basic pay'],
-    ['Unpaid leave', leaveSummary.unpaid, leaveAmounts.unpaid, 'Deducted from basic pay'],
-    ['Sick leave (SSP)', leaveSummary.sick, leaveAmounts.sick ?? leaveSummary.sick_pay, 'Replaces contractual pay · statutory sick pay'],
-    ['Maternity leave (SMP)', leaveSummary.maternity, leaveAmounts.maternity ?? leaveSummary.maternity_pay, 'Replaces contractual pay · statutory maternity pay'],
-    ['Paternity leave (SPP)', leaveSummary.paternity, leaveAmounts.paternity ?? leaveSummary.paternity_pay, 'Replaces contractual pay · statutory paternity pay'],
-    ['Absent', leaveSummary.absent, leaveAmounts.absent, 'Deducted from basic pay'],
-    ['On strike', leaveSummary.on_strike, leaveAmounts.on_strike, 'Deducted from basic pay'],
-    ['Parenting leave', leaveSummary.parenting, leaveAmounts.parenting, 'Paid — already in basic pay'],
-    ['Custom leave', leaveSummary.custom, leaveAmounts.custom, 'Deducted from basic pay'],
-  ].filter(([, days]) => Number(days ?? 0) > 0)
+  const leaveLines = (
+    [
+      ['Annual leave', leaveSummary.annual, leaveAmounts.annual, 'Paid — already in basic pay'],
+      ['Unpaid leave', leaveSummary.unpaid, leaveAmounts.unpaid, 'Deducted from basic pay'],
+      ['Sick leave (SSP)', leaveSummary.sick, leaveAmounts.sick ?? leaveSummary.sick_pay, 'Replaces contractual pay · statutory sick pay'],
+      ['Maternity leave (SMP)', leaveSummary.maternity, leaveAmounts.maternity ?? leaveSummary.maternity_pay, 'Replaces contractual pay · statutory maternity pay'],
+      ['Paternity leave (SPP)', leaveSummary.paternity, leaveAmounts.paternity ?? leaveSummary.paternity_pay, 'Replaces contractual pay · statutory paternity pay'],
+      ['Absent', leaveSummary.absent, leaveAmounts.absent, 'Deducted from basic pay'],
+      ['On strike', leaveSummary.on_strike, leaveAmounts.on_strike, 'Deducted from basic pay'],
+      ['Parenting leave', leaveSummary.parenting, leaveAmounts.parenting, 'Paid — already in basic pay'],
+      ['Custom leave', leaveSummary.custom, leaveAmounts.custom, 'Deducted from basic pay'],
+    ] as Array<[string, unknown, unknown, string]>
+  ).filter(([, days]) => Number(days ?? 0) > 0)
 
   const savedHourlyRate = firstPositiveRate(
     employment.basic_rate_per_hour,
@@ -1095,18 +1095,6 @@ export function PayrollRecordPage() {
     setTypeError(null)
   }
 
-  async function saveAddition(label: string, value: string) {
-    const item = ADDITION_ITEMS.find((entry) => entry.label === label)
-    if (!item?.field) {
-      await persistPayLines(extraPay, customAdditions, visibleAdditions, {
-        ...additionAmounts,
-        [label]: value,
-      })
-      return
-    }
-    await patchRecord({ [item.field]: value === '' ? 0 : Number(value) })
-  }
-
   if (runQuery.isLoading || recordQuery.isLoading) return <Loading />
   if (!record) return <Alert>Payslip not found</Alert>
 
@@ -1481,7 +1469,7 @@ export function PayrollRecordPage() {
                     <span>
                       {label}
                       <span className="mt-0.5 block text-[11px] font-medium text-[#607080]">
-                        {days} day{Number(days) === 1 ? '' : 's'}
+                        {String(days ?? 0)} day{Number(days) === 1 ? '' : 's'}
                         {hint ? ` · ${hint}` : ''}
                       </span>
                     </span>

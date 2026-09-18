@@ -7,7 +7,6 @@ import { useAuth } from '../../auth/AuthContext'
 import { Alert, Button, Loading } from '../../components/ui'
 import { idOf } from '../../lib/format'
 import {
-  DEFAULT_VAT_RATE,
   displayInvoiceNumber,
   headingLine,
   invoiceLineFromAmount,

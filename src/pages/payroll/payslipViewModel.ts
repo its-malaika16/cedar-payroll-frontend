@@ -86,7 +86,12 @@ export function buildPayslipViewModel(
   record: PayrollRecord,
   run: PayrollRun | undefined,
   employee: Employee | undefined,
-  company?: { office_number?: string | null; company_name?: string | null } | Company | null,
+  company?: {
+    office_number?: string | null
+    company_name?: string | null
+    trading_name?: string | null
+    paye_reference?: string | null
+  } | Company | null,
 ): PayslipViewModel {
   const hourlyRate = amount(record.wage_per_hour)
   const extraPay = record.pay_lines ?? []

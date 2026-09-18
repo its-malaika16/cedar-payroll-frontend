@@ -222,7 +222,7 @@ function EmployeeReportPreviewPage({ kind }: { kind: AnalysisBuilderKind }) {
   function exportRows() {
     const header = columns.map((column) => column.label)
     const lines = employees.map((employee) => columns.map((column) => cellValue(employee, column.id)))
-    if (spec.showTotalsRow) {
+    if (spec?.showTotalsRow) {
       lines.push(columns.map((column, index) => (index === 0 ? 'Total' : columnTotal(column.id) ?? '')))
     }
     return { header, lines }
@@ -237,7 +237,7 @@ function EmployeeReportPreviewPage({ kind }: { kind: AnalysisBuilderKind }) {
     const { header, lines } = exportRows()
     downloadReportPdf({
       filename: reportFileSlug(draft.reportName),
-      title: draft.reportName || spec.title,
+      title: draft.reportName || spec?.title || 'Report',
       subtitle: periodLabel,
       sections: [{ headers: header, rows: lines }],
     })
@@ -257,7 +257,7 @@ function EmployeeReportPreviewPage({ kind }: { kind: AnalysisBuilderKind }) {
         </Link>
         <span> &gt; </span>
         <Link to={`/payroll/reports/${kind}`} className="hover:text-navy">
-          {spec.generateCrumb}
+          {spec?.generateCrumb}
         </Link>
         <span> &gt; </span>
         <span className="font-semibold text-navy">Report Preview</span>
@@ -267,7 +267,7 @@ function EmployeeReportPreviewPage({ kind }: { kind: AnalysisBuilderKind }) {
           <button type="button" onClick={() => navigate(`/payroll/reports/${kind}`)} aria-label="Back">
             <ArrowLeft size={22} className="text-navy" />
           </button>
-          <h1 className="text-[32px] font-semibold leading-none text-navy">{draft.reportName || spec.title}</h1>
+          <h1 className="text-[32px] font-semibold leading-none text-navy">{draft.reportName || spec?.title}</h1>
         </div>
         <div className="flex flex-wrap gap-2">
           <Button variant="secondary" onClick={() => persist(false)}>
@@ -322,7 +322,7 @@ function EmployeeReportPreviewPage({ kind }: { kind: AnalysisBuilderKind }) {
                     ))}
                   </tr>
                 ))}
-                {spec.showTotalsRow ? (
+                {spec?.showTotalsRow ? (
                   <tr className="border-t border-[#eceae6] bg-[#f8f7f4] font-semibold">
                     {columns.map((column, index) => (
                       <td

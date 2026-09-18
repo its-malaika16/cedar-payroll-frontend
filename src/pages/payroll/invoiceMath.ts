@@ -105,7 +105,7 @@ export function mapApiLines(lines?: Array<Record<string, unknown>> | InvoiceLine
         id: line.id ? String(line.id) : undefined,
       })
     }
-    return invoiceLineFromAmount(String(line.description ?? ''), line.amount, line.tax_rate, {
+    return invoiceLineFromAmount(String(line.description ?? ''), line.amount, Number(line.tax_rate), {
       key: String(line.id ?? `item-${index}`),
       id: line.id ? String(line.id) : undefined,
       employee_id: line.employee_id ? String(line.employee_id) : null,

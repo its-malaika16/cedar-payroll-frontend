@@ -227,6 +227,7 @@ export function CreateScheduleModal({
       const scheduleId = idOf(createdSchedule)
       const toAssign = selectedEmployees.filter((employeeId) => {
         const employee = employees.find((item) => idOf(item) === employeeId)
+        if (!employee) return false
         const current = String(employmentOf(employee).pay_schedule_id ?? '')
         return !current || current === scheduleId
       })

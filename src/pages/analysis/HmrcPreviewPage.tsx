@@ -209,7 +209,7 @@ export function HmrcPreviewPage({ kind }: { kind: AnalysisBuilderKind }) {
   function exportPdf() {
     downloadReportPdf({
       filename: reportFileSlug(draft.reportName),
-      title: draft.reportName || spec.title,
+      title: draft.reportName || spec?.title || 'Report',
       sections: exportSections(),
     })
   }
@@ -224,7 +224,7 @@ export function HmrcPreviewPage({ kind }: { kind: AnalysisBuilderKind }) {
         </Link>
         <span> &gt; </span>
         <Link to={`/payroll/reports/${kind}`} className="hover:text-navy">
-          {spec.generateCrumb}
+          {spec?.generateCrumb}
         </Link>
         <span> &gt; </span>
         <span className="font-semibold text-navy">Report Preview</span>
@@ -234,7 +234,7 @@ export function HmrcPreviewPage({ kind }: { kind: AnalysisBuilderKind }) {
           <button type="button" onClick={() => navigate(`/payroll/reports/${kind}`)} aria-label="Back">
             <ArrowLeft size={22} className="text-navy" />
           </button>
-          <h1 className="text-[32px] font-semibold leading-none text-navy">{draft.reportName || spec.title}</h1>
+          <h1 className="text-[32px] font-semibold leading-none text-navy">{draft.reportName || spec?.title}</h1>
         </div>
         <div className="flex flex-wrap gap-2">
           <Button variant="secondary" onClick={() => persist(false)}>

@@ -411,8 +411,10 @@ export function EmployeeWorkspace() {
         form.append('file', photoFile)
         form.append('title', 'Employee photo')
         form.append('file_type', 'image')
-        const uploaded = await employeesApi.uploadDocument(companyId, savedId!, form)
-        const filePath = String((uploaded.data as { file_path?: string })?.file_path ?? '')
+        const uploaded = (await employeesApi.uploadDocument(companyId, savedId!, form)) as {
+          data?: { file_path?: string }
+        }
+        const filePath = String(uploaded.data?.file_path ?? '')
         if (filePath) {
           await employeesApi.update(companyId, savedId!, { photo_url: filePath })
         }
@@ -1804,26 +1806,6 @@ function Input({ className = '', ...props }: InputHTMLAttributes<HTMLInputElemen
 
 function Select({ className = '', ...props }: SelectHTMLAttributes<HTMLSelectElement>) {
   return <select className={compactClass(className)} {...props} />
-}
-
-function FieldGrid({
-  children,
-  wide = false,
-}: {
-  children: ReactNode
-  wide?: boolean
-}) {
-  return (
-    <div
-      className={
-        wide
-          ? 'grid grid-cols-[repeat(auto-fill,minmax(220px,280px))] gap-x-4 gap-y-3'
-          : 'grid grid-cols-[repeat(auto-fill,minmax(160px,200px))] gap-x-4 gap-y-3'
-      }
-    >
-      {children}
-    </div>
-  )
 }
 
 function ContactRow({
