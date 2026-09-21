@@ -1,6 +1,10 @@
 import type { ApiSuccess } from '../types'
 
-export const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:3000'
+export const API_URL =
+  import.meta.env.VITE_API_URL ??
+  (import.meta.env.PROD
+    ? 'https://cedar-payroll-backend.vercel.app'
+    : 'http://localhost:3000')
 export const TOKEN_KEY = 'cedar.access_token'
 export const COMPANY_KEY = 'cedar.company_id'
 
