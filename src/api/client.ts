@@ -1,10 +1,22 @@
 import type { ApiSuccess } from '../types'
 
-export const API_URL =
-  import.meta.env.VITE_API_URL ??
-  (import.meta.env.PROD
-    ? 'https://cedar-payroll-backend.vercel.app'
-    : 'http://localhost:3000')
+const PRODUCTION_API_URL = 'https://cedar-payroll-backend.vercel.app'
+
+function resolveApiUrl() {
+  const configured = String(import.meta.env.VITE_API_URL ?? '')
+    .trim()
+    .replace(/\/+$/, '')
+  const isLocalhost =
+    !configured || /localhost|127\.0\.0\.1/i.test(configured)
+
+  if (import.meta.env.PROD && isLocalhost) {
+    return PRODUCTION_API_URL
+  }
+
+  return configured || 'http://localhost:3000'
+}
+
+export const API_URL = resolveApiUrl()
 export const TOKEN_KEY = 'cedar.access_token'
 export const COMPANY_KEY = 'cedar.company_id'
 
