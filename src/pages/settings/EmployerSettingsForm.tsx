@@ -3,6 +3,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { companiesApi } from '../../api'
 import { assetUrl } from '../../api/client'
 import { Alert, Button, Field, Input as UiInput, Select as UiSelect, onSubmit } from '../../components/ui'
+import { BureauTeamPanel } from './BureauTeamPanel'
 
 function Input(props: ComponentProps<typeof UiInput>) {
   return <UiInput variant="outline" {...props} />
@@ -32,7 +33,13 @@ import {
   type SettingsTab,
 } from './employerSettings'
 
-export function EmployerSettingsForm({ company }: { company: Company }) {
+export function EmployerSettingsForm({
+  company,
+  showBureauTeam = false,
+}: {
+  company: Company
+  showBureauTeam?: boolean
+}) {
   const queryClient = useQueryClient()
   const fileInput = useRef<HTMLInputElement>(null)
   const [tab, setTab] = useState<SettingsTab>('Basic Details')
@@ -84,24 +91,18 @@ export function EmployerSettingsForm({ company }: { company: Company }) {
 
   const logoSrc = assetUrl(company.logo_path)
   const employerName = form.company_name.trim() || 'this employer'
+  const tabs = showBureauTeam
+    ? SETTINGS_TABS
+    : SETTINGS_TABS.filter((item) => item !== 'Bureau Team')
 
   return (
-    <form
-      className="space-y-4"
-      onSubmit={onSubmit(async () => {
-        if (!form.company_name.trim()) {
-          throw new Error('Enter the employer name')
-        }
-        await save.mutateAsync(payloadFromForm(form))
-        setMessage('Employer settings saved')
-      }, setError, setSaving)}
-    >
-      {error ? <Alert>{error}</Alert> : null}
-      {message ? <Alert tone="success">{message}</Alert> : null}
+    <div className="space-y-4">
+      {tab !== 'Bureau Team' && error ? <Alert>{error}</Alert> : null}
+      {tab !== 'Bureau Team' && message ? <Alert tone="success">{message}</Alert> : null}
 
       <div className="overflow-x-auto rounded-[10px] border border-[#d9d9d9] bg-white">
         <div className="flex min-w-max gap-8 px-6 pt-4">
-          {SETTINGS_TABS.map((item) => (
+          {tabs.map((item) => (
             <button
               key={item}
               type="button"
@@ -118,6 +119,20 @@ export function EmployerSettingsForm({ company }: { company: Company }) {
           ))}
         </div>
       </div>
+
+      {tab === 'Bureau Team' && showBureauTeam ? (
+        <BureauTeamPanel />
+      ) : (
+        <form
+          className="space-y-4"
+          onSubmit={onSubmit(async () => {
+            if (!form.company_name.trim()) {
+              throw new Error('Enter the employer name')
+            }
+            await save.mutateAsync(payloadFromForm(form))
+            setMessage('Employer settings saved')
+          }, setError, setSaving)}
+        >
 
       {tab === 'Basic Details' ? (
         <div className="grid gap-4 xl:grid-cols-2">
@@ -571,12 +586,14 @@ export function EmployerSettingsForm({ company }: { company: Company }) {
         </div>
       ) : null}
 
-      <div className="flex justify-end">
-        <Button type="submit" disabled={saving}>
-          {saving ? 'Saving…' : 'Save employer settings'}
-        </Button>
-      </div>
-    </form>
+          <div className="flex justify-end">
+            <Button type="submit" disabled={saving}>
+              {saving ? 'Saving…' : 'Save employer settings'}
+            </Button>
+          </div>
+        </form>
+      )}
+    </div>
   )
 }
 

@@ -22,7 +22,6 @@ import { taxYearStartFromDate } from '../../lib/hmrcTaxCalendar'
 import type { PayrollRecord, PayrollRun, PayrollSchedule } from '../../types'
 import {
   asPayFrequency,
-  currentPeriodIndex,
   dateKey,
   hmrcPeriodFromPayDate,
   hmrcPeriodLabel,
@@ -33,7 +32,8 @@ import { PayrollImportMenu } from './PayrollImportMenu'
 import { PayrollMoreMenu, payrollMoreMenuItem } from './PayrollMoreMenu'
 import { PayrollSchedulesMenu } from './PayrollSchedulesMenu'
 import { FinaliseEmployeesModal } from './FinaliseEmployeesModal'
-import { PayslipPeriodSwitcher, findRunForPeriod } from './PayslipPeriodSwitcher'
+import { PensionToolbarButton } from './PensionToolbarButton'
+import { PayslipPeriodSwitcher, defaultPeriodKey, findRunForPeriod } from './PayslipPeriodSwitcher'
 
 function taxYearLabel(taxYear: number) {
   return `${taxYear}/${String(taxYear + 1).slice(-2)}`
@@ -127,8 +127,7 @@ export function PayrollRunsPage() {
     if (!selectedScheduleId) return
     if (scheduleId !== selectedScheduleId) setScheduleId(selectedScheduleId)
     if (!periodKeys.includes(periodKey)) {
-      const current = schedulePeriods[currentPeriodIndex(schedulePeriods)]
-      setPeriodKey(current ? String(current.number) : periodKeys[0] ?? '')
+      setPeriodKey(defaultPeriodKey(schedulePeriods, runList, selectedScheduleId))
     }
   }, [selectedScheduleId, scheduleId, periodKeys, periodKey, schedulePeriods])
 
@@ -176,6 +175,12 @@ export function PayrollRunsPage() {
   const allFinalised =
     visibleRecords.length > 0 &&
     visibleRecords.every((record) => (record.status ?? '').toUpperCase() === 'FINALISED')
+  const pensionQuery = useQuery({
+    queryKey: ['payroll-pension', companyId, selectedId],
+    queryFn: () => payrollApi.pension(companyId!, selectedId),
+    enabled: Boolean(companyId && selectedId && allFinalised),
+  })
+  const pensionPaid = (pensionQuery.data?.data.status ?? '').toUpperCase() === 'PAID'
   const headerDate = selectedRun?.pay_date
     ? formatLongDate(selectedRun.pay_date)
     : formatLongDate(selectedSchedulePeriod?.payDate)
@@ -191,8 +196,7 @@ export function PayrollRunsPage() {
       return
     }
     const periods = periodsFromSavedSchedule(next).periods
-    const current = periods[currentPeriodIndex(periods)]
-    setPeriodKey(current ? String(current.number) : '')
+    setPeriodKey(defaultPeriodKey(periods, runList, nextId))
   }
 
   async function startPayroll() {
@@ -282,6 +286,11 @@ export function PayrollRunsPage() {
             <RefreshCw size={16} />
             Reopen
           </button>
+          <PensionToolbarButton
+            paid={pensionPaid}
+            disabled={!selectedId || !allFinalised}
+            onClick={() => selectedId && navigate(`/payroll/runs/${selectedId}/pension`)}
+          />
           <CreateSendMenu
             companyId={companyId!}
             runId={selectedId}

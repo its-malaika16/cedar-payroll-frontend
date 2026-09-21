@@ -59,13 +59,14 @@ export function ComplianceDocumentsPanel({
     queryFn: () => hrApi.complianceTypes(companyId, role === 'employee'),
     enabled: Boolean(companyId),
   })
-  const types = ((typesQuery.data?.data as ComplianceDocumentType[] | undefined) ?? typesFor(role)).map(
-    (item) => ({
+  const types = ((typesQuery.data?.data as ComplianceDocumentType[] | undefined) ?? typesFor(role))
+    .map((item) => ({
       ...item,
       requiresExpiry: Boolean(item.requiresExpiry ?? (item as { requires_expiry?: boolean }).requires_expiry),
       employerOnly: Boolean(item.employerOnly ?? (item as { employer_only?: boolean }).employer_only),
-    }),
-  )
+    }))
+    .filter((item) => item.key !== 'NI_EVIDENCE')
+    .sort((a, b) => a.label.localeCompare(b.label, 'en-GB', { sensitivity: 'base' }))
   const selected = types.find((item) => item.key === documentType) ?? types[0]
   const selectedKey = selected?.key ?? ''
 

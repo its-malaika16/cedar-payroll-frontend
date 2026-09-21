@@ -9,10 +9,12 @@ import type {
   Employee,
   PayrollRecord,
   PayrollRun,
+  PayrollPension,
   PayrollSchedule,
   PensionAssessment,
   Role,
   User,
+  BureauTeamMember,
 } from '../types'
 import { api, del, download, fetchBlob, get, post, patch, put } from './client'
 
@@ -241,6 +243,10 @@ export const payrollApi = {
     post(`/companies/${companyId}/payroll/${runId}/records/${recordId}/finalise`),
   reopenRecord: (companyId: string, runId: string, recordId: string) =>
     post(`/companies/${companyId}/payroll/${runId}/records/${recordId}/reopen`),
+  pension: (companyId: string, runId: string) =>
+    get<PayrollPension>(`/companies/${companyId}/payroll/${runId}/pension`),
+  payPension: (companyId: string, runId: string) =>
+    post<PayrollPension>(`/companies/${companyId}/payroll/${runId}/pension/pay`),
 }
 
 export const payslipsApi = {
@@ -534,6 +540,12 @@ export const helpApi = {
   },
   leave: (companyId: string, from: string, to: string) =>
     get(`/companies/${companyId}/help/leave?from=${from}&to=${to}`),
+}
+
+export const bureauApi = {
+  team: () => get<BureauTeamMember[]>('/bureau/team'),
+  addAdmin: (body: { name: string; email: string; password: string }) =>
+    post<BureauTeamMember>('/bureau/team', body),
 }
 
 export const chatApi = {

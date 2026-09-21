@@ -49,6 +49,18 @@ export type BureauAccess = {
   }[]
 }
 
+export type BureauTeamMember = {
+  id: string
+  user_id: string
+  name: string
+  first_name?: string | null
+  last_name?: string | null
+  email: string
+  is_active?: boolean
+  last_login?: string | null
+  created_at?: string | null
+}
+
 export type AuthPayload = {
   user: User
   access_token: string
@@ -200,9 +212,30 @@ export type PayrollRun = {
   tax_week?: number | null
   tax_month?: number | null
   status: string
+  pension_status?: string | null
+  pension_paid_at?: string | null
   payroll_schedules?: PayrollSchedule
   payroll_records?: PayrollRecord[]
   _count?: { payroll_records?: number }
+}
+
+export type PayrollPensionEmployee = {
+  record_id: string
+  name: string
+  employee_pension: number
+  employer_pension: number
+  total: number
+}
+
+export type PayrollPension = {
+  payroll_run_id: string
+  status: string
+  paid_at?: string | null
+  finalised: boolean
+  employee_pension: number
+  employer_pension: number
+  total_payable: number
+  employees?: PayrollPensionEmployee[]
 }
 
 export type PayrollPayLine = {

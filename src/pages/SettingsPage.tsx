@@ -58,7 +58,11 @@ export function SettingsPage() {
           ) : !company ? (
             <Alert>Organisation not found</Alert>
           ) : (
-            <EmployerSettingsForm key={String(company.id)} company={company} />
+            <EmployerSettingsForm
+              key={String(company.id)}
+              company={company}
+              showBureauTeam={auth.isBureauAdmin}
+            />
           )}
           <AccountCard
             email={auth.user?.email}

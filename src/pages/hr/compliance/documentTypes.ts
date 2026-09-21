@@ -28,11 +28,12 @@ export const SHARED_COMPLIANCE_TYPES: ComplianceDocumentType[] = [
   },
   { key: 'PREVIOUS_P45', label: 'Previous P45', requiresExpiry: false, employerOnly: false },
   {
-    key: 'NI_EVIDENCE',
-    label: 'National Insurance evidence',
+    key: 'NATIONAL_INSURANCE',
+    label: 'National insurance',
     requiresExpiry: false,
     employerOnly: false,
   },
+  { key: 'DBS', label: 'DBS', requiresExpiry: false, employerOnly: false },
   {
     key: 'STUDENT_LOAN',
     label: 'Student / PG loan information',
@@ -72,8 +73,13 @@ export const EMPLOYER_COMPLIANCE_TYPES: ComplianceDocumentType[] = [
 
 export const ALL_COMPLIANCE_TYPES = [...SHARED_COMPLIANCE_TYPES, ...EMPLOYER_COMPLIANCE_TYPES]
 
+function byLabel(a: ComplianceDocumentType, b: ComplianceDocumentType) {
+  return a.label.localeCompare(b.label, 'en-GB', { sensitivity: 'base' })
+}
+
 export function typesFor(role: 'employee' | 'employer') {
-  return role === 'employer' ? ALL_COMPLIANCE_TYPES : SHARED_COMPLIANCE_TYPES
+  const list = role === 'employer' ? ALL_COMPLIANCE_TYPES : SHARED_COMPLIANCE_TYPES
+  return [...list].sort(byLabel)
 }
 
 export type ComplianceFile = {

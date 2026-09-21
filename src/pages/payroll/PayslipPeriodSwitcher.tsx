@@ -5,6 +5,7 @@ import type { PayrollRun, PayrollSchedule } from '../../types'
 import {
   FREQUENCY_META,
   asPayFrequency,
+  currentPeriodIndex,
   dateKey,
   hmrcPeriodLabel,
   periodsFromSavedSchedule,
@@ -45,6 +46,30 @@ export function findRunForPeriod(
     const start = String(run.period_start_date ?? '').slice(0, 10)
     return Boolean(periodStart && start === dateKey(periodStart))
   })
+}
+
+export function latestRunPeriodKey(runs: PayrollRun[], scheduleId: string) {
+  const matching = runs
+    .filter((run) => runScheduleId(run) === scheduleId && run.period_number != null)
+    .sort((left, right) =>
+      String(right.pay_date ?? right.period_end_date ?? '').localeCompare(
+        String(left.pay_date ?? left.period_end_date ?? ''),
+      ),
+    )
+  return matching[0] ? String(matching[0].period_number) : ''
+}
+
+export function defaultPeriodKey(
+  periods: { number: number }[],
+  runs: PayrollRun[],
+  scheduleId: string,
+) {
+  const fromRun = latestRunPeriodKey(runs, scheduleId)
+  if (fromRun && periods.some((period) => String(period.number) === fromRun)) {
+    return fromRun
+  }
+  const current = periods[currentPeriodIndex(periods)]
+  return current ? String(current.number) : ''
 }
 
 function PeriodMenu({

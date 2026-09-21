@@ -23,6 +23,7 @@ import { PayrollRunDetailPage } from './pages/payroll/PayrollRunDetailPage'
 import { PayrollRecordPage } from './pages/payroll/PayrollRecordPage'
 import { PayslipDispatchPage } from './pages/payroll/PayslipDispatchPage'
 import { ReopenPayslipsPage } from './pages/payroll/ReopenPayslipsPage'
+import { PensionPage } from './pages/payroll/PensionPage'
 import { BulkPayslipActionPage } from './pages/payroll/BulkPayslipActionPage'
 import { SwitchSchedulePage } from './pages/payroll/SwitchSchedulePage'
 import { PayslipsPage } from './pages/payroll/PayslipsPage'
@@ -198,6 +199,7 @@ export default function App() {
         <Route path="/payroll/runs/:runId/records/:recordId" element={<PayrollRecordPage />} />
         <Route path="/payroll/runs/:runId/payslips/:mode" element={<PayslipDispatchPage />} />
         <Route path="/payroll/runs/:runId/reopen" element={<ReopenPayslipsPage />} />
+        <Route path="/payroll/runs/:runId/pension" element={<PensionPage />} />
         <Route path="/payroll/runs/:runId/bulk/:action" element={<BulkPayslipActionPage />} />
         <Route path="/payroll/payslips/:runId/:recordId" element={<PayslipViewPage />} />
         <Route path="/payroll/payslips" element={<PayslipsPage />} />

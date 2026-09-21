@@ -14,11 +14,11 @@ import type { TimesheetOverview } from './hr/timesheets/timesheetTypes'
 import {
   FREQUENCY_META,
   asPayFrequency,
-  currentPeriodIndex,
   dateKey,
   hmrcPeriodLabel,
   periodsFromSavedSchedule,
 } from './payroll/scheduleWizard/payDateRules'
+import { defaultPeriodKey, runScheduleId } from './payroll/PayslipPeriodSwitcher'
 import iconEmployees from '../assets/brand/icon-employees.png'
 import iconPayroll from '../assets/brand/icon-payroll.png'
 import iconActivityCheck from '../assets/brand/icon-activity-check.png'
@@ -51,10 +51,6 @@ function scheduleLabel(schedule: PayrollSchedule, all: PayrollSchedule[]) {
   const duplicates = all.filter((item) => item.pay_frequency === schedule.pay_frequency).length > 1
   if (name && duplicates) return `${name} · ${frequency}`
   return name || frequency
-}
-
-function runScheduleId(run: PayrollRun) {
-  return String(run.schedule_id ?? run.payroll_schedules?.id ?? '')
 }
 
 function employeeScheduleId(employee: Employee) {
@@ -183,10 +179,9 @@ export function DashboardPage() {
     if (!selectedScheduleId) return
     if (scheduleId !== selectedScheduleId) setScheduleId(selectedScheduleId)
     if (!periodOptions.some((option) => option.key === periodKey)) {
-      const current = schedulePeriods[currentPeriodIndex(schedulePeriods)]
-      setPeriodKey(current ? String(current.number) : periodOptions[0]?.key ?? '')
+      setPeriodKey(defaultPeriodKey(schedulePeriods, payrollRuns, selectedScheduleId))
     }
-  }, [selectedScheduleId, scheduleId, periodOptions, periodKey, schedulePeriods])
+  }, [selectedScheduleId, scheduleId, periodOptions, periodKey, schedulePeriods, payrollRuns])
 
   const selectedSchedulePeriod =
     schedulePeriods.find((period) => String(period.number) === periodKey) ?? schedulePeriods[0]
@@ -278,8 +273,7 @@ export function DashboardPage() {
       return
     }
     const periods = periodsFromSavedSchedule(next).periods
-    const current = periods[currentPeriodIndex(periods)]
-    setPeriodKey(current ? String(current.number) : '')
+    setPeriodKey(defaultPeriodKey(periods, payrollRuns, nextId))
   }
 
   function shiftPeriod(direction: -1 | 1) {
