@@ -9,6 +9,7 @@ import {
   dateKey,
   hmrcPeriodLabel,
   periodsFromSavedSchedule,
+  type SchedulePeriod,
 } from './scheduleWizard/payDateRules'
 import {
   menuItemClass,
@@ -60,7 +61,7 @@ export function latestRunPeriodKey(runs: PayrollRun[], scheduleId: string) {
 }
 
 export function defaultPeriodKey(
-  periods: { number: number }[],
+  periods: SchedulePeriod[],
   runs: PayrollRun[],
   scheduleId: string,
 ) {
