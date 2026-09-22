@@ -7,7 +7,7 @@ import {
   type ReactNode,
 } from 'react'
 import { authApi } from '../api'
-import { COMPANY_KEY, TOKEN_KEY } from '../api/client'
+import { COMPANY_KEY, SESSION_EXPIRED_EVENT, TOKEN_KEY } from '../api/client'
 import type {
   AuthPayload,
   BureauAccess,
@@ -157,6 +157,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setEmployeeAccess(payload.employee_access ?? [])
     setBureauAccess(payload.bureau_access ?? [])
   }
+
+  useEffect(() => {
+    function onSessionExpired() {
+      setToken(null)
+      setUser(null)
+      setMemberships([])
+      setEmployeeAccess([])
+      setBureauAccess([])
+    }
+    window.addEventListener(SESSION_EXPIRED_EVENT, onSessionExpired)
+    return () => window.removeEventListener(SESSION_EXPIRED_EVENT, onSessionExpired)
+  }, [])
 
   useEffect(() => {
     let cancelled = false

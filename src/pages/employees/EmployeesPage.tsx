@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { Link, Outlet, useMatch, useNavigate } from 'react-router-dom'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { CalendarDays, ChevronLeft, Search } from 'lucide-react'
 import { employeesApi } from '../../api'
 import { useAuth } from '../../auth/AuthContext'
@@ -20,6 +21,7 @@ import { formLabel, isFormType } from './formsOptions'
 export function EmployeesPage() {
   const { companyId } = useAuth()
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
   const creating = Boolean(useMatch({ path: '/employees/new', end: true }))
   const calendarRoot = Boolean(useMatch({ path: '/employees/calendar', end: true }))
   const calendarMatch = useMatch('/employees/calendar/:employeeId')
@@ -62,6 +64,10 @@ export function EmployeesPage() {
   const [csvFile, setCsvFile] = useState<ParsedCsv | null>(null)
   const [csvMapping, setCsvMapping] = useState<Record<string, string>>({})
   const [csvError, setCsvError] = useState<string | null>(null)
+  const [selectedIds, setSelectedIds] = useState<string[]>([])
+  const [confirmingDelete, setConfirmingDelete] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
   const addMenuRef = useRef<HTMLDivElement>(null)
   const csvInputRef = useRef<HTMLInputElement>(null)
 
@@ -91,6 +97,9 @@ export function EmployeesPage() {
       ),
     )
   const selectedEmployee = employees.find((employee) => idOf(employee) === selectedId)
+  const visibleIds = employees.map((employee) => idOf(employee))
+  const allVisibleSelected = visibleIds.length > 0 && visibleIds.every((id) => selectedIds.includes(id))
+  const someVisibleSelected = visibleIds.some((id) => selectedIds.includes(id))
   const navySelected = inCalendar || inPensions || inBenefits || inForms
   const breadcrumb = inCalendar ? (
     <span className="text-navy">Calendar</span>
@@ -140,6 +149,37 @@ export function EmployeesPage() {
         : inForms
           ? 'Forms'
           : 'Edit Details'
+
+  function toggleSelected(id: string) {
+    setSelectedIds((current) =>
+      current.includes(id) ? current.filter((item) => item !== id) : [...current, id],
+    )
+  }
+
+  function toggleAllVisible() {
+    setSelectedIds((current) => {
+      if (allVisibleSelected) return current.filter((id) => !visibleIds.includes(id))
+      return [...new Set([...current, ...visibleIds])]
+    })
+  }
+
+  async function deleteSelected() {
+    if (!companyId || selectedIds.length === 0) return
+    try {
+      setDeleting(true)
+      setDeleteError(null)
+      await employeesApi.removeMany(companyId, selectedIds)
+      if (selectedId && selectedIds.includes(selectedId)) navigate('/employees')
+      setSelectedIds([])
+      setConfirmingDelete(false)
+      await queryClient.invalidateQueries({ queryKey: ['employees', companyId] })
+      await queryClient.invalidateQueries({ queryKey: ['payroll-runs', companyId] })
+    } catch (err) {
+      setDeleteError(err instanceof Error ? err.message : 'Could not delete these employees')
+    } finally {
+      setDeleting(false)
+    }
+  }
 
   async function onCsvPicked(file: File | undefined) {
     if (!file) return
@@ -260,7 +300,33 @@ export function EmployeesPage() {
       )}
       <div className="flex min-h-0 flex-1 gap-6">
         <aside className="flex h-full min-h-0 w-[288px] shrink-0 flex-col overflow-hidden rounded-[10px] bg-white shadow-[3px_4px_1.95px_rgba(0,0,0,0.09)] print:hidden">
-          <p className="px-4 pt-4 text-sm font-semibold text-navy">All Employees</p>
+          <div className="flex items-center justify-between gap-2 px-4 pt-4">
+            <label className="flex items-center gap-2 text-sm font-semibold text-navy">
+              <input
+                type="checkbox"
+                checked={allVisibleSelected}
+                ref={(element) => {
+                  if (element) element.indeterminate = someVisibleSelected && !allVisibleSelected
+                }}
+                onChange={toggleAllVisible}
+                disabled={employees.length === 0}
+                className="size-3.5 rounded border-[#d9d9d9] accent-navy"
+              />
+              All Employees
+            </label>
+            {selectedIds.length ? (
+              <button
+                type="button"
+                onClick={() => {
+                  setDeleteError(null)
+                  setConfirmingDelete(true)
+                }}
+                className="text-xs font-semibold text-brand hover:underline"
+              >
+                Delete ({selectedIds.length})
+              </button>
+            ) : null}
+          </div>
           <label className="relative mx-3 mt-3 block">
             <Search
               size={16}
@@ -283,26 +349,11 @@ export function EmployeesPage() {
                 const id = idOf(employee)
                 const active = selectedId === id
                 const hasLeft = Boolean(employeeLeaveDate(employee))
+                const checked = selectedIds.includes(id)
                 return (
-                  <button
+                  <div
                     key={id}
-                    type="button"
-                    onClick={() => {
-                      if (inForms && isFormType(formType)) {
-                        navigate(`/employees/forms/${formType}/${id}`)
-                        return
-                      }
-                      if (inPensions) {
-                        navigate(`/employees/pensions/${id}`)
-                        return
-                      }
-                      if (inBenefits) {
-                        navigate(`/employees/benefits/${id}`)
-                        return
-                      }
-                      navigate(inCalendar ? `/employees/calendar/${id}` : `/employees/${id}`)
-                    }}
-                    className={`flex w-full items-center gap-3 border-b border-[#d9d9d9] px-4 py-3.5 text-left text-base font-medium ${
+                    className={`flex w-full items-center gap-2 border-b border-[#d9d9d9] px-3 py-3.5 text-left text-base font-medium ${
                       active
                         ? navySelected
                           ? 'bg-navy text-white'
@@ -310,25 +361,53 @@ export function EmployeesPage() {
                         : 'bg-white text-navy hover:bg-[#f0f5fe]/70'
                     }`}
                   >
-                    <BrandIcon
-                      src={iconPerson}
-                      alt=""
-                      className={`h-[19px] w-4 ${hasLeft && !active ? 'opacity-50' : ''}`}
-                      tone={active && navySelected ? 'navy' : 'light'}
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={() => toggleSelected(id)}
+                      onClick={(event) => event.stopPropagation()}
+                      className="size-3.5 shrink-0 rounded border-[#d9d9d9] accent-navy"
+                      aria-label={`Select ${fullName(employee.first_name, employee.last_name)}`}
                     />
-                    <span className={`truncate ${hasLeft ? 'opacity-50' : ''}`}>
-                      {fullName(employee.first_name, employee.last_name)}
-                    </span>
-                  </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (inForms && isFormType(formType)) {
+                          navigate(`/employees/forms/${formType}/${id}`)
+                          return
+                        }
+                        if (inPensions) {
+                          navigate(`/employees/pensions/${id}`)
+                          return
+                        }
+                        if (inBenefits) {
+                          navigate(`/employees/benefits/${id}`)
+                          return
+                        }
+                        navigate(inCalendar ? `/employees/calendar/${id}` : `/employees/${id}`)
+                      }}
+                      className="flex min-w-0 flex-1 items-center gap-3 text-left"
+                    >
+                      <BrandIcon
+                        src={iconPerson}
+                        alt=""
+                        className={`h-[19px] w-4 ${hasLeft && !active ? 'opacity-50' : ''}`}
+                        tone={active && navySelected ? 'navy' : 'light'}
+                      />
+                      <span className={`truncate ${hasLeft ? 'opacity-50' : ''}`}>
+                        {fullName(employee.first_name, employee.last_name)}
+                      </span>
+                    </button>
+                  </div>
                 )
               })
             )}
           </div>
         </aside>
         <section className="min-h-0 min-w-0 flex-1 overflow-y-auto pb-4">
-          {csvError ? (
+          {csvError || deleteError ? (
             <div className="mb-4">
-              <Alert>{csvError}</Alert>
+              <Alert>{csvError || deleteError}</Alert>
             </div>
           ) : null}
           {csvFile ? (
@@ -355,6 +434,53 @@ export function EmployeesPage() {
           )}
         </section>
       </div>
+      {confirmingDelete
+        ? createPortal(
+            <div
+              className="fixed inset-0 z-[80] flex items-center justify-center bg-navy/40 px-4"
+              role="presentation"
+              onClick={() => {
+                if (!deleting) setConfirmingDelete(false)
+              }}
+            >
+              <div
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="delete-employees-title"
+                className="w-full max-w-[420px] rounded-[16px] bg-white p-6 shadow-xl"
+                onClick={(event) => event.stopPropagation()}
+              >
+                <h3 id="delete-employees-title" className="text-lg font-semibold text-navy">
+                  Delete {selectedIds.length === 1 ? 'this employee' : `${selectedIds.length} employees`}?
+                </h3>
+                <p className="mt-2 text-sm text-muted">
+                  This cannot be undone. Their payroll records and payslips will also be deleted.
+                </p>
+                <div className="mt-6 flex justify-end gap-3">
+                  <Button
+                    variant="secondary"
+                    type="button"
+                    className="h-10 min-w-[105px] text-xs"
+                    disabled={deleting}
+                    onClick={() => setConfirmingDelete(false)}
+                  >
+                    Keep
+                  </Button>
+                  <Button
+                    variant="danger"
+                    type="button"
+                    className="h-10 min-w-[105px] text-xs"
+                    disabled={deleting}
+                    onClick={() => void deleteSelected()}
+                  >
+                    {deleting ? 'Deleting…' : 'Delete'}
+                  </Button>
+                </div>
+              </div>
+            </div>,
+            document.body,
+          )
+        : null}
     </div>
   )
 }

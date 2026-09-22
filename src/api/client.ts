@@ -19,6 +19,7 @@ function resolveApiUrl() {
 export const API_URL = resolveApiUrl()
 export const TOKEN_KEY = 'cedar.access_token'
 export const COMPANY_KEY = 'cedar.company_id'
+export const SESSION_EXPIRED_EVENT = 'cedar.session-expired'
 
 export class ApiError extends Error {
   status: number
@@ -61,6 +62,7 @@ export async function api<T>(
     const isAuthRoute = path.startsWith('/auth/login') || path.startsWith('/auth/register')
     if (!isAuthRoute) {
       localStorage.removeItem(TOKEN_KEY)
+      window.dispatchEvent(new Event(SESSION_EXPIRED_EVENT))
     }
   }
 

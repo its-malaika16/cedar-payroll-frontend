@@ -9,6 +9,7 @@ import {
   Clock,
   FileText,
   GraduationCap,
+  Landmark,
   LogOut,
   Mail,
   MapPin,
@@ -17,11 +18,13 @@ import {
   User,
   Users,
 } from 'lucide-react'
-import { companiesApi, employeesApi, lookupsApi, payrollApi } from '../../api'
+import { companiesApi, employeesApi, hrApi, lookupsApi, payrollApi } from '../../api'
 import { assetUrl } from '../../api/client'
 import { useAuth } from '../../auth/AuthContext'
 import { Alert, Button, Loading } from '../../components/ui'
-import { formatDate, idOf, toDateInput } from '../../lib/format'
+import { fullName, idOf, toDateInput } from '../../lib/format'
+import { ComplianceDocumentsPanel } from '../hr/compliance/ComplianceDocumentsPanel'
+import type { ComplianceFile } from '../hr/compliance/documentTypes'
 import type { Company, Employee, PayrollSchedule } from '../../types'
 import { defaultPayScheduleValue } from '../settings/employerSettings'
 import {
@@ -36,7 +39,7 @@ import {
   MIN_WAGE_PROFILES,
   NEW_PAY_SCHEDULES,
   NI_CATEGORIES,
-  PAY_BASIS_OPTIONS,
+  PAYMENT_METHODS,
   PAYROLL_ID_CHANGE_OPTIONS,
   POSTGRADUATE_LOAN_PLANS,
   STARTER_DECLARATIONS,
@@ -92,6 +95,12 @@ type Draft = {
   extra_hourly_rates: string[]
   daily_rate: string
   extra_daily_rates: string[]
+  payment_method: string
+  bank_sort_code: string
+  bank_name: string
+  bank_account_number: string
+  bank_account_name: string
+  bank_reference: string
   tax_code: string
   week1month1: boolean
   ni_number: string
@@ -169,6 +178,12 @@ const emptyDraft = (company?: Company | null, schedules: PayrollSchedule[] = [])
   extra_hourly_rates: [],
   daily_rate: '0.00',
   extra_daily_rates: [],
+  payment_method: 'CREDIT_TRANSFER',
+  bank_sort_code: '',
+  bank_name: '',
+  bank_account_number: '',
+  bank_account_name: '',
+  bank_reference: '',
   tax_code: '',
   week1month1: false,
   ni_number: '',
@@ -215,9 +230,6 @@ export function EmployeeWorkspace() {
   const [message, setMessage] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [photoFile, setPhotoFile] = useState<File | null>(null)
-  const [docTitle, setDocTitle] = useState('Right to work')
-  const [docType, setDocType] = useState('pdf')
-  const [docFile, setDocFile] = useState<File | null>(null)
   const [postcodeError, setPostcodeError] = useState<string | null>(null)
   const [postcodeChecking, setPostcodeChecking] = useState(false)
   const [confirmingDelete, setConfirmingDelete] = useState(false)
@@ -238,16 +250,16 @@ export function EmployeeWorkspace() {
     queryFn: () => companiesApi.get(companyId!),
     enabled: Boolean(companyId) && isNew,
   })
-  const documentsQuery = useQuery({
-    queryKey: ['employee-docs', companyId, employeeId],
-    queryFn: () => employeesApi.documents(companyId!, employeeId!),
-    enabled: Boolean(companyId && employeeId),
+  const complianceQuery = useQuery({
+    queryKey: ['my-compliance', companyId, employeeId],
+    queryFn: () => hrApi.myCompliance(companyId!, employeeId!),
+    enabled: Boolean(companyId && employeeId) && tab === 'Compliance',
   })
 
   const employee = employeeQuery.data?.data as Employee | undefined
   const schedules = (schedulesQuery.data?.data ?? []) as PayrollSchedule[]
   const company = companyQuery.data?.data as Company | undefined
-  const documents = (documentsQuery.data?.data as Record<string, unknown>[] | undefined) ?? []
+  const complianceDocuments = (complianceQuery.data?.data as ComplianceFile[] | undefined) ?? []
   const assignedScheduleId = str(asRecord(employee?.employment_details).pay_schedule_id)
 
   useEffect(() => {
@@ -434,7 +446,7 @@ export function EmployeeWorkspace() {
 
     if (tab === 'Employment') {
       await employeesApi.update(companyId, employeeId, {
-        employee_code: draft.works_number || undefined,
+        employee_code: draft.works_number.trim(),
       })
       await employeesApi.updateEmployment(companyId, employeeId, {
         department: draft.departments.map((item) => item.trim()).filter(Boolean).join(', '),
@@ -496,6 +508,27 @@ export function EmployeeWorkspace() {
           .map((value) => Number(value))
           .filter((value) => !Number.isNaN(value)),
       })
+      const sortCode = compactSortCode(draft.bank_sort_code)
+      const accountNumber = draft.bank_account_number.replace(/\D/g, '')
+      if (needsBankAccount(draft.payment_method) && (sortCode || accountNumber || draft.bank_account_name.trim())) {
+        if (!/^\d{6}$/.test(sortCode)) {
+          throw new Error('Enter a 6-digit sort code')
+        }
+        if (!/^\d{8}$/.test(accountNumber)) {
+          throw new Error('Enter an 8-digit account number')
+        }
+        if (!draft.bank_account_name.trim()) {
+          throw new Error('Enter the bank account name')
+        }
+      }
+      await employeesApi.updateBank(companyId, employeeId, {
+        payment_method: draft.payment_method,
+        bank_name: draft.bank_name.trim() || null,
+        account_name: draft.bank_account_name.trim() || null,
+        account_number: accountNumber || null,
+        sort_code: sortCode ? formatSortCode(sortCode) : null,
+        bank_reference: draft.bank_reference.trim() || null,
+      })
     }
 
     if (tab === 'Tax, NICs, RTI') {
@@ -547,17 +580,6 @@ export function EmployeeWorkspace() {
     await queryClient.invalidateQueries({ queryKey: ['payroll-runs', companyId] })
     await queryClient.invalidateQueries({ queryKey: ['payroll-run', companyId] })
     await queryClient.invalidateQueries({ queryKey: ['payroll-record', companyId] })
-  }
-
-  async function uploadComplianceDocument() {
-    if (!companyId || !employeeId || !docFile) return
-    const form = new FormData()
-    form.append('file', docFile)
-    form.append('title', docTitle)
-    form.append('file_type', docType)
-    await employeesApi.uploadDocument(companyId, employeeId, form)
-    setDocFile(null)
-    await queryClient.invalidateQueries({ queryKey: ['employee-docs', companyId, employeeId] })
   }
 
   if (!isNew && employeeQuery.isLoading) return <Loading />
@@ -759,9 +781,9 @@ export function EmployeeWorkspace() {
             <section className="flex h-full flex-col rounded-[10px] border border-[#d9d9d9] bg-white p-5">
               <CardHead icon={<User size={16} />} title="Identification" />
               <div className="max-w-[346px]">
-                <Field label="Works Number">
+                <Field label="Works Number" hint="generated automatically">
                   <Input
-                    placeholder="--"
+                    placeholder="CP101"
                     value={draft.works_number}
                     onChange={(e) => setDraft({ ...draft, works_number: e.target.value })}
                   />
@@ -954,6 +976,13 @@ export function EmployeeWorkspace() {
                   />
                 </Field>
               </div>
+              <div className="mt-5">
+                <CheckRow
+                  label="Tick if employee continues to be employed by an overseas employer (who has sent this individual to work for you)."
+                  checked={draft.overseas_secondment}
+                  onChange={(checked) => setDraft({ ...draft, overseas_secondment: checked })}
+                />
+              </div>
               <div className="mt-5 grid max-w-[760px] grid-cols-1 items-start gap-x-8 gap-y-4 sm:grid-cols-2">
                 <div>
                   <p className="mb-1.5 text-xs font-medium text-navy">Payment Schedule</p>
@@ -972,32 +1001,15 @@ export function EmployeeWorkspace() {
                     </p>
                   ) : null}
                 </div>
-                <div className="space-y-4">
-                  <div>
-                    <p className="mb-1.5 text-xs font-medium text-navy">How is pay worked out?</p>
-                    <OptionSelect
-                      value={draft.pay_basis_type}
-                      options={PAY_BASIS_OPTIONS}
-                      onChange={(value) => setDraft({ ...draft, pay_basis_type: value })}
-                    />
-                  </div>
-                  <div>
-                    <p className="mb-1.5 text-xs font-medium text-navy">Starter declaration</p>
-                    <OptionSelect
-                      value={draft.starter_declaration}
-                      options={STARTER_DECLARATIONS}
-                      placeholder="Select"
-                      onChange={(value) => setDraft({ ...draft, starter_declaration: value })}
-                    />
-                  </div>
+                <div>
+                  <p className="mb-1.5 text-xs font-medium text-navy">Starter declaration</p>
+                  <OptionSelect
+                    value={draft.starter_declaration}
+                    options={STARTER_DECLARATIONS}
+                    placeholder="Select"
+                    onChange={(value) => setDraft({ ...draft, starter_declaration: value })}
+                  />
                 </div>
-              </div>
-              <div className="mt-5">
-                <CheckRow
-                  label="Tick if employee continues to be employed by an overseas employer (who has sent this individual to work for you)."
-                  checked={draft.overseas_secondment}
-                  onChange={(checked) => setDraft({ ...draft, overseas_secondment: checked })}
-                />
               </div>
               {showsPreviousEmployment(draft.starter_declaration) ? (
                 <div className="mt-6">
@@ -1057,45 +1069,84 @@ export function EmployeeWorkspace() {
 
         {tab === 'Payment' ? (
           <div className="grid gap-4">
-            <Section title="Payment Schedule" icon={<span className="text-lg font-semibold">£</span>}>
+            <Section title="Payment method" icon={<Landmark size={16} />}>
               <div className="grid max-w-[760px] grid-cols-1 gap-x-8 gap-y-4 sm:grid-cols-2">
-                <div>
-                  <p className="mb-1.5 text-xs font-medium text-navy">Payment Schedule</p>
+                <Field label="Payment method">
                   <OptionSelect
-                    value={draft.pay_schedule}
-                    groups={payScheduleGroups(schedules)}
-                    disabled={Boolean(assignedScheduleId)}
-                    onChange={(value) => setDraft({ ...draft, pay_schedule: value })}
-                  />
-                  {assignedScheduleId ? (
-                    <p className="mt-1.5 text-[11px] text-muted">
-                      An employee can only be on one schedule.{' '}
-                      <Link to="/payroll/switch-schedule" className="font-medium text-navy underline">
-                        Switch Employee(s) Payment Schedule
-                      </Link>
-                    </p>
-                  ) : null}
-                </div>
-                <div>
-                  <p className="mb-1.5 text-xs font-medium text-navy">How is pay worked out?</p>
-                  <OptionSelect
-                    value={draft.pay_basis_type}
-                    options={PAY_BASIS_OPTIONS}
-                    onChange={(value) => setDraft({ ...draft, pay_basis_type: value })}
-                  />
-                </div>
-                <Field label="Period rate">
-                  <CurrencyInput
-                    value={draft.period_rate}
-                    onChange={(value) => setDraft({ ...draft, period_rate: value })}
+                    value={draft.payment_method}
+                    options={PAYMENT_METHODS}
+                    onChange={(value) => setDraft({ ...draft, payment_method: value })}
                   />
                 </Field>
-                <Field label="Annual salary">
-                  <CurrencyInput
-                    value={draft.annual_salary}
-                    onChange={(value) => setDraft({ ...draft, annual_salary: value })}
-                  />
-                </Field>
+                {needsBankAccount(draft.payment_method) ? (
+                  <>
+                    <div className="hidden sm:block" />
+                    <Field label="Bank sort code">
+                      <Input
+                        inputMode="numeric"
+                        autoComplete="off"
+                        placeholder="00-00-00"
+                        value={draft.bank_sort_code}
+                        onChange={(e) =>
+                          setDraft({ ...draft, bank_sort_code: formatSortCode(e.target.value) })
+                        }
+                      />
+                    </Field>
+                    <Field label="Bank name">
+                      <Input
+                        value={draft.bank_name}
+                        onChange={(e) => setDraft({ ...draft, bank_name: e.target.value })}
+                      />
+                    </Field>
+                    <Field label="Bank account number">
+                      <Input
+                        inputMode="numeric"
+                        autoComplete="off"
+                        maxLength={8}
+                        value={draft.bank_account_number}
+                        onChange={(e) =>
+                          setDraft({
+                            ...draft,
+                            bank_account_number: e.target.value.replace(/\D/g, '').slice(0, 8),
+                          })
+                        }
+                      />
+                    </Field>
+                    <Field label="Bank account name">
+                      <Input
+                        value={draft.bank_account_name}
+                        onChange={(e) => setDraft({ ...draft, bank_account_name: e.target.value })}
+                      />
+                    </Field>
+                    <Field label="Bank reference">
+                      <Input
+                        maxLength={50}
+                        value={draft.bank_reference}
+                        onChange={(e) => setDraft({ ...draft, bank_reference: e.target.value })}
+                      />
+                    </Field>
+                  </>
+                ) : null}
+              </div>
+            </Section>
+
+            <Section title="Payment Schedule" icon={<span className="text-lg font-semibold">£</span>}>
+              <div className="max-w-[369px]">
+                <p className="mb-1.5 text-xs font-medium text-navy">Payment Schedule</p>
+                <OptionSelect
+                  value={draft.pay_schedule}
+                  groups={payScheduleGroups(schedules)}
+                  disabled={Boolean(assignedScheduleId)}
+                  onChange={(value) => setDraft({ ...draft, pay_schedule: value })}
+                />
+                {assignedScheduleId ? (
+                  <p className="mt-1.5 text-[11px] text-muted">
+                    An employee can only be on one schedule.{' '}
+                    <Link to="/payroll/switch-schedule" className="font-medium text-navy underline">
+                      Switch Employee(s) Payment Schedule
+                    </Link>
+                  </p>
+                ) : null}
               </div>
             </Section>
 
@@ -1395,63 +1446,38 @@ export function EmployeeWorkspace() {
         ) : null}
 
         {tab === 'Compliance' ? (
-          <Section title="Compliance documents">
-            {isNew ? (
-              <p className="text-sm text-muted">Save the employee first, then upload documents.</p>
+          <section className="flex min-h-[520px] flex-col overflow-hidden rounded-[10px] border border-[#d9d9d9] bg-white">
+            {isNew || !companyId || !employeeId ? (
+              <p className="p-5 text-sm text-muted">Save the employee first, then upload documents.</p>
             ) : (
               <>
-                <div className="grid grid-cols-[repeat(auto-fill,minmax(180px,230px))] gap-4">
-                  <Field label="Title">
-                    <Input value={docTitle} onChange={(e) => setDocTitle(e.target.value)} />
-                  </Field>
-                  <Field label="Type">
-                    <Select value={docType} onChange={(e) => setDocType(e.target.value)}>
-                      <option value="pdf">pdf</option>
-                      <option value="doc">doc</option>
-                      <option value="image">image</option>
-                      <option value="other">other</option>
-                    </Select>
-                  </Field>
-                  <Field label="File">
-                    <Input type="file" onChange={(e) => setDocFile(e.target.files?.[0] ?? null)} />
-                  </Field>
+                <div className="border-b border-[#eceae6] px-5 py-4">
+                  <h2 className="text-lg font-semibold text-navy">
+                    {fullName(draft.first_name, draft.last_name)}
+                  </h2>
+                  <p className="text-sm text-muted">
+                    Upload, review and control which employer files the employee can see.
+                  </p>
                 </div>
-                <div className="mt-4">
-                  <Button
-                    type="button"
-                    onClick={async () => {
-                      try {
-                        setError(null)
-                        await uploadComplianceDocument()
-                        setMessage('Document uploaded')
-                      } catch (err) {
-                        setError(err instanceof Error ? err.message : 'Upload failed')
-                      }
-                    }}
-                  >
-                    Upload
-                  </Button>
-                </div>
-                <div className="mt-6 divide-y divide-[#eee]">
-                  {documents.length === 0 ? (
-                    <p className="py-4 text-sm text-muted">No documents uploaded yet.</p>
-                  ) : (
-                    documents.map((doc) => (
-                      <div key={idOf(doc)} className="flex items-center justify-between py-3">
-                        <div>
-                          <p className="font-medium text-navy">{String(doc.title ?? 'Document')}</p>
-                          <p className="text-sm text-muted">{formatDate(String(doc.uploaded_at ?? ''))}</p>
-                        </div>
-                        <span className="text-xs font-semibold uppercase text-muted">
-                          {String(doc.file_type ?? '')}
-                        </span>
-                      </div>
-                    ))
-                  )}
-                </div>
+                {complianceQuery.isError ? (
+                  <div className="px-5 pt-5">
+                    <Alert>
+                      {complianceQuery.error instanceof Error
+                        ? complianceQuery.error.message
+                        : 'Could not load compliance documents'}
+                    </Alert>
+                  </div>
+                ) : null}
+                <ComplianceDocumentsPanel
+                  companyId={companyId}
+                  employeeId={employeeId}
+                  role="employer"
+                  documents={complianceDocuments}
+                  loading={complianceQuery.isLoading}
+                />
               </>
             )}
-          </Section>
+          </section>
         ) : null}
       </div>
 
@@ -1479,25 +1505,27 @@ export function EmployeeWorkspace() {
         >
           Cancel
         </Button>
-        <Button
-          type="button"
-          className="h-10 w-[105px] text-xs"
-          disabled={saving || locked}
-          onClick={async () => {
-            try {
-              setSaving(true)
-              setError(null)
-              await saveCurrentTab()
-              setMessage('Saved')
-            } catch (err) {
-              setError(err instanceof Error ? err.message : 'Save failed')
-            } finally {
-              setSaving(false)
-            }
-          }}
-        >
-          {saving ? 'Saving…' : 'Save'}
-        </Button>
+        {tab === 'Compliance' ? null : (
+          <Button
+            type="button"
+            className="h-10 w-[105px] text-xs"
+            disabled={saving || locked}
+            onClick={async () => {
+              try {
+                setSaving(true)
+                setError(null)
+                await saveCurrentTab()
+                setMessage('Saved')
+              } catch (err) {
+                setError(err instanceof Error ? err.message : 'Save failed')
+              } finally {
+                setSaving(false)
+              }
+            }}
+          >
+            {saving ? 'Saving…' : 'Save'}
+          </Button>
+        )}
       </div>
 
       {confirmingDelete
@@ -2033,6 +2061,7 @@ function contactsFrom(
 
 function draftFromEmployee(employee: Employee, schedules: PayrollSchedule[]): Draft {
   const address = asRecord(employee.employee_addresses)
+  const bank = asRecord(employee.bank_details)
   const employment = asRecord(employee.employment_details)
   const starter = asRecord(employee.starters_leavers)
   const tax = asRecord(employee.employee_tax_details)
@@ -2115,6 +2144,12 @@ function draftFromEmployee(employee: Employee, schedules: PayrollSchedule[]): Dr
     extra_hourly_rates: asJsonArray<number>(employment.extra_hourly_rates).map(String),
     daily_rate: str(employment.daily_rate) || '0.00',
     extra_daily_rates: asJsonArray<number>(employment.extra_daily_rates).map(String),
+    payment_method: str(bank.payment_method) || 'CREDIT_TRANSFER',
+    bank_sort_code: formatSortCode(str(bank.sort_code)),
+    bank_name: str(bank.bank_name),
+    bank_account_number: str(bank.account_number).replace(/\D/g, '').slice(0, 8),
+    bank_account_name: str(bank.account_name),
+    bank_reference: str(bank.bank_reference),
     tax_code: str(tax.tax_code),
     week1month1: Boolean(tax.week1month1),
     ni_number: str(tax.ni_number),
@@ -2178,6 +2213,19 @@ function toNumber(value: string) {
   if (!value.trim()) return undefined
   const amount = Number(value)
   return Number.isNaN(amount) ? undefined : amount
+}
+
+function needsBankAccount(method: string) {
+  return method === 'CREDIT_TRANSFER' || method === 'FASTER_PAYMENTS'
+}
+
+function compactSortCode(value: string) {
+  return value.replace(/\D/g, '').slice(0, 6)
+}
+
+function formatSortCode(value: string) {
+  const digits = compactSortCode(value)
+  return digits.replace(/(\d{2})(?=\d)/g, '$1-')
 }
 
 function parsePaySchedule(value: string) {

@@ -177,10 +177,12 @@ export type Employee = {
   }[]
   bank_details?: {
     id: string
+    payment_method?: string | null
     bank_name?: string | null
     account_name?: string | null
     account_number?: string | null
     sort_code?: string | null
+    bank_reference?: string | null
   }[]
   employee_tax_details?: Record<string, unknown>[]
   employment_details?: Record<string, unknown>[]

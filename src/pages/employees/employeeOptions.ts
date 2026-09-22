@@ -80,6 +80,17 @@ export const NEW_PAY_SCHEDULES = [
   { value: 'yearly', label: 'Requires new yearly pay schedule' },
 ] as const
 
+export const PAYMENT_METHODS = [
+  { value: 'CREDIT_TRANSFER', label: 'Credit transfer' },
+  { value: 'FASTER_PAYMENTS', label: 'Faster Payments' },
+  { value: 'CHEQUE', label: 'Cheque' },
+  { value: 'CASH', label: 'Cash' },
+] as const
+
+export function paymentMethodLabel(value?: string | null) {
+  return PAYMENT_METHODS.find((item) => item.value === value)?.label ?? String(value ?? '').trim()
+}
+
 export const PAY_BASIS_OPTIONS = [
   { value: 'ANNUAL', label: 'Based on a rate/annual salary' },
   { value: 'DAILY', label: 'Based on a daily rate' },

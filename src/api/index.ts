@@ -77,6 +77,8 @@ export const employeesApi = {
     patch<Employee>(`/companies/${companyId}/employees/${employeeId}`, body),
   remove: (companyId: string, employeeId: string) =>
     del(`/companies/${companyId}/employees/${employeeId}`),
+  removeMany: (companyId: string, employeeIds: string[]) =>
+    post(`/companies/${companyId}/employees/bulk-delete`, { employee_ids: employeeIds }),
   getAddress: (companyId: string, employeeId: string) =>
     get(`/companies/${companyId}/employees/${employeeId}/address`),
   updateAddress: (companyId: string, employeeId: string, body: Record<string, unknown>) =>

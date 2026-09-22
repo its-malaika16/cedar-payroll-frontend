@@ -5,7 +5,7 @@ import { useAuth } from '../../auth/AuthContext'
 import { Alert, Button, Card, Field, Input, Loading, PageHeader, Select } from '../../components/ui'
 import { formatDate, formatNiNumber, money, toDateInput } from '../../lib/format'
 import type { Employee } from '../../types'
-import { GENDER_OPTIONS, TITLE_OPTIONS } from '../employees/employeeOptions'
+import { GENDER_OPTIONS, TITLE_OPTIONS, paymentMethodLabel } from '../employees/employeeOptions'
 
 const TABS = ['Personal', 'Employment', 'Starter/Leaver', 'Payment', 'Tax/NICs/RTI'] as const
 type Tab = (typeof TABS)[number]
@@ -241,10 +241,12 @@ export function EmployeeInformationPage() {
               <ReadField label="Hourly rate" value={employment?.basic_rate_per_hour != null ? money(employment.basic_rate_per_hour) : '—'} />
               <ReadField label="Daily rate" value={employment?.daily_rate != null ? money(employment.daily_rate) : '—'} />
               <ReadField label="Period rate" value={employment?.period_rate != null ? money(employment.period_rate) : '—'} />
+              <ReadField label="Payment method" value={paymentMethodLabel(bank?.payment_method)} />
               <ReadField label="Bank name" value={bank?.bank_name} />
               <ReadField label="Account name" value={bank?.account_name} />
               <ReadField label="Account number" value={bank?.account_number} />
               <ReadField label="Sort code" value={bank?.sort_code} />
+              <ReadField label="Bank reference" value={bank?.bank_reference} />
             </div>
           ) : null}
 

@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { employeesApi } from '../../api'
+import { ApiError } from '../../api/client'
 import { useAuth } from '../../auth/AuthContext'
 import { Alert, Button, Card } from '../../components/ui'
 import { idOf } from '../../lib/format'
@@ -85,8 +86,12 @@ export function EmployeeCsvImport({
       }
       seenEmails.add(email)
       try {
+        const rawTitle = value('title')
+        const rawJobTitle = value('job_title')
+        const title = rawTitle && rawTitle.length <= 20 ? rawTitle : undefined
+        const jobTitle = rawJobTitle || (rawTitle.length > 20 ? rawTitle : undefined)
         const created = await employeesApi.create(companyId, {
-          title: value('title') || undefined,
+          title: title || undefined,
           first_name: firstName,
           middle_name: value('middle_name') || undefined,
           last_name: lastName,
@@ -94,7 +99,6 @@ export function EmployeeCsvImport({
           gender,
           email,
           phone: value('phone') || undefined,
-          employee_code: value('employee_code') || undefined,
         })
         const employeeId = idOf(created.data)
         const address = {
@@ -111,19 +115,23 @@ export function EmployeeCsvImport({
         const hourly = parseCsvNumber(value('hourly_rate'))
         const daily = parseCsvNumber(value('daily_rate'))
         const salary = parseCsvNumber(value('annual_salary'))
-        await employeesApi.updateEmployment(companyId, employeeId, {
-          job_title: value('job_title') || undefined,
-          department: value('department') || undefined,
-          annual_salary: salary,
-          basic_rate_per_hour: hourly,
-          daily_rate: daily,
-          pay_basis_type: hourly ? 'HOURLY' : daily ? 'DAILY' : salary ? 'ANNUAL' : undefined,
-        })
-        if (value('start_date')) {
-          const start = parseCsvDate(value('start_date'))
-          if (start) {
-            await employeesApi.updateStarterLeaver(companyId, employeeId, { start_date: start })
-          }
+        if (jobTitle || value('department') || salary != null || hourly != null || daily != null) {
+          await employeesApi.updateEmployment(companyId, employeeId, {
+            job_title: jobTitle || undefined,
+            department: value('department') || undefined,
+            ...(salary != null ? { annual_salary: salary } : {}),
+            ...(hourly != null ? { basic_rate_per_hour: hourly } : {}),
+            ...(daily != null ? { daily_rate: daily } : {}),
+            pay_basis_type: hourly ? 'HOURLY' : daily ? 'DAILY' : salary ? 'ANNUAL' : undefined,
+          })
+        }
+        const start = parseCsvDate(value('start_date'))
+        const leave = parseCsvDate(value('leave_date'))
+        if (start || leave) {
+          await employeesApi.updateStarterLeaver(companyId, employeeId, {
+            ...(start ? { start_date: start } : {}),
+            ...(leave ? { leave_date: leave } : {}),
+          })
         }
         const recommendedNi = recommendedNiCategoryFromDob(dob) ?? 'A'
         const csvNi = parseCsvNiCategory(value('ni_category'))
@@ -138,11 +146,17 @@ export function EmployeeCsvImport({
         })
         imported += 1
       } catch (err) {
+        const sessionLost = err instanceof ApiError && err.status === 401
         failed.push({
           row: index + 2,
           name,
-          reason: err instanceof Error ? err.message : 'Could not create this employee',
+          reason: sessionLost
+            ? 'Your login session expired. Sign in again, then import the CSV again.'
+            : err instanceof Error
+              ? err.message
+              : 'Could not create this employee',
         })
+        if (sessionLost) break
       }
     }
     await queryClient.invalidateQueries({ queryKey: ['employees', companyId] })

@@ -1,5 +1,6 @@
 import { formatDate, money } from '../../lib/format'
 import type { Employee } from '../../types'
+import { paymentMethodLabel } from '../employees/employeeOptions'
 
 function first<T>(list: T[] | undefined | null): T | undefined {
   return list?.[0]
@@ -99,6 +100,8 @@ export function employeeFieldValue(employee: Employee, fieldId: string): string 
       return flag(tax.is_director)
     case 'annual_salary':
       return amount(job.annual_salary)
+    case 'payment_method':
+      return text(paymentMethodLabel(bank.payment_method == null ? '' : String(bank.payment_method)))
     case 'bank_name':
       return text(bank.bank_name)
     case 'sort_code':
@@ -107,6 +110,8 @@ export function employeeFieldValue(employee: Employee, fieldId: string): string 
       return text(bank.account_name)
     case 'account_number':
       return text(bank.account_number)
+    case 'bank_reference':
+      return text(bank.bank_reference)
     case 'start_date':
       return date(starter.start_date)
     case 'leave_date':
