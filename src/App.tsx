@@ -62,10 +62,10 @@ import { EmployeeDashboardPage } from './pages/portal/EmployeeDashboardPage'
 import { EmployeeHelpPage } from './pages/portal/EmployeeHelpPage'
 import { EmployeeInformationPage } from './pages/portal/EmployeeInformationPage'
 import { EmployeeProfilePage } from './pages/portal/EmployeeProfilePage'
+import { PortalAttendancePage } from './pages/portal/EmployeeAttendancePage'
+import { PortalLeavePage, EmployeeLeaveRequestsPage } from './pages/portal/EmployeeLeavePage'
+import { PortalDocumentsPage, EmployeeDocumentUploadPage } from './pages/portal/EmployeeDocumentsPage'
 import {
-  PortalAttendancePage,
-  PortalDocumentsPage,
-  PortalLeavePage,
   PortalPayslipsPage,
   PortalRotaPage,
 } from './pages/portal/PortalPages'
@@ -252,8 +252,10 @@ export default function App() {
         <Route path="/portal/payslips" element={<PortalPayslipsPage />} />
         <Route path="/portal/rota" element={<PortalRotaPage />} />
         <Route path="/portal/leave" element={<PortalLeavePage />} />
+        <Route path="/portal/leave/requests" element={<EmployeeLeaveRequestsPage />} />
         <Route path="/portal/attendance" element={<PortalAttendancePage />} />
         <Route path="/portal/documents" element={<PortalDocumentsPage />} />
+        <Route path="/portal/documents/upload" element={<EmployeeDocumentUploadPage />} />
         <Route path="/portal/notifications" element={<NotificationsPage />} />
         <Route path="/portal/help" element={<EmployeeHelpPage />} />
         <Route path="/portal/help/chat" element={<HelpChatPage />} />

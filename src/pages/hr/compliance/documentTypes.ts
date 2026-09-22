@@ -6,7 +6,7 @@ export type ComplianceDocumentType = {
 }
 
 export const SHARED_COMPLIANCE_TYPES: ComplianceDocumentType[] = [
-  { key: 'RIGHT_TO_WORK', label: 'Right to work', requiresExpiry: false, employerOnly: false },
+  { key: 'RIGHT_TO_WORK', label: 'Right to work', requiresExpiry: true, employerOnly: false },
   { key: 'PASSPORT', label: 'Passport', requiresExpiry: true, employerOnly: false },
   {
     key: 'VISA',
@@ -41,7 +41,7 @@ export const SHARED_COMPLIANCE_TYPES: ComplianceDocumentType[] = [
   {
     key: 'QUALIFICATION',
     label: 'Professional qualification / certification',
-    requiresExpiry: false,
+    requiresExpiry: true,
     employerOnly: false,
   },
   { key: 'DRIVING_LICENCE', label: 'Driving licence', requiresExpiry: true, employerOnly: false },
@@ -75,9 +75,8 @@ function byLabel(a: ComplianceDocumentType, b: ComplianceDocumentType) {
   return a.label.localeCompare(b.label, 'en-GB', { sensitivity: 'base' })
 }
 
-export function typesFor(role: 'employee' | 'employer') {
-  const list = role === 'employer' ? ALL_COMPLIANCE_TYPES : SHARED_COMPLIANCE_TYPES
-  return [...list].sort(byLabel)
+export function typesFor(_role: 'employee' | 'employer') {
+  return [...ALL_COMPLIANCE_TYPES].sort(byLabel)
 }
 
 export type ComplianceFile = {

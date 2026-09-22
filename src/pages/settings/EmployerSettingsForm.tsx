@@ -209,7 +209,7 @@ export function EmployerSettingsForm({
 
           <Section title="Workplace check-in">
             <p className="mb-4 text-sm text-muted">
-              Employees must be within this radius to check in and check out. Default is 3 km.
+              Employees can only check in or out when they are within 3-5 km of the workplace.
             </p>
             <div className="grid gap-4 sm:grid-cols-2">
               <Field label="Latitude">
@@ -227,7 +227,7 @@ export function EmployerSettingsForm({
                 />
               </Field>
             </div>
-            <Field label="Check-in radius (metres)">
+            <Field label="Check-in radius (metres, 3000-5000)">
               <Input
                 value={form.attendance_radius_meters}
                 onChange={(event) => patchForm({ attendance_radius_meters: event.target.value })}

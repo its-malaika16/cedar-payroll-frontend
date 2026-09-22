@@ -37,6 +37,44 @@ export type EmployeeAccess = {
   modules: string[]
 }
 
+export type EmployeePortalDashboard = {
+  first_name?: string | null
+  last_name?: string | null
+  latest_take_home: number
+  latest_pay_date?: string | null
+  latest_period_end?: string | null
+  latest_pay_frequency?: string | null
+  latest_run_id?: string | null
+  latest_record_id?: string | null
+  breakdown: {
+    additions: number
+    deductions: number
+    tax: number
+    employee_nic: number
+    employee_pension: number
+    take_home: number
+  }
+  leave: {
+    days_remaining: number
+    days_entitled: number
+  }
+  next_payroll: {
+    pay_date: string
+    status: string
+    tax_week?: number | null
+    pay_frequency?: string | null
+  } | null
+  tax_year: number
+  monthly_pay: Array<{ month: number; amount: number }>
+  next_shift: {
+    shift_date: string
+    start_time: string
+    end_time: string
+    role_name?: string | null
+    location?: string | null
+  } | null
+}
+
 export type BureauAccess = {
   bureau_id: string
   bureau_name: string
@@ -334,6 +372,7 @@ export type PayrollRecord = {
   finalised_at?: string | null
   employees?: Employee
   payroll_runs?: PayrollRun
+  payslips?: { id: string; file_name?: string | null; is_published?: boolean } | null
   year_to_date?: PayrollYearToDate | null
 }
 

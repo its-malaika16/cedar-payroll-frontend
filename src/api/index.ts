@@ -7,6 +7,7 @@ import type {
   Company,
   CompanyUserRole,
   Employee,
+  EmployeePortalDashboard,
   PayrollRecord,
   PayrollRun,
   PayrollPension,
@@ -136,8 +137,24 @@ export const employeesApi = {
     patch(`/companies/${companyId}/employees/${employeeId}/me/personal`, body),
   latestPayroll: (companyId: string, employeeId: string) =>
     get(`/companies/${companyId}/employees/${employeeId}/me/latest-payroll`),
+  portalDashboard: (companyId: string, employeeId: string) =>
+    get<EmployeePortalDashboard>(`/companies/${companyId}/employees/${employeeId}/me/dashboard`),
   myPayslips: (companyId: string, employeeId: string) =>
     get(`/companies/${companyId}/employees/${employeeId}/me/payslips`),
+  myPayrollRecord: (companyId: string, employeeId: string, recordId: string) =>
+    get<PayrollRecord>(
+      `/companies/${companyId}/employees/${employeeId}/me/payroll-records/${recordId}`,
+    ),
+  downloadMyPayslip: (
+    companyId: string,
+    employeeId: string,
+    payslipId: string,
+    filename: string,
+  ) =>
+    download(
+      `/companies/${companyId}/employees/${employeeId}/me/payslips/${payslipId}/download`,
+      filename,
+    ),
   myP45: (companyId: string, employeeId: string) =>
     get(`/companies/${companyId}/employees/${employeeId}/me/p45`),
   myP60: (companyId: string, employeeId: string) =>

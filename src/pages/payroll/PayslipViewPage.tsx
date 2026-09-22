@@ -17,8 +17,9 @@ export function PayslipViewPage() {
   const { runId = '', recordId = '' } = useParams()
   const navigate = useNavigate()
   const location = useLocation()
-  const { companyId } = useAuth()
+  const { companyId, currentEmployee } = useAuth()
   const inEmployeePortal = location.pathname.startsWith('/portal')
+  const selfId = currentEmployee?.employee_id
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
 
@@ -28,9 +29,12 @@ export function PayslipViewPage() {
     enabled: Boolean(companyId && runId) && !inEmployeePortal,
   })
   const recordQuery = useQuery({
-    queryKey: ['payroll-record', companyId, runId, recordId],
-    queryFn: () => payrollApi.getRecord(companyId!, runId, recordId),
-    enabled: Boolean(companyId && runId && recordId),
+    queryKey: ['payroll-record', companyId, runId, recordId, inEmployeePortal],
+    queryFn: () =>
+      inEmployeePortal && selfId
+        ? employeesApi.myPayrollRecord(companyId!, selfId, recordId)
+        : payrollApi.getRecord(companyId!, runId, recordId),
+    enabled: Boolean(companyId && recordId && (inEmployeePortal ? selfId : runId)),
   })
   const companyQuery = useQuery({
     queryKey: ['company', companyId],
@@ -40,11 +44,14 @@ export function PayslipViewPage() {
 
   const record = recordQuery.data?.data as PayrollRecord | undefined
   const run = (runQuery.data?.data as PayrollRun | undefined) ?? (record?.payroll_runs as PayrollRun | undefined)
-  const employeeId = record?.employee_id ? String(record.employee_id) : ''
+  const employeeId = record?.employee_id ? String(record.employee_id) : selfId ?? ''
 
   const employeeQuery = useQuery({
-    queryKey: ['employee', companyId, employeeId],
-    queryFn: () => employeesApi.get(companyId!, employeeId),
+    queryKey: ['employee', companyId, employeeId, inEmployeePortal],
+    queryFn: () =>
+      inEmployeePortal && selfId
+        ? employeesApi.me(companyId!, selfId)
+        : employeesApi.get(companyId!, employeeId),
     enabled: Boolean(companyId && employeeId),
   })
 
@@ -69,6 +76,15 @@ export function PayslipViewPage() {
     setError(null)
     setBusy(true)
     try {
+      if (inEmployeePortal && selfId && record?.payslips?.id) {
+        await employeesApi.downloadMyPayslip(
+          companyId,
+          selfId,
+          String(record.payslips.id),
+          String(record.payslips.file_name ?? 'payslip.pdf'),
+        )
+        return
+      }
       await payslipsApi.generateRecord(companyId, runId, recordId)
       const result = await payslipsApi.forRun(companyId, runId)
       const match = payslipList(result.data).find((item) => String(item.payroll_record_id) === recordId)
@@ -88,8 +104,16 @@ export function PayslipViewPage() {
   return (
     <div>
       <p className="text-sm font-semibold text-[#607080]">
-        Payroll &nbsp;&nbsp;&gt;&nbsp;&nbsp; Payslips &nbsp;&nbsp;&gt;&nbsp;&nbsp;
-        <span className="text-navy">{displayName}</span>
+        {inEmployeePortal ? (
+          <>
+            Home &nbsp;&nbsp;&gt;&nbsp;&nbsp; Payslip
+          </>
+        ) : (
+          <>
+            Payroll &nbsp;&nbsp;&gt;&nbsp;&nbsp; Payslips &nbsp;&nbsp;&gt;&nbsp;&nbsp;
+            <span className="text-navy">{displayName}</span>
+          </>
+        )}
       </p>
       <div className="mt-3 flex flex-wrap items-center justify-between gap-4">
         <button

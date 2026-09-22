@@ -193,7 +193,9 @@ export function formFromCompany(company: Company): EmployerForm {
     rti_fax: str(defaults.rti_contact.fax),
     latitude: str(company.latitude),
     longitude: str(company.longitude),
-    attendance_radius_meters: String(company.attendance_radius_meters || 3000),
+    attendance_radius_meters: String(
+      Math.min(5000, Math.max(3000, company.attendance_radius_meters || 3000)),
+    ),
   }
 }
 
@@ -225,7 +227,7 @@ export function payloadFromForm(form: EmployerForm) {
     expenses_benefits_method: form.expenses_benefits_method.trim() || null,
     latitude: form.latitude.trim() ? Number(form.latitude) : null,
     longitude: form.longitude.trim() ? Number(form.longitude) : null,
-    attendance_radius_meters: amount(form.attendance_radius_meters, 3000),
+    attendance_radius_meters: Math.min(5000, Math.max(3000, amount(form.attendance_radius_meters, 3000))),
     employer_defaults: {
       typical_pay_frequency: form.typical_pay_frequency,
       leave_year_starts: form.leave_year_starts,
