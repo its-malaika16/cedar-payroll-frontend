@@ -4,6 +4,7 @@ import { Link, Outlet, useMatch, useNavigate } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { CalendarDays, ChevronLeft, Search } from 'lucide-react'
 import { employeesApi } from '../../api'
+import { ApiError } from '../../api/client'
 import { useAuth } from '../../auth/AuthContext'
 import { Alert, Button, Loading, PageHeader } from '../../components/ui'
 import { BrandIcon } from '../../components/BrandIcon'
@@ -168,14 +169,26 @@ export function EmployeesPage() {
     try {
       setDeleting(true)
       setDeleteError(null)
-      await employeesApi.removeMany(companyId, selectedIds)
+      const chunkSize = 25
+      for (let index = 0; index < selectedIds.length; index += chunkSize) {
+        await employeesApi.removeMany(
+          companyId,
+          selectedIds.slice(index, index + chunkSize),
+        )
+      }
       if (selectedId && selectedIds.includes(selectedId)) navigate('/employees')
       setSelectedIds([])
       setConfirmingDelete(false)
       await queryClient.invalidateQueries({ queryKey: ['employees', companyId] })
       await queryClient.invalidateQueries({ queryKey: ['payroll-runs', companyId] })
     } catch (err) {
-      setDeleteError(err instanceof Error ? err.message : 'Could not delete these employees')
+      setDeleteError(
+        err instanceof ApiError && err.status === 504
+          ? 'Deleting these employees timed out. Select a smaller group and try again.'
+          : err instanceof Error
+            ? err.message
+            : 'Could not delete these employees',
+      )
     } finally {
       setDeleting(false)
     }

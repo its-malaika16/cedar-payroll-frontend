@@ -1,19 +1,28 @@
 import { useMemo, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
-import { employeesApi } from '../../api'
+import { employeesApi, payrollApi } from '../../api'
 import { ApiError } from '../../api/client'
 import { useAuth } from '../../auth/AuthContext'
 import { Alert, Button, Card } from '../../components/ui'
 import { idOf } from '../../lib/format'
+import type { PayrollSchedule } from '../../types'
 import {
   CSV_FIELD_GROUPS,
   EMPLOYEE_CSV_FIELDS,
   cellFor,
   isValidEmail,
+  parseCsvAccountNumber,
+  parseCsvBoolean,
   parseCsvDate,
   parseCsvGender,
   parseCsvNiCategory,
   parseCsvNumber,
+  parseCsvPaymentMethod,
+  parseCsvPostgraduateLoan,
+  parseCsvRate,
+  parseCsvSortCode,
+  parseCsvStarterDeclaration,
+  parseCsvStudentLoanPlan,
   recommendedNiCategoryFromDob,
   DEFAULT_CSV_TAX_CODE,
   type ParsedCsv,
@@ -42,12 +51,18 @@ export function EmployeeCsvImport({
 
   const missingRequired = EMPLOYEE_CSV_FIELDS.filter((field) => field.required && !mapping[field.id])
   const previewRows = file.rows.slice(0, 5)
-  const mappedPreview = useMemo(
+  const matchedHeaders = new Set(Object.values(mapping).filter(Boolean))
+  const previewColumns = useMemo(
     () =>
-      EMPLOYEE_CSV_FIELDS.filter((field) => mapping[field.id]).map((field) => ({
-        label: field.label,
-        values: previewRows.map((row) => cellFor(row, file.headers, mapping[field.id])),
-      })),
+      file.headers.map((header) => {
+        const field = EMPLOYEE_CSV_FIELDS.find((item) => mapping[item.id] === header)
+        return {
+          header,
+          label: field?.label ?? header,
+          mapped: Boolean(field),
+          values: previewRows.map((row) => cellFor(row, file.headers, header)),
+        }
+      }),
     [file.headers, mapping, previewRows],
   )
 
@@ -63,6 +78,13 @@ export function EmployeeCsvImport({
     const failed: { row: number; name: string; reason: string }[] = []
     let imported = 0
     const seenEmails = new Set<string>()
+    let schedules: PayrollSchedule[] = []
+    try {
+      const listed = await payrollApi.schedules(companyId)
+      schedules = (listed.data ?? []) as PayrollSchedule[]
+    } catch {
+      schedules = []
+    }
     for (let index = 0; index < file.rows.length; index += 1) {
       const row = file.rows[index]
       const value = (fieldId: string) => cellFor(row, file.headers, mapping[fieldId])
@@ -90,6 +112,7 @@ export function EmployeeCsvImport({
         const rawJobTitle = value('job_title')
         const title = rawTitle && rawTitle.length <= 20 ? rawTitle : undefined
         const jobTitle = rawJobTitle || (rawTitle.length > 20 ? rawTitle : undefined)
+        const worksNumber = value('employee_code').trim()
         const created = await employeesApi.create(companyId, {
           title: title || undefined,
           first_name: firstName,
@@ -99,6 +122,7 @@ export function EmployeeCsvImport({
           gender,
           email,
           phone: value('phone') || undefined,
+          ...(worksNumber ? { employee_code: worksNumber } : {}),
         })
         const employeeId = idOf(created.data)
         const address = {
@@ -115,7 +139,21 @@ export function EmployeeCsvImport({
         const hourly = parseCsvNumber(value('hourly_rate'))
         const daily = parseCsvNumber(value('daily_rate'))
         const salary = parseCsvNumber(value('annual_salary'))
-        if (jobTitle || value('department') || salary != null || hourly != null || daily != null) {
+        const scheduleName = value('pay_schedule').trim()
+        const matchedSchedule = schedules.find((schedule) => {
+          const name = String(schedule.schedule_name ?? '').trim().toLowerCase()
+          const frequency = String(schedule.pay_frequency ?? '').trim().toLowerCase()
+          const wanted = scheduleName.toLowerCase()
+          return Boolean(wanted) && (name === wanted || frequency === wanted || name.includes(wanted))
+        })
+        if (
+          jobTitle ||
+          value('department') ||
+          salary != null ||
+          hourly != null ||
+          daily != null ||
+          scheduleName
+        ) {
           await employeesApi.updateEmployment(companyId, employeeId, {
             job_title: jobTitle || undefined,
             department: value('department') || undefined,
@@ -123,27 +161,82 @@ export function EmployeeCsvImport({
             ...(hourly != null ? { basic_rate_per_hour: hourly } : {}),
             ...(daily != null ? { daily_rate: daily } : {}),
             pay_basis_type: hourly ? 'HOURLY' : daily ? 'DAILY' : salary ? 'ANNUAL' : undefined,
+            ...(matchedSchedule
+              ? { pay_schedule_id: idOf(matchedSchedule) }
+              : scheduleName
+                ? { pay_schedule_request: scheduleName }
+                : {}),
           })
         }
         const start = parseCsvDate(value('start_date'))
         const leave = parseCsvDate(value('leave_date'))
-        if (start || leave) {
+        const starterDeclaration = parseCsvStarterDeclaration(value('starter_declaration'))
+        const previousPay = parseCsvNumber(value('previous_gross_taxable_pay'))
+        const previousTax = parseCsvNumber(value('previous_gross_tax'))
+        if (start || leave || starterDeclaration || previousPay != null || previousTax != null) {
           await employeesApi.updateStarterLeaver(companyId, employeeId, {
             ...(start ? { start_date: start } : {}),
             ...(leave ? { leave_date: leave } : {}),
+            ...(starterDeclaration ? { starter_declaration: starterDeclaration } : {}),
+            ...(previousPay != null ? { previous_gross_taxable_pay: previousPay } : {}),
+            ...(previousTax != null ? { previous_gross_tax: previousTax } : {}),
+          })
+        }
+        const paymentMethod = parseCsvPaymentMethod(value('payment_method'))
+        const sortCode = parseCsvSortCode(value('sort_code'))
+        const accountNumber = parseCsvAccountNumber(value('account_number'))
+        const bankName = value('bank_name')
+        const accountName = value('account_name')
+        const bankReference = value('bank_reference')
+        if (paymentMethod || sortCode || accountNumber || bankName || accountName || bankReference) {
+          await employeesApi.updateBank(companyId, employeeId, {
+            ...(paymentMethod ? { payment_method: paymentMethod } : {}),
+            ...(bankName ? { bank_name: bankName } : {}),
+            ...(accountName ? { account_name: accountName } : {}),
+            ...(accountNumber ? { account_number: accountNumber } : {}),
+            ...(sortCode ? { sort_code: sortCode } : {}),
+            ...(bankReference ? { bank_reference: bankReference } : {}),
           })
         }
         const recommendedNi = recommendedNiCategoryFromDob(dob) ?? 'A'
         const csvNi = parseCsvNiCategory(value('ni_category'))
         const taxCode = value('tax_code').replace(/\s+/g, '').toUpperCase() || DEFAULT_CSV_TAX_CODE
         const niNumber = value('ni_number').replace(/\s+/g, '').toUpperCase()
+        const week1 = parseCsvBoolean(value('week1month1'))
+        const studentLoan = parseCsvStudentLoanPlan(value('student_loan_plan'))
+        const postgraduateLoan = parseCsvPostgraduateLoan(value('postgraduate_loan_plan'))
+        const director = parseCsvBoolean(value('is_director'))
         await employeesApi.updateTax(companyId, employeeId, {
           tax_code: taxCode,
           ni_category: csvNi && csvNi === recommendedNi ? csvNi : recommendedNi,
           ...(niNumber && /^(?!BG|GB|KN|NK|NT|TN|ZZ)[A-CEGHJ-PR-TW-Z][A-CEGHJ-NPR-TW-Z]\d{6}[A-D]$/.test(niNumber)
             ? { ni_number: niNumber }
             : {}),
+          ...(week1 != null ? { week1month1: week1 } : {}),
+          ...(studentLoan ? { student_loan_plan: studentLoan } : {}),
+          ...(postgraduateLoan ? { postgraduate_loan_plan: postgraduateLoan } : {}),
+          ...(director != null ? { is_director: director } : {}),
         })
+        const pensionEnrolled = parseCsvBoolean(value('pension_enrolled'))
+        const pensionProvider = value('pension_provider')
+        const employeeRate = parseCsvRate(value('employee_pension_rate'))
+        const employerRate = parseCsvRate(value('employer_pension_rate'))
+        const enrolmentDate = parseCsvDate(value('pension_enrolment_date'))
+        if (
+          pensionEnrolled != null ||
+          pensionProvider ||
+          employeeRate != null ||
+          employerRate != null ||
+          enrolmentDate
+        ) {
+          await employeesApi.updatePension(companyId, employeeId, {
+            ...(pensionEnrolled != null ? { is_enrolled: pensionEnrolled } : {}),
+            ...(pensionProvider ? { provider_name: pensionProvider } : {}),
+            ...(employeeRate != null ? { employee_rate: employeeRate } : {}),
+            ...(employerRate != null ? { employer_rate: employerRate } : {}),
+            ...(enrolmentDate ? { enrolment_date: enrolmentDate } : {}),
+          })
+        }
         imported += 1
       } catch (err) {
         const sessionLost = err instanceof ApiError && err.status === 401
@@ -171,8 +264,9 @@ export function EmployeeCsvImport({
         <div>
           <h2 className="text-xl font-semibold text-navy">Upload CSV</h2>
           <p className="mt-1 text-sm text-muted">
-            {file.filename} · {file.rows.length} row{file.rows.length === 1 ? '' : 's'}. Match each database field to a
-            CSV column.
+            {file.filename} · {file.rows.length} row{file.rows.length === 1 ? '' : 's'} · {file.headers.length} CSV
+            columns · {matchedHeaders.size} matched. Match every Cedar field to a column; the preview shows the whole
+            file.
           </p>
         </div>
         <Button type="button" variant="secondary" onClick={onCancel} disabled={busy}>
@@ -225,9 +319,15 @@ export function EmployeeCsvImport({
             <table className="min-w-full text-left text-xs text-navy">
               <thead>
                 <tr className="border-b border-[#eceae6] bg-[#f8f7f4]">
-                  {mappedPreview.map((column) => (
-                    <th key={column.label} className="whitespace-nowrap px-3 py-2 font-semibold">
+                  {previewColumns.map((column) => (
+                    <th
+                      key={column.header}
+                      className={`whitespace-nowrap px-3 py-2 font-semibold ${column.mapped ? 'text-navy' : 'text-muted'}`}
+                    >
                       {column.label}
+                      {!column.mapped ? (
+                        <span className="ml-1 font-normal text-[10px] uppercase tracking-wide">unmatched</span>
+                      ) : null}
                     </th>
                   ))}
                 </tr>
@@ -235,8 +335,8 @@ export function EmployeeCsvImport({
               <tbody>
                 {previewRows.map((_, rowIndex) => (
                   <tr key={rowIndex} className="border-b border-[#f3f1ec] last:border-b-0">
-                    {mappedPreview.map((column) => (
-                      <td key={`${column.label}-${rowIndex}`} className="whitespace-nowrap px-3 py-2">
+                    {previewColumns.map((column) => (
+                      <td key={`${column.header}-${rowIndex}`} className="whitespace-nowrap px-3 py-2">
                         {column.values[rowIndex] || '—'}
                       </td>
                     ))}
@@ -245,9 +345,13 @@ export function EmployeeCsvImport({
               </tbody>
             </table>
           </div>
-          {mappedPreview.length === 0 ? (
+          {previewColumns.length === 0 ? (
             <p className="mt-3 text-sm text-muted">Select columns to see a preview of how records will be saved.</p>
-          ) : null}
+          ) : (
+            <p className="mt-3 text-xs text-muted">
+              Grey headings are in the CSV but not matched yet. Choose a Cedar field on the left to include them.
+            </p>
+          )}
         </div>
       </div>
 
