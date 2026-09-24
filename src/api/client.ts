@@ -1,6 +1,6 @@
 import type { ApiSuccess } from '../types'
 
-const PRODUCTION_API_URL = 'https://cedar-payroll-backend.vercel.app'
+const PRODUCTION_API_URL = 'https://ce-02dc817760904e6e828bb2e4bded5326.ecs.eu-central-1.on.aws'
 
 function resolveApiUrl() {
   const configured = String(import.meta.env.VITE_API_URL ?? '')
