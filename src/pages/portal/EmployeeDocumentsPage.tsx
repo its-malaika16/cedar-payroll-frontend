@@ -19,7 +19,6 @@ import { hrApi } from '../../api'
 import { fetchBlob } from '../../api/client'
 import { useAuth } from '../../auth/AuthContext'
 import { Alert, Loading } from '../../components/ui'
-import { formatDate } from '../../lib/format'
 import {
   ALL_COMPLIANCE_TYPES,
   typesFor,
