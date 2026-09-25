@@ -24,7 +24,7 @@ import { idOf } from '../../lib/format'
 import type { Company } from '../../types'
 
 type StatusFilter = 'ALL' | 'ACTIVE' | 'INACTIVE'
-type ModuleFilter = 'ALL' | 'PAYROLL' | 'HR'
+type ModuleFilter = 'ALL' | 'PAYROLL' | 'HR' | 'INVOICE'
 type SortKey = 'name-asc' | 'name-desc' | 'employees' | 'created'
 type ViewMode = 'list' | 'grid'
 type DisplayStatus = 'Active' | 'Inactive'
@@ -68,7 +68,7 @@ function activeModules(company: Company) {
   return (company.company_modules ?? [])
     .filter((module) => module.is_active !== false)
     .map((module) => module.module.toUpperCase())
-    .filter((module) => module === 'PAYROLL' || module === 'HR')
+    .filter((module) => module === 'PAYROLL' || module === 'HR' || module === 'INVOICE')
 }
 
 function createdLabel(value?: string | null) {
@@ -97,10 +97,14 @@ function StatusPill({ status }: { status: DisplayStatus }) {
 
 function ModuleTag({ module }: { module: string }) {
   const styles =
-    module === 'HR' ? 'bg-violet-50 text-violet-800' : 'bg-emerald-50 text-emerald-800'
+    module === 'HR'
+      ? 'bg-violet-50 text-violet-800'
+      : module === 'INVOICE'
+        ? 'bg-sky-50 text-sky-800'
+        : 'bg-emerald-50 text-emerald-800'
   return (
     <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${styles}`}>
-      {module === 'HR' ? 'HR' : 'Payroll'}
+      {module === 'HR' ? 'HR' : module === 'INVOICE' ? 'Invoice' : 'Payroll'}
     </span>
   )
 }
@@ -527,6 +531,7 @@ export function CompaniesPage() {
             <option value="ALL">Module: All</option>
             <option value="PAYROLL">Payroll</option>
             <option value="HR">HR</option>
+            <option value="INVOICE">Invoice</option>
           </select>
           <select
             className={`${filterClass} w-[168px] shrink-0`}

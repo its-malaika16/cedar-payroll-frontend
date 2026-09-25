@@ -121,6 +121,15 @@ export const CONTRACTED_HOURS_OPTIONS = [
 
 export const DEFAULT_CONTRACTED_HOURS = '30_PLUS'
 
+export const REPORTED_PAY_FREQUENCIES = [
+  { value: 'WEEKLY', label: 'Weekly' },
+  { value: 'ANNUALLY', label: 'Annually' },
+  { value: 'ONE_OFF', label: 'One-off' },
+  { value: 'IRREGULAR', label: 'Irregular' },
+] as const
+
+export const DEFAULT_REPORTED_PAY_FREQUENCY = 'WEEKLY'
+
 export const PAYROLL_ID_CHANGE_OPTIONS = [
   { value: 'AUTO', label: 'Detect automatically' },
   {

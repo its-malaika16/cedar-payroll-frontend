@@ -14,7 +14,6 @@ export const BULK_PAYSLIP_ACTIONS = [
 ] as const
 
 const SECONDARY_ACTIONS = [
-  { id: 'prepay', label: 'Prepay Following period in this Period...' },
   { id: 'after-leaving', label: 'Add Payslip(s) after leaving...' },
   { id: 'switch-schedule', label: 'Switch Employee(s) Payment Schedule...' },
 ] as const
@@ -24,16 +23,19 @@ export function PayrollMoreMenu({
   recordId,
   extras,
   disabled,
+  locked,
   onUnavailable,
 }: {
   runId: string
   recordId?: string
   extras?: ReactNode
   disabled?: boolean
+  locked?: boolean
   onUnavailable?: (label: string) => void
 }) {
   const navigate = useNavigate()
   const { ref, open, setOpen } = useMenuOpen()
+  const itemDisabled = locked || !runId
 
   function go(path: string) {
     setOpen(false)
@@ -59,7 +61,7 @@ export function PayrollMoreMenu({
               key={item.id}
               type="button"
               className={menuItemClass}
-              disabled={!runId}
+              disabled={itemDisabled}
               onClick={() =>
                 go(
                   `/payroll/runs/${runId}/bulk/${item.id}${recordId ? `?recordId=${recordId}` : ''}`,
@@ -75,6 +77,7 @@ export function PayrollMoreMenu({
               key={item.id}
               type="button"
               className={menuItemClass}
+              disabled={locked}
               onClick={() => {
                 if (item.id === 'switch-schedule') {
                   go(
@@ -95,6 +98,7 @@ export function PayrollMoreMenu({
           <button
             type="button"
             className={menuItemClass}
+            disabled={locked}
             onClick={() => go('/payroll/reports')}
           >
             Minimum Wage Report

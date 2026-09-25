@@ -242,7 +242,7 @@ export function EmployeeRotaPage() {
           <button type="button" className="rounded p-1 hover:bg-white" onClick={() => step(-1)} aria-label="Previous">
             <ChevronLeft size={18} />
           </button>
-          <span className="inline-flex items-center gap-2 min-w-[220px] justify-center">
+          <span className="inline-flex min-w-0 items-center justify-center gap-2 sm:min-w-[220px]">
             <CalendarDays size={16} />
             {periodLabel}
           </span>
@@ -253,7 +253,7 @@ export function EmployeeRotaPage() {
       </div>
 
       <div className="mt-4 overflow-hidden rounded-[12px] border border-[#eceae6] bg-white">
-        <div className="grid grid-cols-[220px_minmax(0,1fr)] border-b border-[#eceae6] bg-[#fafafa] px-5 py-3 text-sm font-semibold text-navy">
+        <div className="grid grid-cols-1 gap-1 border-b border-[#eceae6] bg-[#fafafa] px-4 py-3 text-sm font-semibold text-navy sm:grid-cols-[180px_minmax(0,1fr)] sm:gap-0 sm:px-5">
           <div>Date</div>
           <div>My Schedule</div>
         </div>
@@ -269,7 +269,7 @@ export function EmployeeRotaPage() {
             return (
               <div
                 key={key}
-                className="grid grid-cols-[220px_minmax(0,1fr)] items-center gap-4 border-b border-[#eceae6] px-5 py-3 last:border-b-0"
+                className="grid grid-cols-1 items-start gap-2 border-b border-[#eceae6] px-4 py-3 last:border-b-0 sm:grid-cols-[180px_minmax(0,1fr)] sm:items-center sm:gap-4 sm:px-5"
               >
                 <div>
                   <p className="text-sm font-semibold text-navy">{formatDayTitle(day)}</p>

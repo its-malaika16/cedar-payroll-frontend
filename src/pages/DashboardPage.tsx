@@ -2,7 +2,8 @@ import { useEffect, useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Link, Navigate } from 'react-router-dom'
 import { CalendarDays, ChevronLeft, ChevronRight } from 'lucide-react'
-import { employeesApi, hrApi, payrollApi, timesheetsApi } from '../api'
+import { companyInvoicesApi, employeesApi, hrApi, payrollApi, timesheetsApi } from '../api'
+import { InvoiceDashboardPage } from './invoices/InvoiceDashboardPage'
 import { useAuth } from '../auth/AuthContext'
 import { Loading } from '../components/ui'
 import { PortalSwitchBanner } from '../components/PortalSwitcher'
@@ -10,6 +11,7 @@ import { BrandIcon } from '../components/BrandIcon'
 import { formatPeriodRange, idOf, money } from '../lib/format'
 import { taxYearStartFromDate } from '../lib/hmrcTaxCalendar'
 import type { Employee, PayrollRecord, PayrollRun, PayrollSchedule } from '../types'
+import type { InvoiceDashboard } from './invoices/invoiceTypes'
 import type { TimesheetOverview } from './hr/timesheets/timesheetTypes'
 import {
   FREQUENCY_META,
@@ -35,7 +37,7 @@ const SLICE_COLORS = {
   employerNest: '#e8e4dc',
 } as const
 
-const cardClass = 'rounded-[26px] bg-white p-8'
+const cardClass = 'rounded-[26px] bg-white p-5 sm:p-8'
 const periodControl =
   'flex h-[38px] items-center gap-2 rounded-[8px] border border-[#d9d9d9] bg-white px-3 text-xs font-medium text-navy'
 
@@ -138,6 +140,14 @@ export function DashboardPage() {
     queryFn: () => hrApi.compliance(companyId),
     enabled: Boolean(companyId) && auth.hasModule('HR') && !auth.isEmployeeOnly,
   })
+  const invoiceStats = useQuery({
+    queryKey: ['company-invoice-dashboard', companyId],
+    queryFn: () => companyInvoicesApi.dashboard(companyId),
+    enabled:
+      Boolean(companyId) &&
+      (selectedCompany?.modules ?? auth.modules).includes('INVOICE') &&
+      !auth.isEmployeeOnly,
+  })
 
   const payrollRuns = (runs.data?.data ?? []) as PayrollRun[]
   const scheduleList = ((schedules.data?.data ?? []) as PayrollSchedule[]).filter(
@@ -228,6 +238,18 @@ export function DashboardPage() {
     return <Navigate to="/portal" replace />
   }
 
+  const companyModules = selectedCompany?.modules ?? auth.modules
+  const companyHasInvoice = companyModules.includes('INVOICE')
+
+  if (
+    auth.isCompanyAdmin &&
+    companyHasInvoice &&
+    !companyModules.includes('PAYROLL') &&
+    !companyModules.includes('HR')
+  ) {
+    return <InvoiceDashboardPage />
+  }
+
   const employeeCount = employees.data?.data.length ?? 0
   const employeeList = (employees.data?.data ?? []) as Employee[]
   const scheduleEmployeeIds = new Set(
@@ -293,12 +315,29 @@ export function DashboardPage() {
 
   return (
     <div>
-      <h1 className="text-[32px] font-semibold leading-none text-navy">Dashboard</h1>
-      <p className="mt-5 text-[22px] font-semibold text-navy">{greeting}</p>
+      <h1 className="text-[26px] font-semibold leading-tight text-navy sm:text-[32px] sm:leading-none">Dashboard</h1>
+      <p className="mt-4 text-lg font-semibold text-navy sm:mt-5 sm:text-[22px]">{greeting}</p>
       {selectedCompany?.name ? (
         <p className="mt-2 text-base font-semibold text-navy">{selectedCompany.name}</p>
       ) : null}
       <PortalSwitchBanner variant="admin" />
+
+      {companyHasInvoice ? (
+        <div className="mt-6 grid gap-4 sm:grid-cols-2">
+          <section className={cardClass}>
+            <p className="text-sm font-semibold text-muted">Invoices sent</p>
+            <p className="mt-2 text-2xl font-semibold text-navy">
+              {money(((invoiceStats.data?.data ?? {}) as InvoiceDashboard).sent_total ?? 0)}
+            </p>
+          </section>
+          <section className={cardClass}>
+            <p className="text-sm font-semibold text-muted">Amount paid</p>
+            <p className="mt-2 text-2xl font-semibold text-navy">
+              {money(((invoiceStats.data?.data ?? {}) as InvoiceDashboard).paid_total ?? 0)}
+            </p>
+          </section>
+        </div>
+      ) : null}
 
       <div className="mt-8 grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(320px,414px)]">
         <div className="grid gap-6">
@@ -352,7 +391,7 @@ export function DashboardPage() {
                 >
                   <ChevronLeft size={16} />
                 </button>
-                <label className={`${periodControl} min-w-[280px] max-w-[420px]`}>
+                <label className={`${periodControl} min-w-0 w-full max-w-[420px] sm:w-auto sm:min-w-[220px]`}>
                   <CalendarDays size={16} className="shrink-0" />
                   <select
                     className="min-w-0 flex-1 bg-transparent text-xs font-medium outline-none"
@@ -383,7 +422,7 @@ export function DashboardPage() {
               </div>
             </div>
             <div className="flex min-h-0 flex-1 flex-wrap items-center justify-center gap-10 lg:justify-between">
-              <div className="relative size-[260px] shrink-0">
+              <div className="relative size-[min(260px,70vw)] shrink-0">
                 <div
                   className="size-full rounded-full"
                   style={{

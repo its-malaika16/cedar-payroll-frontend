@@ -301,21 +301,14 @@ export function PayrollRunsPage() {
           <PayrollSchedulesMenu />
           <PayrollMoreMenu
             runId={selectedId}
+            locked={locked || allFinalised}
             onUnavailable={setError}
             extras={
               <>
                 <button
                   type="button"
                   className={payrollMoreMenuItem}
-                  disabled={Boolean(selectedId) || saving || !selectedSchedulePeriod}
-                  onClick={() => void startPayroll()}
-                >
-                  Manual Entry
-                </button>
-                <button
-                  type="button"
-                  className={payrollMoreMenuItem}
-                  disabled={!selectedId || locked}
+                  disabled={!selectedId || locked || allFinalised}
                   onClick={() =>
                     selectedId && act(() => payrollApi.generateRecords(companyId!, selectedId))
                   }
@@ -325,16 +318,20 @@ export function PayrollRunsPage() {
                 <button
                   type="button"
                   className={payrollMoreMenuItem}
-                  disabled={!selectedId || locked}
+                  disabled={!selectedId || locked || allFinalised}
                   onClick={() =>
                     selectedId && act(() => payrollApi.calculateRun(companyId!, selectedId))
                   }
                 >
                   Calculate run
                 </button>
-                <Link to="/payroll/payslips" className={payrollMoreMenuItem}>
+                <button
+                  type="button"
+                  className={payrollMoreMenuItem}
+                  onClick={() => navigate('/payroll/payslips')}
+                >
                   Payslips
-                </Link>
+                </button>
               </>
             }
           />

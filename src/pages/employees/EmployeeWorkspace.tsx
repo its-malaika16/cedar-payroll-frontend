@@ -26,12 +26,12 @@ import { fullName, idOf, toDateInput } from '../../lib/format'
 import { ComplianceDocumentsPanel } from '../hr/compliance/ComplianceDocumentsPanel'
 import type { ComplianceFile } from '../hr/compliance/documentTypes'
 import type { Company, Employee, PayrollSchedule } from '../../types'
-import { defaultPayScheduleValue } from '../settings/employerSettings'
 import {
   CONTACT_TYPE_OPTIONS,
   CONTRACTED_HOURS_OPTIONS,
   COUNTRY_OPTIONS,
   DEFAULT_CONTRACTED_HOURS,
+  DEFAULT_REPORTED_PAY_FREQUENCY,
   EMPLOYEE_TABS,
   GENDER_OPTIONS,
   LEAVE_CALCULATION_METHODS,
@@ -42,6 +42,7 @@ import {
   PAYMENT_METHODS,
   PAYROLL_ID_CHANGE_OPTIONS,
   POSTGRADUATE_LOAN_PLANS,
+  REPORTED_PAY_FREQUENCIES,
   STARTER_DECLARATIONS,
   STUDENT_LOAN_PLANS,
   TITLE_OPTIONS,
@@ -117,15 +118,17 @@ type Draft = {
   workplace_postcode: string
   payroll_id_change: string
   contracted_hours_per_week: string
+  reported_pay_frequency: string
   irregular_payment_pattern: boolean
   exclude_from_fps_if_zero: boolean
   payments_to_body: boolean
   trivial_commutation: boolean
   flexible_drawdown: boolean
+  off_payroll_worker: boolean
   portal_access: boolean
 }
 
-const emptyDraft = (company?: Company | null, schedules: PayrollSchedule[] = []): Draft => {
+const emptyDraft = (company?: Company | null): Draft => {
   const defaults = company?.employer_defaults
   const workingDays =
     defaults?.working_days && defaults.working_days.length > 0
@@ -170,7 +173,7 @@ const emptyDraft = (company?: Company | null, schedules: PayrollSchedule[] = [])
   tupe_protected: false,
   pre_transfer_start_date: '',
   leave_date: '',
-  pay_schedule: defaultPayScheduleValue(defaults?.typical_pay_frequency, schedules),
+  pay_schedule: '',
   pay_basis_type: 'ANNUAL',
   period_rate: '',
   annual_salary: '',
@@ -197,14 +200,16 @@ const emptyDraft = (company?: Company | null, schedules: PayrollSchedule[] = [])
   postgraduate_loan_start_date: '',
   postgraduate_loan_stop_date: '',
   payroll_id: '',
-  workplace_postcode: String(company?.postcode ?? ''),
+  workplace_postcode: '',
   payroll_id_change: 'AUTO',
   contracted_hours_per_week: DEFAULT_CONTRACTED_HOURS,
+  reported_pay_frequency: DEFAULT_REPORTED_PAY_FREQUENCY,
   irregular_payment_pattern: false,
   exclude_from_fps_if_zero: false,
   payments_to_body: false,
   trivial_commutation: false,
   flexible_drawdown: false,
+  off_payroll_worker: false,
   portal_access: false,
   }
 }
@@ -226,6 +231,7 @@ export function EmployeeWorkspace() {
   }, [searchParams, employeeId])
 
   const [draft, setDraft] = useState<Draft>(emptyDraft)
+  const [savedSnapshot, setSavedSnapshot] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [message, setMessage] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
@@ -264,12 +270,17 @@ export function EmployeeWorkspace() {
 
   useEffect(() => {
     if (isNew) {
-      setDraft(emptyDraft(company, schedules))
+      const next = emptyDraft(company)
+      setDraft(next)
+      setSavedSnapshot(JSON.stringify(next))
       if (!searchParams.get('tab')) setTab('Personal')
       return
     }
     if (employee) {
-      setDraft(draftFromEmployee(employee, schedules))
+      const next = draftFromEmployee(employee)
+      setDraft(next)
+      setSavedSnapshot(JSON.stringify(next))
+      setPhotoFile(null)
     }
   }, [employeeId, employeeQuery.dataUpdatedAt, isNew, companyQuery.dataUpdatedAt, schedulesQuery.dataUpdatedAt])
 
@@ -290,6 +301,7 @@ export function EmployeeWorkspace() {
   }, [photoFile, draft.photo_url])
 
   const locked = isNew && tab !== 'Personal'
+  const isDirty = Boolean(savedSnapshot) && (JSON.stringify(draft) !== savedSnapshot || Boolean(photoFile))
 
   useEffect(() => {
     const value = draft.postcode.trim()
@@ -312,6 +324,18 @@ export function EmployeeWorkspace() {
         setPostcodeError(null)
         if (result.data.formatted && result.data.formatted !== value) {
           setDraft((current) => ({ ...current, postcode: result.data.formatted }))
+          setSavedSnapshot((current) => {
+            if (!current) return current
+            try {
+              const parsed = JSON.parse(current) as Draft
+              if (parsed.postcode === value) {
+                return JSON.stringify({ ...parsed, postcode: result.data.formatted })
+              }
+            } catch {
+              return current
+            }
+            return current
+          })
         }
       } catch {
         if (requestId !== postcodeRequest.current) return
@@ -433,21 +457,19 @@ export function EmployeeWorkspace() {
         setPhotoFile(null)
       }
 
-      await queryClient.invalidateQueries({ queryKey: ['employees', companyId] })
+      void queryClient.invalidateQueries({ queryKey: ['employees', companyId] })
       if (isNew) {
         navigate(`/employees/${savedId}`)
         return
       }
-      await queryClient.invalidateQueries({ queryKey: ['employee', companyId, employeeId] })
+      void queryClient.invalidateQueries({ queryKey: ['employee', companyId, employeeId] })
+      setSavedSnapshot(JSON.stringify({ ...draft, postcode }))
       return
     }
 
     if (!employeeId) throw new Error('Save personal details first')
 
     if (tab === 'Employment') {
-      await employeesApi.update(companyId, employeeId, {
-        employee_code: draft.works_number.trim(),
-      })
       await employeesApi.updateEmployment(companyId, employeeId, {
         department: draft.departments.map((item) => item.trim()).filter(Boolean).join(', '),
         usual_working_days: draft.working_days.join(','),
@@ -567,19 +589,20 @@ export function EmployeeWorkspace() {
         payroll_id_change: draft.payroll_id_change,
         contracted_hours_per_week:
           draft.contracted_hours_per_week || DEFAULT_CONTRACTED_HOURS,
+        reported_pay_frequency:
+          draft.reported_pay_frequency || DEFAULT_REPORTED_PAY_FREQUENCY,
         irregular_payment_pattern: draft.irregular_payment_pattern,
         exclude_from_fps_if_zero: draft.exclude_from_fps_if_zero,
         payments_to_body: draft.payments_to_body,
         trivial_commutation: draft.trivial_commutation,
         flexible_drawdown: draft.flexible_drawdown,
+        off_payroll_worker: draft.off_payroll_worker,
       })
     }
 
-    await queryClient.invalidateQueries({ queryKey: ['employee', companyId, employeeId] })
-    await queryClient.invalidateQueries({ queryKey: ['employees', companyId] })
-    await queryClient.invalidateQueries({ queryKey: ['payroll-runs', companyId] })
-    await queryClient.invalidateQueries({ queryKey: ['payroll-run', companyId] })
-    await queryClient.invalidateQueries({ queryKey: ['payroll-record', companyId] })
+    void queryClient.invalidateQueries({ queryKey: ['employee', companyId, employeeId] })
+    void queryClient.invalidateQueries({ queryKey: ['employees', companyId] })
+    setSavedSnapshot(JSON.stringify(draft))
   }
 
   if (!isNew && employeeQuery.isLoading) return <Loading />
@@ -783,9 +806,11 @@ export function EmployeeWorkspace() {
               <div className="max-w-[346px]">
                 <Field label="Works Number" hint="generated automatically">
                   <Input
+                    readOnly
+                    maxLength={5}
                     placeholder="CP101"
                     value={draft.works_number}
-                    onChange={(e) => setDraft({ ...draft, works_number: e.target.value })}
+                    className="bg-[#f8f7f4]"
                   />
                 </Field>
               </div>
@@ -989,6 +1014,7 @@ export function EmployeeWorkspace() {
                   <OptionSelect
                     value={draft.pay_schedule}
                     groups={payScheduleGroups(schedules)}
+                    placeholder="Select payment Schedule"
                     disabled={Boolean(assignedScheduleId)}
                     onChange={(value) => setDraft({ ...draft, pay_schedule: value })}
                   />
@@ -1136,6 +1162,7 @@ export function EmployeeWorkspace() {
                 <OptionSelect
                   value={draft.pay_schedule}
                   groups={payScheduleGroups(schedules)}
+                  placeholder="Select payment Schedule"
                   disabled={Boolean(assignedScheduleId)}
                   onChange={(value) => setDraft({ ...draft, pay_schedule: value })}
                 />
@@ -1379,66 +1406,90 @@ export function EmployeeWorkspace() {
 
             <Section title="FPS Declarations" icon={<FileText size={16} />}>
               <div className="grid items-start gap-x-8 gap-y-4 xl:grid-cols-2">
-                <div className="space-y-4">
-                  <div className="max-w-[320px]">
-                    <Field label="Payroll ID" hint="generated automatically for FPS">
-                      <Input value={draft.payroll_id} readOnly className="bg-[#f8f7f4] tracking-widest" />
-                    </Field>
-                  </div>
-                  <div className="max-w-[320px]">
-                    <p className="mb-1.5 text-xs font-medium text-navy">Change of Payroll ID</p>
+                <div className="max-w-[320px]">
+                  <Field label="Payroll ID" hint="generated automatically for FPS">
+                    <Input value={draft.payroll_id} readOnly className="bg-[#f8f7f4] tracking-widest" />
+                  </Field>
+                </div>
+                <div className="max-w-[320px]">
+                  <p className="mb-1.5 text-xs font-medium text-navy">Change of Payroll ID</p>
+                  <OptionSelect
+                    value={draft.payroll_id_change}
+                    options={PAYROLL_ID_CHANGE_OPTIONS}
+                    onChange={(value) => setDraft({ ...draft, payroll_id_change: value })}
+                  />
+                </div>
+                <div className="max-w-[420px]">
+                  <Field label="Contracted hours per week">
                     <OptionSelect
-                      value={draft.payroll_id_change}
-                      options={PAYROLL_ID_CHANGE_OPTIONS}
-                      onChange={(value) => setDraft({ ...draft, payroll_id_change: value })}
+                      value={draft.contracted_hours_per_week}
+                      options={CONTRACTED_HOURS_OPTIONS}
+                      onChange={(value) => setDraft({ ...draft, contracted_hours_per_week: value })}
+                    />
+                  </Field>
+                </div>
+                <CheckRow
+                  className="xl:mt-7"
+                  label="Do not include employee on FPS if zero pay"
+                  checked={draft.exclude_from_fps_if_zero}
+                  onChange={(checked) => setDraft({ ...draft, exclude_from_fps_if_zero: checked })}
+                />
+              </div>
+
+              <div className="mt-6 space-y-4">
+                <div className="grid max-w-[720px] grid-cols-1 gap-4 sm:grid-cols-2">
+                  <div>
+                    <p className="mb-1.5 text-xs font-medium text-navy">Reported pay frequency</p>
+                    <OptionSelect
+                      value={draft.reported_pay_frequency}
+                      options={REPORTED_PAY_FREQUENCIES}
+                      onChange={(value) => setDraft({ ...draft, reported_pay_frequency: value })}
                     />
                   </div>
-                  <CheckRow
-                    label="Do not include employee on FPS if zero pay"
-                    checked={draft.exclude_from_fps_if_zero}
-                    onChange={(checked) => setDraft({ ...draft, exclude_from_fps_if_zero: checked })}
-                  />
-                  <div className="max-w-[420px]">
-                    <Field label="Contracted hours per week">
-                      <OptionSelect
-                        value={draft.contracted_hours_per_week}
-                        options={CONTRACTED_HOURS_OPTIONS}
-                        onChange={(value) => setDraft({ ...draft, contracted_hours_per_week: value })}
-                      />
-                    </Field>
-                  </div>
+                  <Field label="Workplace postcode">
+                    <Input
+                      placeholder="If Freeport or Investment Zone"
+                      value={draft.workplace_postcode}
+                      onChange={(e) => setDraft({ ...draft, workplace_postcode: e.target.value })}
+                    />
+                  </Field>
                 </div>
-
-                <div className="space-y-4">
-                  <div className="max-w-[320px]">
-                    <Field label="Workplace postcode">
-                      <Input
-                        placeholder="Select"
-                        value={draft.workplace_postcode}
-                        onChange={(e) => setDraft({ ...draft, workplace_postcode: e.target.value })}
-                      />
-                    </Field>
-                  </div>
-                  <CheckRow
-                    label="Employee is currently on an irregular payment pattern"
-                    checked={draft.irregular_payment_pattern}
-                    onChange={(checked) => setDraft({ ...draft, irregular_payment_pattern: checked })}
-                  />
-                  <CheckRow
-                    label="Employee's payments are being made to a body (e.g. a personal representative, trustee or corporate organisation)"
-                    checked={draft.payments_to_body}
-                    onChange={(checked) => setDraft({ ...draft, payments_to_body: checked })}
-                  />
-                  <CheckRow
-                    label="Include trivial commutation payment declaration"
-                    checked={draft.trivial_commutation}
-                    onChange={(checked) => setDraft({ ...draft, trivial_commutation: checked })}
-                  />
-                  <CheckRow
-                    label="Include flexible drawdown payment declaration"
-                    checked={draft.flexible_drawdown}
-                    onChange={(checked) => setDraft({ ...draft, flexible_drawdown: checked })}
-                  />
+                <CheckRow
+                  label="Employee is currently on an irregular payment pattern"
+                  checked={draft.irregular_payment_pattern}
+                  onChange={(checked) => setDraft({ ...draft, irregular_payment_pattern: checked })}
+                />
+                <CheckRow
+                  label="Employee's payments are being made to a body (e.g. a personal representative, trustee or corporate organisation)"
+                  checked={draft.payments_to_body}
+                  onChange={(checked) => setDraft({ ...draft, payments_to_body: checked })}
+                />
+                <CheckRow
+                  label="Include trivial commutation payment declaration"
+                  checked={draft.trivial_commutation}
+                  onChange={(checked) => setDraft({ ...draft, trivial_commutation: checked })}
+                />
+                <CheckRow
+                  label="Include flexible drawdown payment declaration"
+                  checked={draft.flexible_drawdown}
+                  onChange={(checked) => setDraft({ ...draft, flexible_drawdown: checked })}
+                />
+                <div className="border-t border-[#d9d9d9] pt-4">
+                  <p className="text-xs font-semibold tracking-wide text-navy">OFF-PAYROLL</p>
+                  <p className="mt-2 text-sm text-navy">
+                    {draft.off_payroll_worker
+                      ? 'Employee is an off-payroll worker. '
+                      : 'Employee is not an off-payroll worker. '}
+                    <button
+                      type="button"
+                      className="font-medium text-navy underline"
+                      onClick={() =>
+                        setDraft({ ...draft, off_payroll_worker: !draft.off_payroll_worker })
+                      }
+                    >
+                      Change
+                    </button>
+                  </p>
                 </div>
               </div>
             </Section>
@@ -1508,8 +1559,8 @@ export function EmployeeWorkspace() {
         {tab === 'Compliance' ? null : (
           <Button
             type="button"
-            className="h-10 w-[105px] text-xs"
-            disabled={saving || locked}
+            className="h-10 w-[105px] text-xs disabled:opacity-50"
+            disabled={saving || locked || !isDirty}
             onClick={async () => {
               try {
                 setSaving(true)
@@ -2059,7 +2110,7 @@ function contactsFrom(
   return [{ type: type || 'Work', value: primary || '' }, ...extraRows]
 }
 
-function draftFromEmployee(employee: Employee, schedules: PayrollSchedule[]): Draft {
+function draftFromEmployee(employee: Employee): Draft {
   const address = asRecord(employee.employee_addresses)
   const bank = asRecord(employee.bank_details)
   const employment = asRecord(employee.employment_details)
@@ -2079,9 +2130,7 @@ function draftFromEmployee(employee: Employee, schedules: PayrollSchedule[]): Dr
     ? `id:${scheduleId}`
     : scheduleRequest
       ? `new:${scheduleRequest}`
-      : schedules[0]
-        ? `id:${idOf(schedules[0])}`
-        : ''
+      : ''
   const starterDeclaration = str(starter.starter_declaration)
 
   return {
@@ -2166,11 +2215,13 @@ function draftFromEmployee(employee: Employee, schedules: PayrollSchedule[]): Dr
     workplace_postcode: str(tax.workplace_postcode),
     payroll_id_change: str(tax.payroll_id_change) || 'AUTO',
     contracted_hours_per_week: normalizeContractedHours(str(tax.contracted_hours_per_week)),
+    reported_pay_frequency: normalizeReportedPayFrequency(str(tax.reported_pay_frequency)),
     irregular_payment_pattern: Boolean(tax.irregular_payment_pattern),
     exclude_from_fps_if_zero: Boolean(tax.exclude_from_fps_if_zero),
     payments_to_body: Boolean(tax.payments_to_body),
     trivial_commutation: Boolean(tax.trivial_commutation),
     flexible_drawdown: Boolean(tax.flexible_drawdown),
+    off_payroll_worker: Boolean(tax.off_payroll_worker),
     portal_access: Boolean(employee.portal_access),
   }
 }
@@ -2207,6 +2258,14 @@ function normalizeContractedHours(stored: string) {
     return '30_PLUS'
   }
   return DEFAULT_CONTRACTED_HOURS
+}
+
+function normalizeReportedPayFrequency(stored: string) {
+  const value = stored.trim().toUpperCase().replace(/[\s-]+/g, '_')
+  if (REPORTED_PAY_FREQUENCIES.some((item) => item.value === value)) return value
+  if (value === 'ANNUAL' || value === 'YEARLY') return 'ANNUALLY'
+  if (value === 'ONEOFF') return 'ONE_OFF'
+  return DEFAULT_REPORTED_PAY_FREQUENCY
 }
 
 function toNumber(value: string) {

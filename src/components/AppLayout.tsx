@@ -1,5 +1,6 @@
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { Building2, ChevronDown, Home, Search } from 'lucide-react'
+import { ResponsiveShell } from './ResponsiveShell'
 import { useAuth } from '../auth/AuthContext'
 import { BrandIcon } from './BrandIcon'
 import { fullName } from '../lib/format'
@@ -63,6 +64,18 @@ const adminNav: NavItem[] = [
       pathname.startsWith('/hr') && !pathname.startsWith('/hr/shifts'),
   },
   { to: '/payroll/invoices', label: 'Invoices', icon: iconActivityDoc },
+  {
+    to: '/company-invoices',
+    label: 'Invoices',
+    icon: iconActivityDoc,
+    isActive: (pathname) => pathname.startsWith('/company-invoices'),
+  },
+  {
+    to: '/requested-invoices',
+    label: 'Requested Invoices',
+    icon: iconActivityDoc,
+    isActive: (pathname) => pathname.startsWith('/requested-invoices'),
+  },
   {
     to: '/hr/shifts',
     label: 'Rota',
@@ -143,7 +156,7 @@ function CompanySwitcher({
   if (companies.length === 0) return null
 
   return (
-    <label className="relative min-w-[200px] max-w-[320px] shrink-0">
+    <label className="relative min-w-0 w-full max-w-none shrink-0 sm:w-auto sm:min-w-[180px] sm:max-w-[280px]">
       <Building2
         size={16}
         className="pointer-events-none absolute top-1/2 left-4 -translate-y-1/2 text-navy"
@@ -180,25 +193,46 @@ export function AppLayout() {
   const auth = useAuth()
   const navigate = useNavigate()
   const [menuOpen, setMenuOpen] = useState(false)
-  const items = adminNav.filter((item) => {
-    if (item.to === '/hr' || item.to === '/hr/shifts') return auth.hasModule('HR')
-    if (item.to === '/activities') return auth.isBureauAdmin
-    if (item.to === '/companies') return auth.canManageOrganizations
-    if (item.to === '/employees/payslips') return auth.isCompanyAdmin
-    if (auth.isCompanyAdmin) {
-      return [
-        '/',
-        '/employees',
-        '/employees/payslips',
-        '/hr',
-        '/payroll/invoices',
-        '/hr/shifts',
-        '/timesheets',
-        '/payroll/reports',
-      ].includes(item.to)
-    }
-    return true
-  })
+  const invoiceOnlyCompany =
+    auth.isCompanyAdmin &&
+    auth.hasModule('INVOICE') &&
+    !auth.hasModule('PAYROLL') &&
+    !auth.hasModule('HR')
+  const items = adminNav
+    .filter((item) => {
+      if (item.to === '/requested-invoices') return auth.isBureauAdmin
+      if (item.to === '/company-invoices') return auth.isCompanyAdmin && auth.hasModule('INVOICE')
+      if (item.to === '/hr' || item.to === '/hr/shifts') return auth.hasModule('HR')
+      if (item.to === '/activities') return auth.isBureauAdmin
+      if (item.to === '/companies') return auth.canManageOrganizations
+      if (item.to === '/employees/payslips') {
+        return auth.isCompanyAdmin && auth.hasModule('PAYROLL') && !auth.hasModule('INVOICE')
+      }
+      if (invoiceOnlyCompany) return item.to === '/' || item.to === '/company-invoices'
+      if (item.to === '/payroll/invoices') {
+        if (auth.isCompanyAdmin) return auth.hasModule('PAYROLL')
+        return true
+      }
+      if (auth.isCompanyAdmin) {
+        return [
+          '/',
+          '/employees',
+          '/employees/payslips',
+          '/hr',
+          '/payroll/invoices',
+          '/company-invoices',
+          '/hr/shifts',
+          '/timesheets',
+          '/payroll/reports',
+        ].includes(item.to)
+      }
+      return true
+    })
+    .map((item) =>
+      item.to === '/payroll/invoices' && auth.isCompanyAdmin && auth.hasModule('INVOICE')
+        ? { ...item, label: 'Payroll invoices' }
+        : item,
+    )
   const footerItems = footerNav.filter((item) => {
     if (item.to === '/settings') return !auth.isCompanyAdmin
     if (item.to === '/company-info') return auth.isCompanyAdmin
@@ -241,7 +275,17 @@ export function AppLayout() {
       const id = String(item.id ?? '')
       if (!id || seenNotifications.current.has(id) || item.is_read) continue
       seenNotifications.current.add(id)
-      if (item.type !== 'ROTA_PUBLISHED' && item.type !== 'ROTA_UPDATED' && item.type !== 'DOCUMENT_EXPIRING' && item.type !== 'INVOICE_APPROVED') continue
+      if (
+        item.type !== 'ROTA_PUBLISHED' &&
+        item.type !== 'ROTA_UPDATED' &&
+        item.type !== 'DOCUMENT_EXPIRING' &&
+        item.type !== 'INVOICE_APPROVED' &&
+        item.type !== 'INVOICE_REQUESTED' &&
+        item.type !== 'INVOICE_REASON_REQUESTED' &&
+        item.type !== 'INVOICE_REASON_SUBMITTED' &&
+        item.type !== 'INVOICE_ACCEPTED' &&
+        item.type !== 'INVOICE_REJECTED'
+      ) continue
       if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
         new Notification(item.title || 'Rota update', { body: item.body || '' })
       }
@@ -249,91 +293,94 @@ export function AppLayout() {
   }, [notifications.data])
 
   return (
-    <div className="min-h-screen bg-cream lg:grid lg:h-screen lg:grid-cols-[228px_minmax(0,1fr)] lg:overflow-hidden">
-      <aside className="flex min-h-screen flex-col bg-navy text-white print:hidden lg:sticky lg:top-0 lg:h-screen lg:min-h-0 lg:overflow-hidden">
-        <div className="shrink-0 px-[26px] pt-[43px] pb-8">
-          <span className="block h-[43px] w-[126px] overflow-hidden">
-            <img
-              src={sidebarLogo}
-              alt="Cedar Payroll"
-              width={126}
-              height={43}
-              className="brand-knockout h-full w-full object-contain object-left"
-            />
-          </span>
-        </div>
-        <nav className="min-h-0 flex-1 space-y-1 overflow-y-auto px-1.5">
-          {items.map((item) => (
-            <SidebarLink key={item.to} item={item} />
-          ))}
-        </nav>
-        <div className="mt-auto shrink-0 px-1.5 pb-3">
-          <div className="mb-3 space-y-1">
-            {footerItems.map((item) => (
+    <ResponsiveShell
+      sidebar={
+        <>
+          <div className="shrink-0 px-5 pb-4 pt-1 lg:px-[26px] lg:pt-[43px] lg:pb-8">
+            <span className="block h-[43px] w-[126px] overflow-hidden">
+              <img
+                src={sidebarLogo}
+                alt="Cedar Payroll"
+                width={126}
+                height={43}
+                className="brand-knockout h-full w-full object-contain object-left"
+              />
+            </span>
+          </div>
+          <nav className="min-h-0 flex-1 space-y-1 overflow-y-auto px-1.5">
+            {items.map((item) => (
               <SidebarLink key={item.to} item={item} />
             ))}
+          </nav>
+          <div className="mt-auto shrink-0 px-1.5 pb-3">
+            <div className="mb-3 space-y-1">
+              {footerItems.map((item) => (
+                <SidebarLink key={item.to} item={item} />
+              ))}
+            </div>
+            <div className="relative mx-1.5 border-t border-white/20 pt-3">
+              <button
+                type="button"
+                className="flex h-[60px] w-full items-center gap-2 rounded-[15px] px-2 text-left"
+                onClick={() => setMenuOpen((open) => !open)}
+              >
+                <span className="flex size-[46px] items-center justify-center rounded-full bg-[#9b9a9a] text-base font-semibold text-white">
+                  {initials(auth.user?.first_name, auth.user?.last_name)}
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block text-xs font-medium">Welcome,</span>
+                  <span className="block truncate text-xs font-semibold">{name}</span>
+                </span>
+                <span className="text-[10px] text-white/80">▾</span>
+              </button>
+              {menuOpen ? (
+                <div className="absolute right-0 bottom-[70px] left-0 rounded-[12px] bg-white p-2 text-navy shadow-lg">
+                  <button
+                    type="button"
+                    className="w-full rounded-[8px] px-2 py-2 text-left text-sm font-semibold text-brand hover:bg-cream"
+                    onClick={() => {
+                      auth.logout()
+                      navigate('/login')
+                    }}
+                  >
+                    Log out
+                  </button>
+                </div>
+              ) : null}
+            </div>
           </div>
-          <div className="relative mx-1.5 border-t border-white/20 pt-3">
-            <button
-              type="button"
-              className="flex h-[60px] w-full items-center gap-2 rounded-[15px] px-2 text-left"
-              onClick={() => setMenuOpen((open) => !open)}
-            >
-              <span className="flex size-[46px] items-center justify-center rounded-full bg-[#9b9a9a] text-base font-semibold text-white">
-                {initials(auth.user?.first_name, auth.user?.last_name)}
-              </span>
-              <span className="min-w-0 flex-1">
-                <span className="block text-xs font-medium">Welcome,</span>
-                <span className="block truncate text-xs font-semibold">{name}</span>
-              </span>
-              <span className="text-[10px] text-white/80">▾</span>
-            </button>
-            {menuOpen ? (
-              <div className="absolute right-0 bottom-[70px] left-0 rounded-[12px] bg-white p-2 text-navy shadow-lg">
-                <button
-                  type="button"
-                  className="w-full rounded-[8px] px-2 py-2 text-left text-sm font-semibold text-brand hover:bg-cream"
-                  onClick={() => {
-                    auth.logout()
-                    navigate('/login')
-                  }}
-                >
-                  Log out
-                </button>
-              </div>
-            ) : null} 
-          </div>
-        </div>
-      </aside>
-      <div className="flex min-h-screen min-w-0 flex-col lg:min-h-0 lg:overflow-y-auto">
-        <header className="flex h-16 items-center justify-between gap-4 bg-white px-10 print:hidden lg:px-16 xl:px-24">
-          <CompanySwitcher
-            companies={auth.adminCompanies}
-            companyId={auth.companyId}
-            onChange={auth.setCompanyId}
-          />
-          <div className="flex min-w-0 flex-1 items-center justify-end gap-3">
-            <PortalSwitchButton variant="admin" />
-            <label className="relative w-full max-w-[353px]">
-              <Search
-                size={16}
-                className="pointer-events-none absolute top-1/2 left-4 -translate-y-1/2 text-navy"
-              />
-              <input
-                className="h-[42px] w-full rounded-[15px] border border-[#d9d9d9] bg-white pr-4 pl-11 text-[15px] font-medium text-navy outline-none placeholder:text-muted"
-                placeholder={searchPlaceholder}
-              />
-            </label>
-          </div>
-        </header>
-        <main className="flex min-h-0 flex-1 flex-col overflow-y-auto px-10 py-6 lg:px-16 xl:px-24">
-          <Outlet />
-        </main>
-        <footer className="bg-white px-10 py-6 text-sm font-medium text-[#999] print:hidden lg:px-16 xl:px-24">
-          2026 Cedar Payroll. All rights reserved.  
+        </>
+      }
+      headerLeft={
+        <CompanySwitcher
+          companies={auth.adminCompanies}
+          companyId={auth.companyId}
+          onChange={auth.setCompanyId}
+        />
+      }
+      headerRight={
+        <>
+          <PortalSwitchButton variant="admin" />
+          <label className="relative min-w-0 w-full max-w-[353px] basis-full sm:basis-auto">
+            <Search
+              size={16}
+              className="pointer-events-none absolute top-1/2 left-4 -translate-y-1/2 text-navy"
+            />
+            <input
+              className="h-[42px] w-full rounded-[15px] border border-[#d9d9d9] bg-white pr-4 pl-11 text-[15px] font-medium text-navy outline-none placeholder:text-muted"
+              placeholder={searchPlaceholder}
+            />
+          </label>
+        </>
+      }
+      footer={
+        <footer className="bg-white px-4 py-4 text-sm font-medium text-[#999] print:hidden sm:px-6 lg:px-8 xl:px-10">
+          2026 Cedar Payroll. All rights reserved.
         </footer>
-      </div>
-    </div>
+      }
+    >
+      <Outlet />
+    </ResponsiveShell>
   )
 }
         

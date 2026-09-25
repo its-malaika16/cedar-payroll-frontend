@@ -23,7 +23,7 @@ function PasswordField({
   const [visible, setVisible] = useState(false)
   return (
     <label className="mt-9 block">
-      <span className="mb-3.5 block text-xl font-medium text-navy">{label}</span>
+      <span className="mb-3.5 block text-base font-medium text-navy sm:text-xl">{label}</span>
       <span className="relative block">
         <input
           type={visible ? 'text' : 'password'}
@@ -83,7 +83,7 @@ export function LoginPage() {
           Cookie Policy • Terms &amp; Conditions
         </p>
       </section>
-      <section className="flex min-h-screen items-center justify-center bg-cream px-8 py-16">
+      <section className="flex min-h-screen items-center justify-center bg-cream px-4 py-10 sm:px-8 sm:py-16">
         <form
           className="w-full max-w-[510px]"
           onSubmit={onSubmit(async () => {
@@ -103,7 +103,7 @@ export function LoginPage() {
             height={59}
             className="h-[59px] w-[171px] object-contain object-left"
           />
-          <h1 className="mt-8 text-[40px] font-semibold leading-none text-navy">
+          <h1 className="mt-8 text-[32px] font-semibold leading-none text-navy sm:text-[40px]">
             Your People,
             <br />
             Paid Right.

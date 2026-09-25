@@ -1,5 +1,6 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { Home, Search } from 'lucide-react'
+import { ResponsiveShell } from './ResponsiveShell'
 import { useAuth } from '../auth/AuthContext'
 import { BrandIcon } from './BrandIcon'
 import { fullName } from '../lib/format'
@@ -131,68 +132,70 @@ export function EmployeeLayout() {
   }, [notifications.data])
 
   return (
-    <div className="min-h-screen bg-cream lg:grid lg:h-screen lg:grid-cols-[228px_minmax(0,1fr)] lg:overflow-hidden">
-      <aside className="flex min-h-screen flex-col bg-navy text-white print:hidden lg:sticky lg:top-0 lg:h-screen lg:min-h-0 lg:overflow-hidden">
-        <div className="shrink-0 px-[26px] pt-[43px] pb-8">
-          <span className="block h-[43px] w-[126px] overflow-hidden">
-            <img
-              src={sidebarLogo}
-              alt="Cedar Payroll"
-              width={126}
-              height={43}
-              className="brand-knockout h-full w-full object-contain object-left"
-            />
-          </span>
-        </div>
-        <nav className="min-h-0 flex-1 space-y-1 overflow-y-auto px-1.5">
-          {mainNav.map((item) => (
-            <SidebarLink key={item.to} item={item} unread={unread} />
-          ))}
-        </nav>
-        <div className="mt-auto shrink-0 px-1.5 pb-3">
-          <div className="mb-3 space-y-1">
-            {footerNav.map((item) => (
+    <ResponsiveShell
+      sidebar={
+        <>
+          <div className="shrink-0 px-5 pb-4 pt-1 lg:px-[26px] lg:pt-[43px] lg:pb-8">
+            <span className="block h-[43px] w-[126px] overflow-hidden">
+              <img
+                src={sidebarLogo}
+                alt="Cedar Payroll"
+                width={126}
+                height={43}
+                className="brand-knockout h-full w-full object-contain object-left"
+              />
+            </span>
+          </div>
+          <nav className="min-h-0 flex-1 space-y-1 overflow-y-auto px-1.5">
+            {mainNav.map((item) => (
               <SidebarLink key={item.to} item={item} unread={unread} />
             ))}
+          </nav>
+          <div className="mt-auto shrink-0 px-1.5 pb-3">
+            <div className="mb-3 space-y-1">
+              {footerNav.map((item) => (
+                <SidebarLink key={item.to} item={item} unread={unread} />
+              ))}
+            </div>
+            <div className="relative mx-1.5 border-t border-white/20 pt-3">
+              <button
+                type="button"
+                className="flex h-[60px] w-full items-center gap-2 rounded-[15px] px-2 text-left"
+                onClick={() => setMenuOpen((open) => !open)}
+              >
+                <span className="flex size-[46px] items-center justify-center rounded-full bg-[#9b9a9a] text-base font-semibold text-white">
+                  {initials(auth.user?.first_name, auth.user?.last_name)}
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block text-xs font-medium">Welcome,</span>
+                  <span className="block truncate text-xs font-semibold">{name}</span>
+                </span>
+                <span className="text-[10px] text-white/80">▾</span>
+              </button>
+              {menuOpen ? (
+                <div className="absolute right-0 bottom-[70px] left-0 rounded-[12px] bg-white p-2 text-navy shadow-lg">
+                  <button
+                    type="button"
+                    className="w-full rounded-[8px] px-2 py-2 text-left text-sm font-semibold text-brand hover:bg-cream"
+                    onClick={() => {
+                      auth.logout()
+                      navigate('/login')
+                    }}
+                  >
+                    Log out
+                  </button>
+                </div>
+              ) : null}
+            </div>
           </div>
-          <div className="relative mx-1.5 border-t border-white/20 pt-3">
-            <button
-              type="button"
-              className="flex h-[60px] w-full items-center gap-2 rounded-[15px] px-2 text-left"
-              onClick={() => setMenuOpen((open) => !open)}
-            >
-              <span className="flex size-[46px] items-center justify-center rounded-full bg-[#9b9a9a] text-base font-semibold text-white">
-                {initials(auth.user?.first_name, auth.user?.last_name)}
-              </span>
-              <span className="min-w-0 flex-1">
-                <span className="block text-xs font-medium">Welcome,</span>
-                <span className="block truncate text-xs font-semibold">{name}</span>
-              </span>
-              <span className="text-[10px] text-white/80">▾</span>
-            </button>
-            {menuOpen ? (
-              <div className="absolute right-0 bottom-[70px] left-0 rounded-[12px] bg-white p-2 text-navy shadow-lg">
-                <button
-                  type="button"
-                  className="w-full rounded-[8px] px-2 py-2 text-left text-sm font-semibold text-brand hover:bg-cream"
-                  onClick={() => {
-                    auth.logout()
-                    navigate('/login')
-                  }}
-                >
-                  Log out
-                </button>
-              </div>
-            ) : null}
-          </div>
-        </div>
-      </aside>
-      <div className="flex min-h-screen min-w-0 flex-col lg:min-h-0 lg:overflow-y-auto">
-        <header className="flex h-16 items-center justify-end gap-3 bg-white px-10 print:hidden lg:px-16 xl:px-24">
+        </>
+      }
+      headerRight={
+        <>
           <PortalSwitchButton variant="employee" />
           {employeeCompanies.length > 1 ? (
             <select
-              className="h-[42px] rounded-[15px] border border-[#d9d9d9] bg-white px-3 text-[15px] font-medium text-navy outline-none"
+              className="h-[42px] min-w-0 max-w-full rounded-[15px] border border-[#d9d9d9] bg-white px-3 text-[15px] font-medium text-navy outline-none sm:max-w-[220px]"
               value={auth.companyId ?? ''}
               onChange={(event) => auth.setCompanyId(event.target.value)}
               aria-label="Select company"
@@ -204,7 +207,7 @@ export function EmployeeLayout() {
               ))}
             </select>
           ) : null}
-          <label className="relative w-full max-w-[353px]">
+          <label className="relative min-w-0 w-full max-w-[353px] basis-full sm:basis-auto">
             <Search
               size={16}
               className="pointer-events-none absolute top-1/2 left-4 -translate-y-1/2 text-navy"
@@ -214,11 +217,10 @@ export function EmployeeLayout() {
               placeholder="Search..."
             />
           </label>
-        </header>
-        <main className="flex min-h-0 flex-1 flex-col overflow-y-auto px-10 py-6 lg:px-16 xl:px-24">
-          <Outlet context={{ companyName: company?.name ?? '' }} />
-        </main>
-      </div>
-    </div>
+        </>
+      }
+    >
+      <Outlet context={{ companyName: company?.name ?? '' }} />
+    </ResponsiveShell>
   )
 }

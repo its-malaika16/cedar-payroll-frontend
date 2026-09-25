@@ -1,8 +1,10 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, type ReactNode } from 'react'
+import { createPortal } from 'react-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Eye, EyeOff, FileText } from 'lucide-react'
+import { Download, Eye, EyeOff, FileText, Trash2 } from 'lucide-react'
 import { hrApi } from '../../../api'
-import { fetchBlob } from '../../../api/client'
+import { download } from '../../../api/client'
+import { DocumentPreviewModal } from '../../../components/DocumentPreviewModal'
 import { Alert, Badge, Button, EmptyState, Field, Loading } from '../../../components/ui'
 import { formatDate } from '../../../lib/format'
 import {
@@ -13,24 +15,39 @@ import {
 
 const ACCEPT = '.png,.jpg,.jpeg,.pdf,.doc,.docx'
 
+function IconButton({
+  label,
+  onClick,
+  tone = 'navy',
+  children,
+}: {
+  label: string
+  onClick: () => void
+  tone?: 'navy' | 'danger'
+  children: ReactNode
+}) {
+  return (
+    <button
+      type="button"
+      title={label}
+      aria-label={label}
+      onClick={onClick}
+      className={`flex size-9 shrink-0 items-center justify-center rounded-[6px] border bg-white ${
+        tone === 'danger'
+          ? 'border-[#d32027] text-[#d32027] hover:bg-[#fdecee]'
+          : 'border-[#17375e] text-navy hover:bg-cream'
+      }`}
+    >
+      {children}
+    </button>
+  )
+}
+
 function expiryBadge(doc: ComplianceFile) {
   if (doc.expiry_state === 'expired') return <Badge status="EXPIRED">Expired</Badge>
   if (doc.expiry_state === 'soon') return <Badge status="PENDING">Expires soon</Badge>
   if (doc.expiry_date) return <Badge>Expires {formatDate(doc.expiry_date)}</Badge>
   return null
-}
-
-async function openFile(path: string, fileName: string) {
-  const blob = await fetchBlob(path)
-  const url = URL.createObjectURL(blob)
-  const opened = window.open(url, '_blank', 'noopener')
-  if (!opened) {
-    const link = document.createElement('a')
-    link.href = url
-    link.download = fileName
-    link.click()
-  }
-  window.setTimeout(() => URL.revokeObjectURL(url), 60_000)
 }
 
 export function ComplianceDocumentsPanel({
@@ -53,6 +70,8 @@ export function ComplianceDocumentsPanel({
   const [file, setFile] = useState<File | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [message, setMessage] = useState<string | null>(null)
+  const [viewer, setViewer] = useState<ComplianceFile | null>(null)
+  const [confirmDelete, setConfirmDelete] = useState<ComplianceFile | null>(null)
 
   const typesQuery = useQuery({
     queryKey: ['compliance-types', companyId, role],
@@ -109,6 +128,23 @@ export function ComplianceDocumentsPanel({
       await queryClient.invalidateQueries({ queryKey: ['my-compliance', companyId, employeeId] })
     },
     onError: (err) => setError(err instanceof Error ? err.message : 'Could not update visibility'),
+  })
+
+  const remove = useMutation({
+    mutationFn: (id: string) => hrApi.deleteCompliance(companyId, id),
+    onSuccess: async () => {
+      setConfirmDelete(null)
+      setViewer(null)
+      setError(null)
+      setMessage('Document deleted')
+      await queryClient.invalidateQueries({ queryKey: ['compliance-employees', companyId] })
+      await queryClient.invalidateQueries({ queryKey: ['compliance', companyId] })
+      await queryClient.invalidateQueries({ queryKey: ['my-compliance', companyId, employeeId] })
+    },
+    onError: (err) => {
+      setMessage(null)
+      setError(err instanceof Error ? err.message : 'Could not delete this document')
+    },
   })
 
   const typeOptions = useMemo(() => types, [types])
@@ -209,6 +245,19 @@ export function ComplianceDocumentsPanel({
             {documents.map((doc) => (
               <div key={doc.id} className="flex flex-wrap items-center justify-between gap-3 px-5 py-4">
                 <div className="flex min-w-0 items-center gap-3">
+                  {doc.can_delete !== false ? (
+                    <IconButton
+                      label="Delete"
+                      tone="danger"
+                      onClick={() => {
+                        setError(null)
+                        setMessage(null)
+                        setConfirmDelete(doc)
+                      }}
+                    >
+                      <Trash2 size={16} />
+                    </IconButton>
+                  ) : null}
                   <span className="flex size-10 shrink-0 items-center justify-center rounded-[10px] bg-[#e7f1f8] text-navy">
                     <FileText size={18} />
                   </span>
@@ -220,7 +269,7 @@ export function ComplianceDocumentsPanel({
                     </p>
                   </div>
                 </div>
-                <div className="flex flex-wrap items-center gap-3">
+                <div className="flex flex-wrap items-center gap-2">
                   {expiryBadge(doc)}
                   {doc.can_change_visibility ? (
                     <button
@@ -234,19 +283,77 @@ export function ComplianceDocumentsPanel({
                       {doc.visible_to_employee ? 'Visible to employee' : 'Hidden from employee'}
                     </button>
                   ) : null}
-                  <button
-                    type="button"
-                    className="text-sm font-semibold text-navy hover:underline"
-                    onClick={() => void openFile(doc.download_path, doc.file_name)}
+                  <IconButton label="View" onClick={() => setViewer(doc)}>
+                    <Eye size={16} />
+                  </IconButton>
+                  <IconButton
+                    label="Download"
+                    onClick={() => void download(doc.download_path, doc.file_name)}
                   >
-                    Open
-                  </button>
+                    <Download size={16} />
+                  </IconButton>
                 </div>
               </div>
             ))}
           </div>
         )}
       </div>
+
+      {viewer ? (
+        <DocumentPreviewModal
+          title={viewer.title || viewer.file_name}
+          fileName={viewer.file_name}
+          path={viewer.download_path}
+          onClose={() => setViewer(null)}
+          onDownload={() => void download(viewer.download_path, viewer.file_name)}
+        />
+      ) : null}
+
+      {confirmDelete
+        ? createPortal(
+            <div
+              className="fixed inset-0 z-[80] flex items-center justify-center bg-navy/40 px-4"
+              role="presentation"
+              onClick={() => {
+                if (!remove.isPending) setConfirmDelete(null)
+              }}
+            >
+              <div
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="delete-document-title"
+                className="w-full max-w-[420px] rounded-[16px] bg-white p-6 shadow-xl"
+                onClick={(event) => event.stopPropagation()}
+              >
+                <h3 id="delete-document-title" className="text-lg font-semibold text-navy">
+                  Delete {confirmDelete.title || confirmDelete.file_name}?
+                </h3>
+                <p className="mt-2 text-sm text-muted">This cannot be undone.</p>
+                <div className="mt-6 flex justify-end gap-3">
+                  <Button
+                    variant="secondary"
+                    type="button"
+                    className="h-10 min-w-[105px] text-xs"
+                    disabled={remove.isPending}
+                    onClick={() => setConfirmDelete(null)}
+                  >
+                    Keep document
+                  </Button>
+                  <Button
+                    variant="danger"
+                    type="button"
+                    className="h-10 min-w-[105px] text-xs"
+                    disabled={remove.isPending}
+                    onClick={() => remove.mutate(confirmDelete.id)}
+                  >
+                    {remove.isPending ? 'Deleting…' : 'Delete'}
+                  </Button>
+                </div>
+              </div>
+            </div>,
+            document.body,
+          )
+        : null}
     </div>
   )
 }

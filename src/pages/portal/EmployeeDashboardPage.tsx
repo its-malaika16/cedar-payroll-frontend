@@ -150,7 +150,7 @@ export function EmployeeDashboardPage() {
 
   return (
     <div>
-      <h1 className="text-[32px] font-semibold text-navy">Dashboard</h1>
+      <h1 className="text-[26px] font-semibold text-navy sm:text-[32px]">Dashboard</h1>
       <p className="mt-1 text-lg font-medium text-navy">Welcome, {name}</p>
       <p className="text-sm text-muted">{company?.name || 'Your company'}</p>
 

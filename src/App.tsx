@@ -35,6 +35,9 @@ import { AnalysisReportPage } from './pages/analysis/AnalysisReportPage'
 import { ReportBuilderPage } from './pages/analysis/ReportBuilderPage'
 import { ReportPreviewPage } from './pages/analysis/ReportPreviewPage'
 import { InvoicesPage } from './pages/payroll/InvoicesPage'
+import { CompanyInvoicesPage } from './pages/invoices/CompanyInvoicesPage'
+import { CompanyInvoiceFormPage } from './pages/invoices/CompanyInvoiceFormPage'
+import { RequestedInvoicesPage } from './pages/invoices/RequestedInvoicesPage'
 import { InvoiceEditorPage } from './pages/payroll/InvoiceEditorPage'
 import { InvoiceViewPage } from './pages/payroll/InvoiceViewPage'
 import { LeavePage } from './pages/hr/LeavePage'
@@ -81,6 +84,7 @@ function isCompanyAdminPath(pathname: string) {
   if (pathname.startsWith('/payroll/reports')) return true
   if (pathname === '/payroll/invoices') return true
   if (/^\/payroll\/invoices\/[^/]+$/.test(pathname)) return true
+  if (pathname.startsWith('/company-invoices')) return true
   return false
 }
 
@@ -118,6 +122,10 @@ export default function App() {
       <Route path="/register" element={<RegisterPage />} />
       <Route element={<AdminLayout />}>
         <Route path="/" element={<DashboardPage />} />
+        <Route path="/requested-invoices" element={<RequestedInvoicesPage />} />
+        <Route path="/company-invoices/new" element={<CompanyInvoiceFormPage />} />
+        <Route path="/company-invoices/:invoiceId" element={<CompanyInvoiceFormPage />} />
+        <Route path="/company-invoices" element={<CompanyInvoicesPage />} />
         <Route path="/companies" element={<CompaniesPage />} />
         <Route path="/companies/new" element={<CompanyFormPage />} />
         <Route path="/companies/:companyId" element={<CompanyDetailPage />} />

@@ -287,7 +287,7 @@ export function PayslipDispatchPage() {
             Filter
           </button>
           <PayrollSchedulesMenu />
-          <PayrollMoreMenu runId={runId} recordId={preselect || undefined} onUnavailable={setError} />
+          <PayrollMoreMenu runId={runId} recordId={preselect || undefined} locked={locked} onUnavailable={setError} />
         </div>
       </div>
 

@@ -1,6 +1,7 @@
 import { useMemo, useState, type ReactNode } from 'react'
+import { createPortal } from 'react-dom'
 import { Link, useNavigate } from 'react-router-dom'
-import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   AlertTriangle,
   CheckCircle2,
@@ -12,13 +13,15 @@ import {
   Info,
   MoreHorizontal,
   Search,
+  Trash2,
   Upload,
   XCircle,
 } from 'lucide-react'
 import { hrApi } from '../../api'
-import { fetchBlob } from '../../api/client'
+import { download } from '../../api/client'
 import { useAuth } from '../../auth/AuthContext'
-import { Alert, Loading } from '../../components/ui'
+import { DocumentPreviewModal } from '../../components/DocumentPreviewModal'
+import { Alert, Button, Loading } from '../../components/ui'
 import {
   ALL_COMPLIANCE_TYPES,
   typesFor,
@@ -63,26 +66,6 @@ function displayStatus(doc: ComplianceFile) {
   return { label: 'Valid', className: 'bg-[#e7f6ec] text-[#1b7d4f]' }
 }
 
-async function openFile(path: string, fileName: string, download = false) {
-  const blob = await fetchBlob(path)
-  const url = URL.createObjectURL(blob)
-  if (download) {
-    const link = document.createElement('a')
-    link.href = url
-    link.download = fileName
-    link.click()
-  } else {
-    const opened = window.open(url, '_blank', 'noopener')
-    if (!opened) {
-      const link = document.createElement('a')
-      link.href = url
-      link.download = fileName
-      link.click()
-    }
-  }
-  window.setTimeout(() => URL.revokeObjectURL(url), 60_000)
-}
-
 function typeLabel(item: ComplianceDocumentType) {
   return item.requiresExpiry && !/\(expiry\)/i.test(item.label) ? `${item.label} (expiry)` : item.label
 }
@@ -97,6 +80,9 @@ export function EmployeeDocumentsPage() {
   const [filterOpen, setFilterOpen] = useState(false)
   const [statusFilter, setStatusFilter] = useState<'all' | 'valid' | 'soon' | 'expired'>('all')
   const [menuId, setMenuId] = useState<string | null>(null)
+  const [viewer, setViewer] = useState<ComplianceFile | null>(null)
+  const [confirmDelete, setConfirmDelete] = useState<ComplianceFile | null>(null)
+  const [error, setError] = useState<string | null>(null)
 
   const query = useQuery({
     queryKey: ['my-compliance', companyId, employeeId],
@@ -104,6 +90,18 @@ export function EmployeeDocumentsPage() {
     enabled: Boolean(companyId && employeeId),
   })
   const documents = (query.data?.data as ComplianceFile[] | undefined) ?? []
+  const remove = useMutation({
+    mutationFn: (id: string) => hrApi.deleteCompliance(companyId!, id),
+    onSuccess: async () => {
+      setConfirmDelete(null)
+      setViewer(null)
+      setError(null)
+      await queryClient.invalidateQueries({ queryKey: ['my-compliance', companyId, employeeId] })
+    },
+    onError: (err) => {
+      setError(err instanceof Error ? err.message : 'Could not delete this document')
+    },
+  })
 
   const visible = useMemo(() => {
     const needle = search.trim().toLowerCase()
@@ -157,6 +155,12 @@ export function EmployeeDocumentsPage() {
         <StatCard icon={<AlertTriangle size={18} />} label="Expiring soon" value={stats.soon} hint="Documents expiring in next 60 days" />
         <StatCard icon={<XCircle size={18} />} label="Expired Documents" value={stats.expired} hint="Require your immediate attention" />
       </div>
+
+      {error ? (
+        <div className="mt-5">
+          <Alert>{error}</Alert>
+        </div>
+      ) : null}
 
       <section className="mt-5 rounded-[16px] border border-[#eceae6] bg-white">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#eceae6] px-5 py-4">
@@ -245,6 +249,20 @@ export function EmployeeDocumentsPage() {
                     <tr key={doc.id} className="border-t border-[#f3f1ec]">
                       <td className="px-5 py-4">
                         <div className="flex items-start gap-3">
+                          {doc.can_delete ?? doc.uploaded_by_kind === 'EMPLOYEE' ? (
+                            <button
+                              type="button"
+                              title="Delete"
+                              aria-label="Delete"
+                              className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-[6px] border border-[#d32027] bg-white text-[#d32027] hover:bg-[#fdecee]"
+                              onClick={() => {
+                                setError(null)
+                                setConfirmDelete(doc)
+                              }}
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          ) : null}
                           <span className="mt-0.5 flex size-9 items-center justify-center rounded-[10px] bg-[#eef2f6] text-navy">
                             <FileText size={16} />
                           </span>
@@ -269,17 +287,31 @@ export function EmployeeDocumentsPage() {
                       </td>
                       <td className="px-5 py-4">
                         <div className="relative flex items-center gap-2 text-navy">
-                          <button type="button" onClick={() => void openFile(doc.download_path, doc.file_name)} title="View">
+                          <button
+                            type="button"
+                            title="View"
+                            aria-label="View"
+                            className="flex size-9 items-center justify-center rounded-[6px] border border-[#17375e] bg-white text-navy hover:bg-cream"
+                            onClick={() => setViewer(doc)}
+                          >
                             <Eye size={16} />
                           </button>
                           <button
                             type="button"
-                            onClick={() => void openFile(doc.download_path, doc.file_name, true)}
                             title="Download"
+                            aria-label="Download"
+                            className="flex size-9 items-center justify-center rounded-[6px] border border-[#17375e] bg-white text-navy hover:bg-cream"
+                            onClick={() => void download(doc.download_path, doc.file_name)}
                           >
                             <Download size={16} />
                           </button>
-                          <button type="button" onClick={() => setMenuId(menuId === doc.id ? null : doc.id)} title="More">
+                          <button
+                            type="button"
+                            title="More"
+                            aria-label="More"
+                            className="flex size-9 items-center justify-center rounded-[6px] border border-[#17375e] bg-white text-navy hover:bg-cream"
+                            onClick={() => setMenuId(menuId === doc.id ? null : doc.id)}
+                          >
                             <MoreHorizontal size={16} />
                           </button>
                           {menuId === doc.id ? (
@@ -289,11 +321,34 @@ export function EmployeeDocumentsPage() {
                                 className="block w-full px-3 py-2 text-left text-sm hover:bg-[#f7f6f3]"
                                 onClick={() => {
                                   setMenuId(null)
-                                  void queryClient.invalidateQueries({ queryKey: ['my-compliance', companyId, employeeId] })
+                                  setViewer(doc)
                                 }}
                               >
-                                Refresh
+                                View
                               </button>
+                              <button
+                                type="button"
+                                className="block w-full px-3 py-2 text-left text-sm hover:bg-[#f7f6f3]"
+                                onClick={() => {
+                                  setMenuId(null)
+                                  void download(doc.download_path, doc.file_name)
+                                }}
+                              >
+                                Download
+                              </button>
+                              {doc.can_delete ?? doc.uploaded_by_kind === 'EMPLOYEE' ? (
+                                <button
+                                  type="button"
+                                  className="block w-full px-3 py-2 text-left text-sm text-[#d32027] hover:bg-[#f7f6f3]"
+                                  onClick={() => {
+                                    setMenuId(null)
+                                    setError(null)
+                                    setConfirmDelete(doc)
+                                  }}
+                                >
+                                  Delete
+                                </button>
+                              ) : null}
                             </div>
                           ) : null}
                         </div>
@@ -309,6 +364,62 @@ export function EmployeeDocumentsPage() {
           Showing {visible.length ? 1 : 0} to {visible.length} of {visible.length} documents
         </p>
       </section>
+
+      {viewer ? (
+        <DocumentPreviewModal
+          title={viewer.title || viewer.file_name}
+          fileName={viewer.file_name}
+          path={viewer.download_path}
+          onClose={() => setViewer(null)}
+          onDownload={() => void download(viewer.download_path, viewer.file_name)}
+        />
+      ) : null}
+
+      {confirmDelete
+        ? createPortal(
+            <div
+              className="fixed inset-0 z-[80] flex items-center justify-center bg-navy/40 px-4"
+              role="presentation"
+              onClick={() => {
+                if (!remove.isPending) setConfirmDelete(null)
+              }}
+            >
+              <div
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="delete-document-title"
+                className="w-full max-w-[420px] rounded-[16px] bg-white p-6 shadow-xl"
+                onClick={(event) => event.stopPropagation()}
+              >
+                <h3 id="delete-document-title" className="text-lg font-semibold text-navy">
+                  Delete {confirmDelete.title || confirmDelete.file_name}?
+                </h3>
+                <p className="mt-2 text-sm text-muted">This cannot be undone.</p>
+                <div className="mt-6 flex justify-end gap-3">
+                  <Button
+                    variant="secondary"
+                    type="button"
+                    className="h-10 min-w-[105px] text-xs"
+                    disabled={remove.isPending}
+                    onClick={() => setConfirmDelete(null)}
+                  >
+                    Keep document
+                  </Button>
+                  <Button
+                    variant="danger"
+                    type="button"
+                    className="h-10 min-w-[105px] text-xs"
+                    disabled={remove.isPending}
+                    onClick={() => remove.mutate(confirmDelete.id)}
+                  >
+                    {remove.isPending ? 'Deleting…' : 'Delete'}
+                  </Button>
+                </div>
+              </div>
+            </div>,
+            document.body,
+          )
+        : null}
     </div>
   )
 }

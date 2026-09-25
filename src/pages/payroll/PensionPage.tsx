@@ -98,7 +98,11 @@ export function PensionPage() {
           <PensionToolbarButton paid={paid} disabled />
           <CreateSendMenu companyId={companyId!} runId={runId} disabled />
           <PayrollSchedulesMenu />
-          <PayrollMoreMenu runId={runId} onUnavailable={setError} />
+          <PayrollMoreMenu
+            runId={runId}
+            locked={['LOCKED', 'COMPLETED'].includes((run?.status ?? '').toUpperCase())}
+            onUnavailable={setError}
+          />
         </div>
       </div>
 

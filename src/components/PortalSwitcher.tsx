@@ -91,7 +91,7 @@ export function PortalSwitchButton({ variant }: { variant: 'admin' | 'employee' 
       <button
         type="button"
         onClick={goToEmployeePortal}
-        className="inline-flex h-[42px] shrink-0 items-center gap-2 rounded-[15px] border border-[#d9d9d9] bg-white px-4 text-sm font-semibold text-navy hover:bg-cream"
+        className="inline-flex h-[42px] shrink-0 items-center gap-2 rounded-[15px] border border-[#d9d9d9] bg-white px-3 text-xs font-semibold text-navy hover:bg-cream sm:px-4 sm:text-sm"
       >
         <ArrowLeftRight size={15} />
         Employee portal
@@ -103,7 +103,7 @@ export function PortalSwitchButton({ variant }: { variant: 'admin' | 'employee' 
     <button
       type="button"
       onClick={goToAdminPortal}
-      className="inline-flex h-10 shrink-0 items-center gap-2 rounded-[12px] border border-[#d9d9d9] bg-white px-4 text-sm font-semibold text-navy hover:bg-[#f4f7fb]"
+      className="inline-flex h-10 shrink-0 items-center gap-2 rounded-[12px] border border-[#d9d9d9] bg-white px-3 text-xs font-semibold text-navy hover:bg-[#f4f7fb] sm:px-4 sm:text-sm"
     >
       <ArrowLeftRight size={15} />
       Admin portal

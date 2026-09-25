@@ -94,4 +94,5 @@ export type ComplianceFile = {
   expiry_state?: 'none' | 'ok' | 'soon' | 'expired'
   download_path: string
   can_change_visibility?: boolean
+  can_delete?: boolean
 }

@@ -14,6 +14,7 @@ import {
   RefreshCw,
   Scale,
   SquareArrowUp,
+  Trash2,
   User,
   UserX,
   Wallet,
@@ -789,9 +790,7 @@ export function PayrollRecordPage() {
     const body: Record<string, number> = {}
     for (const item of ADDITION_ITEMS) {
       if (!item.field) continue
-      if (visible.includes(item.label)) {
-        body[item.field] = Number(amounts[item.label] || 0)
-      }
+      body[item.field] = visible.includes(item.label) ? Number(amounts[item.label] || 0) : 0
     }
     return body
   }
@@ -1025,6 +1024,44 @@ export function PayrollRecordPage() {
     setRatePrompt(null)
   }
 
+  function removeVisibleAddition(label: string) {
+    if (locked) return
+    const nextVisible = visibleAdditions.filter((item) => item !== label)
+    const nextAmounts = { ...additionAmounts }
+    delete nextAmounts[label]
+    setVisibleAdditions(nextVisible)
+    setAdditionAmounts(nextAmounts)
+    latestRef.current = {
+      ...latestRef.current,
+      visibleAdditions: nextVisible,
+      additionAmounts: nextAmounts,
+    }
+    void persistAndCalculate()
+  }
+
+  function removeCustomAddition(name: string) {
+    if (locked) return
+    const next = customAdditions.filter((item) => item.name !== name)
+    setCustomAdditions(next)
+    latestRef.current = { ...latestRef.current, customAdditions: next }
+    void persistAndCalculate()
+  }
+
+  function removeDeduction(label: string) {
+    if (locked) return
+    const nextVisible = visibleDeductions.filter((item) => item !== label)
+    const nextAmounts = { ...deductionAmounts }
+    delete nextAmounts[label]
+    setVisibleDeductions(nextVisible)
+    setDeductionAmounts(nextAmounts)
+    latestRef.current = {
+      ...latestRef.current,
+      visibleDeductions: nextVisible,
+      deductionAmounts: nextAmounts,
+    }
+    void persistAndCalculate()
+  }
+
   function addAddition(label: string) {
     setOpenMenu(null)
     const item = ADDITION_ITEMS.find((entry) => entry.label === label)
@@ -1173,26 +1210,19 @@ export function PayrollRecordPage() {
           <PayrollMoreMenu
             runId={runId}
             recordId={recordId}
+            locked={locked}
             onUnavailable={setError}
             extras={
-              <>
-                <button
-                  type="button"
-                  className={payrollMoreMenuItem}
-                  onClick={() => void saveInputs(undefined, false)}
-                >
-                  Save inputs
-                </button>
-                <button
-                  type="button"
-                  className={payrollMoreMenuItem}
-                  onClick={() =>
-                    void act(() => payrollApi.calculateRecord(companyId!, runId, recordId))
-                  }
-                >
-                  Calculate payslip
-                </button>
-              </>
+              <button
+                type="button"
+                className={payrollMoreMenuItem}
+                disabled={locked}
+                onClick={() =>
+                  void act(() => payrollApi.calculateRecord(companyId!, runId, recordId))
+                }
+              >
+                Calculate payslip
+              </button>
             }
           />
         </div>
@@ -1570,6 +1600,7 @@ export function PayrollRecordPage() {
                     value={row.amount}
                     locked={locked}
                     tone="addition"
+                    onRemove={() => removeCustomAddition(row.name)}
                     onChange={(value) => {
                       setCustomAdditions((current) =>
                         current.map((item) => (item.name === row.name ? { ...item, amount: value } : item)),
@@ -1592,6 +1623,7 @@ export function PayrollRecordPage() {
                     value={additionAmounts[label] ?? '0.00'}
                     locked={locked}
                     tone="addition"
+                    onRemove={() => removeVisibleAddition(label)}
                     onChange={(value) => {
                       setAdditionAmounts((current) => ({ ...current, [label]: value }))
                       queueCalculate()
@@ -1614,6 +1646,7 @@ export function PayrollRecordPage() {
                     value={deductionAmounts[label] ?? '0.00'}
                     locked={locked}
                     tone="deduction"
+                    onRemove={() => removeDeduction(label)}
                     onChange={(value) => {
                       setDeductionAmounts((current) => ({ ...current, [label]: value }))
                       queueCalculate()
@@ -2131,6 +2164,7 @@ function AmountRow({
   tone = 'addition',
   onChange,
   onBlur,
+  onRemove,
 }: {
   label: string
   value: string
@@ -2138,11 +2172,28 @@ function AmountRow({
   tone?: 'addition' | 'deduction'
   onChange: (value: string) => void
   onBlur?: (value: string) => void
+  onRemove?: () => void
 }) {
   const deduction = tone === 'deduction'
   return (
     <div className={`flex items-center justify-between gap-3 text-xs ${deduction ? 'text-brand' : 'text-navy'}`}>
       <span className="min-w-0 truncate">{label}</span>
+      <div className="flex shrink-0 items-center gap-1.5">
+        {!locked && onRemove ? (
+          <button
+            type="button"
+            title={`Remove ${label}`}
+            aria-label={`Remove ${label}`}
+            className={`flex size-6 items-center justify-center rounded-[6px] border ${
+              deduction
+                ? 'border-[#f0c7c9] text-brand hover:bg-white'
+                : 'border-[#c5d4ea] text-navy hover:bg-white'
+            }`}
+            onClick={onRemove}
+          >
+            <Trash2 size={12} />
+          </button>
+        ) : null}
       <div className="flex shrink-0">
         <span
           className={`flex h-[25px] items-center rounded-l-[6px] border-[0.5px] border-r-0 px-2 ${
@@ -2160,6 +2211,7 @@ function AmountRow({
           onChange={(event) => onChange(event.target.value)}
           onBlur={(event) => onBlur?.(event.target.value)}
         />
+      </div>
       </div>
     </div>
   )

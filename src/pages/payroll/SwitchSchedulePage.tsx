@@ -191,7 +191,12 @@ export function SwitchSchedulePage() {
             </>
           ) : null}
           <PayrollSchedulesMenu />
-          <PayrollMoreMenu runId={runId} recordId={preselect || undefined} onUnavailable={setError} />
+          <PayrollMoreMenu
+            runId={runId}
+            recordId={preselect || undefined}
+            locked={['LOCKED', 'COMPLETED'].includes((run?.status ?? '').toUpperCase())}
+            onUnavailable={setError}
+          />
         </div>
       </div>
 

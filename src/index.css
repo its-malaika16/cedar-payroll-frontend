@@ -31,6 +31,41 @@ html,
 body,
 #root {
   min-height: 100%;
+  max-width: 100%;
+  overflow-x: clip;
+}
+
+.app-main {
+  min-width: 0;
+}
+
+.app-main h1 {
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 639px) {
+  .app-main h1 {
+    font-size: 1.625rem !important;
+    line-height: 1.2 !important;
+  }
+}
+
+.app-main img,
+.app-main svg,
+.app-main video,
+.app-main canvas {
+  max-width: 100%;
+}
+
+.app-main input,
+.app-main select,
+.app-main textarea {
+  max-width: 100%;
+}
+
+.app-main .overflow-x-auto {
+  max-width: 100%;
+  -webkit-overflow-scrolling: touch;
 }
 
 body {

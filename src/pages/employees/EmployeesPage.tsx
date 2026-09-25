@@ -296,7 +296,7 @@ export function EmployeesPage() {
             <button
               type="button"
               onClick={() => navigate('/employees')}
-              className="flex items-center gap-3 text-[32px] font-semibold leading-none text-navy"
+              className="flex items-center gap-3 text-[26px] font-semibold leading-tight text-navy sm:text-[32px] sm:leading-none"
             >
               <ChevronLeft size={25} strokeWidth={2.4} />
               {pageTitle}
@@ -311,8 +311,8 @@ export function EmployeesPage() {
           actions={actions}
         />
       )}
-      <div className="flex min-h-0 flex-1 gap-6">
-        <aside className="flex h-full min-h-0 w-[288px] shrink-0 flex-col overflow-hidden rounded-[10px] bg-white shadow-[3px_4px_1.95px_rgba(0,0,0,0.09)] print:hidden">
+      <div className="flex min-h-0 flex-1 flex-col gap-6 xl:flex-row">
+        <aside className={`${inWorkspace ? 'hidden xl:flex' : 'flex'} h-full min-h-0 w-full shrink-0 flex-col overflow-hidden rounded-[10px] bg-white shadow-[3px_4px_1.95px_rgba(0,0,0,0.09)] print:hidden xl:w-[288px]`}>
           <div className="flex items-center justify-between gap-2 px-4 pt-4">
             <label className="flex items-center gap-2 text-sm font-semibold text-navy">
               <input

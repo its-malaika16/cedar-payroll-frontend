@@ -495,6 +495,8 @@ export const hrApi = {
     patch(`/companies/${companyId}/hr/compliance/${documentId}/visibility`, {
       visible_to_employee,
     }),
+  deleteCompliance: (companyId: string, documentId: string) =>
+    del(`/companies/${companyId}/hr/compliance/${documentId}`),
   reviewCompliance: (
     companyId: string,
     documentId: string,
@@ -539,6 +541,32 @@ export const timesheetsApi = {
       ids: string[]
     },
   ) => post(`/companies/${companyId}/hr/timesheets/bulk`, body),
+}
+
+export const companyInvoicesApi = {
+  dashboard: (companyId: string) =>
+    get(`/companies/${companyId}/company-invoice-requests/dashboard`),
+  list: (companyId: string) =>
+    get(`/companies/${companyId}/company-invoice-requests`),
+  get: (companyId: string, invoiceId: string) =>
+    get(`/companies/${companyId}/company-invoice-requests/${invoiceId}`),
+  save: (companyId: string, form: FormData, invoiceId?: string) =>
+    api(`/companies/${companyId}/company-invoice-requests${invoiceId ? `/${invoiceId}` : ''}`, {
+      method: 'POST',
+      body: form,
+    }),
+  send: (companyId: string, invoiceId: string) =>
+    post(`/companies/${companyId}/company-invoice-requests/${invoiceId}/send`),
+  submitReason: (companyId: string, invoiceId: string, reason: string) =>
+    post(`/companies/${companyId}/company-invoice-requests/${invoiceId}/reason`, { reason }),
+  review: (
+    companyId: string,
+    invoiceId: string,
+    body: { action: 'ACCEPT' | 'REJECT' | 'REQUEST_REASON'; note?: string },
+  ) => post(`/companies/${companyId}/company-invoice-requests/${invoiceId}/review`, body),
+  requested: () => get('/requested-invoices'),
+  filePath: (companyId: string, invoiceId: string) =>
+    `/companies/${companyId}/company-invoice-requests/${invoiceId}/file`,
 }
 
 export const notificationsApi = {

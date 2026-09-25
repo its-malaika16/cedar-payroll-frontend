@@ -43,6 +43,7 @@ export type OrganizationFormValues = {
   postcode: string
   payroll: boolean
   hr: boolean
+  invoice: boolean
   owner_first_name: string
   owner_last_name: string
   owner_email: string
@@ -131,6 +132,7 @@ export function emptyOrganizationForm(roles: Role[] = []): OrganizationFormValue
     postcode: '',
     payroll: true,
     hr: true,
+    invoice: false,
     owner_first_name: '',
     owner_last_name: '',
     owner_email: '',
@@ -180,6 +182,7 @@ export function organizationFormFromCompany(
     postcode: company.postcode ?? '',
     payroll: modules.includes('PAYROLL'),
     hr: modules.includes('HR'),
+    invoice: modules.includes('INVOICE'),
     owner_first_name: owner?.users?.first_name ?? '',
     owner_last_name: owner?.users?.last_name ?? '',
     owner_email: owner?.users?.email ?? '',
@@ -203,6 +206,7 @@ export function toOrganizationPayload(form: OrganizationFormValues): Organizatio
   const modules = [
     form.payroll ? 'PAYROLL' : null,
     form.hr ? 'HR' : null,
+    form.invoice ? 'INVOICE' : null,
   ].filter((module): module is string => Boolean(module))
 
   if (modules.length === 0) {
@@ -708,6 +712,15 @@ export function OrganizationForm({
                   icon={<Users size={16} />}
                   iconClass="bg-violet-50 text-violet-700"
                   onToggle={(value) => set('hr', value)}
+                />
+                <ModuleTile
+                  title="Invoice"
+                  description="Company can request invoice"
+                  enabled={values.invoice}
+                  disabled={readOnly}
+                  icon={<FileText size={16} />}
+                  iconClass="bg-sky-50 text-sky-700"
+                  onToggle={(value) => set('invoice', value)}
                 />
               </div>
             </SectionCard>

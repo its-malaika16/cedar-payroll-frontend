@@ -35,7 +35,7 @@ export function HrTitle({
           <ArrowLeft size={22} className="text-navy" />
         </button>
       ) : null}
-      <h1 className="text-[32px] font-semibold leading-none text-navy">{title}</h1>
+      <h1 className="text-[26px] font-semibold leading-tight text-navy sm:text-[32px] sm:leading-none">{title}</h1>
     </div>
   )
 }

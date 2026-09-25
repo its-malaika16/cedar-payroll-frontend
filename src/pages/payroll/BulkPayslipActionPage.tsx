@@ -13,7 +13,7 @@ import { useAuth } from '../../auth/AuthContext'
 import { Alert, Button, Loading } from '../../components/ui'
 import { BrandIcon } from '../../components/BrandIcon'
 import { formatLongDate, fullName, idOf, isEmployeeOnPayrollRun } from '../../lib/format'
-import type { PayrollRecord, PayrollRun } from '../../types'
+import type { PayrollDeductionLine, PayrollRecord, PayrollRun } from '../../types'
 import iconPerson from '../../assets/brand/icon-person.png'
 import { CreateSendMenu, toolbarBtn } from './CreateSendMenu'
 import { PayrollImportMenu } from './PayrollImportMenu'
@@ -82,7 +82,8 @@ export function BulkPayslipActionPage() {
 
   const run = runQuery.data?.data as PayrollRun | undefined
   const records = ((run?.payroll_records ?? []) as PayrollRecord[]).filter((record) =>
-    isEmployeeOnPayrollRun(record.employees, run),
+    isEmployeeOnPayrollRun(record.employees, run) &&
+    (record.status ?? '').toUpperCase() !== 'FINALISED',
   )
   const locked = ['LOCKED', 'COMPLETED'].includes((run?.status ?? '').toUpperCase())
   const periodLabel = (run?.pay_frequency ?? '').toUpperCase().includes('MONTH')
@@ -203,6 +204,8 @@ export function BulkPayslipActionPage() {
       } else if (action === 'deduction') {
         const label = source === 'new' ? newName.trim() : typeLabel
         if (!label) throw new Error(source === 'new' ? 'Enter a name for the deduction type.' : 'Select a deduction type.')
+        const value = Number(amount)
+        if (Number.isNaN(value)) throw new Error('Enter a valid amount.')
         if (source === 'new' && companyId) {
           rememberPayType(companyId, 'deduction', {
             name: label,
@@ -218,9 +221,10 @@ export function BulkPayslipActionPage() {
             reuse: 'remember',
           })
         }
-        throw new Error(
-          'Custom deductions are remembered for the Add menu, but payroll records cannot store them yet.',
-        )
+        await applyToSelected((record) => ({
+          deduction_lines: mergeDeductionLine(record.deduction_lines, label, value),
+        }))
+        setMessage(`Added ${label} to ${selected.length} payslip${selected.length === 1 ? '' : 's'}.`)
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not update payslips')
@@ -288,7 +292,7 @@ export function BulkPayslipActionPage() {
             Filter
           </button>
           <PayrollSchedulesMenu />
-          <PayrollMoreMenu runId={runId} onUnavailable={setError} />
+          <PayrollMoreMenu runId={runId} locked={locked} onUnavailable={setError} />
         </div>
       </div>
 
@@ -501,4 +505,24 @@ export function BulkPayslipActionPage() {
       </div>
     </div>
   )
+}
+
+function mergeDeductionLine(
+  lines: PayrollDeductionLine[] | null | undefined,
+  label: string,
+  amount: number,
+): PayrollDeductionLine[] {
+  const next = [...(lines ?? [])]
+  const match = label.trim().toLowerCase()
+  const index = next.findIndex((line) => line.label.trim().toLowerCase() === match)
+  if (index >= 0) {
+    next[index] = {
+      ...next[index],
+      label,
+      amount: Number(next[index].amount ?? 0) + amount,
+    }
+    return next
+  }
+  next.push({ label, amount })
+  return next
 }
