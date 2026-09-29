@@ -34,10 +34,11 @@ function SummaryRow({
 }) {
   return (
     <div
-      className={`flex items-center justify-between px-4 py-2.5 text-sm ${
-        highlight ? 'text-white' : ''
-      }`}
-      style={{ backgroundColor: highlight ? NAVY : '#ffffff', color: highlight ? '#ffffff' : NAVY }}
+      className={`flex items-center justify-between px-4 py-2.5 text-sm`}
+      style={{
+        backgroundColor: highlight ? PALE : '#ffffff',
+        color: NAVY,
+      }}
     >
       <span className={highlight ? 'font-semibold' : ''}>{label}</span>
       <span className="font-semibold tabular-nums">{money(value)}</span>
@@ -54,9 +55,18 @@ export function PayslipDocument({ model }: { model: PayslipViewModel }) {
     <div className="overflow-hidden rounded-[16px] bg-white shadow-[0_1px_8px_rgba(23,55,94,0.08)]">
       <div className="px-8 pb-8 pt-7">
         <div className="flex items-start justify-between gap-4">
-          <h2 className="text-[28px] font-semibold leading-none" style={{ color: NAVY }}>
-            Payslip
-          </h2>
+          <div>
+            <h2 className="text-[28px] font-semibold leading-none" style={{ color: NAVY }}>
+              {model.employeeName && model.employeeName !== '—'
+                ? model.employeeName
+                : 'Payslip'}
+            </h2>
+            {model.employeeName && model.employeeName !== '—' ? (
+              <p className="mt-2 text-[15px] font-medium leading-snug" style={{ color: NAVY }}>
+                {model.payslipFor}
+              </p>
+            ) : null}
+          </div>
           <div className="text-right">
             <p className="text-[11px] font-semibold tracking-[0.08em]" style={{ color: NAVY }}>
               NET PAY
@@ -67,16 +77,19 @@ export function PayslipDocument({ model }: { model: PayslipViewModel }) {
           </div>
         </div>
 
-        <div className="mt-8 grid gap-x-8 gap-y-5 sm:grid-cols-3">
-          <InfoField label="EMPLOYEE" value={model.employeeName} />
-          <InfoField label="DEPARTMENT" value={model.department} />
-          <InfoField label="PAY PERIOD" value={model.payPeriod} />
-          <InfoField label="NI NUMBER" value={model.niNumber} />
-          <InfoField label="ADDRESS" value={model.address} />
-          <InfoField label="TAX CODE" value={model.taxCode} />
-        </div>
+        <section className="mt-8 overflow-hidden rounded-[8px] border border-[#e4e7ec]">
+          <div className="px-4 py-2.5 text-[11px] font-semibold tracking-[0.08em] text-white" style={{ backgroundColor: NAVY }}>
+            PERSONAL INFORMATION
+          </div>
+          <div className="grid gap-x-8 gap-y-5 px-4 py-4 sm:grid-cols-2">
+            <InfoField label="ADDRESS" value={model.address} />
+            <InfoField label="DEPARTMENT" value={model.department} />
+            <InfoField label="TAX CODE" value={model.taxCode} />
+            <InfoField label="NI NUMBER" value={model.niNumber} />
+          </div>
+        </section>
 
-        <section className="mt-8 overflow-hidden rounded-[8px]">
+        <section className="mt-5 overflow-hidden rounded-[8px]">
           <div className="px-4 py-2.5 text-[11px] font-semibold tracking-[0.08em] text-white" style={{ backgroundColor: NAVY }}>
             EARNINGS
           </div>

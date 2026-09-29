@@ -12,6 +12,7 @@ import {
   invoiceLineFromAmount,
   invoiceTotals,
   mapApiLines,
+  sortInvoiceEmployeeLines,
   type InvoiceLine,
   type InvoiceRecord,
 } from './invoiceMath'
@@ -139,6 +140,7 @@ export function InvoiceEditorPage() {
   }, [defaultsQuery.data, invoiceQuery.data, invoiceId])
 
   const totals = useMemo(() => invoiceTotals(lines), [lines])
+  const displayLines = useMemo(() => sortInvoiceEmployeeLines(lines), [lines])
   const loading = invoiceId ? invoiceQuery.isLoading : defaultsQuery.isLoading
   const status = String(asRecord(invoiceQuery.data?.data).status ?? 'DRAFT')
   const locked = Boolean(invoiceId) && status !== 'DRAFT'
@@ -162,7 +164,7 @@ export function InvoiceEditorPage() {
       reference,
       heading,
       ...bank,
-      lines: lines.map((line) => ({
+      lines: sortInvoiceEmployeeLines(lines).map((line) => ({
         id: line.id,
         employee_id: line.employee_id,
         kind: line.kind,
@@ -325,7 +327,7 @@ export function InvoiceEditorPage() {
             <span />
           </div>
           <div className="max-h-[min(420px,46vh)] overflow-y-auto">
-            {lines.map((line) => (
+            {displayLines.map((line) => (
               <div
                 key={line.key}
                 className="grid grid-cols-[minmax(12rem,1.5fr)_7.5rem_7.5rem_8rem_8rem_2.75rem] items-center gap-2 border-t border-[#f0eeea] px-4 py-2.5"

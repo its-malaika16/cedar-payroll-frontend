@@ -3,7 +3,7 @@ import { Link, useParams } from 'react-router-dom'
 import { payrollApi, payslipsApi } from '../../api'
 import { useAuth } from '../../auth/AuthContext'
 import { Alert, Badge, Button, Card, EmptyState, Loading, PageHeader, Stat, Table } from '../../components/ui'
-import { formatDate, fullName, idOf, isEmployeeOnPayrollRun, money } from '../../lib/format'
+import { formatDate, fullName, idOf, isEmployeeOnPayrollRun, money, sortByEmployeeName } from '../../lib/format'
 import type { PayrollRecord, PayrollRun } from '../../types'
 import { useState } from 'react'
 
@@ -21,8 +21,10 @@ export function PayrollRunDetailPage() {
   })
 
   const run = query.data?.data as PayrollRun | undefined
-  const records = ((run?.payroll_records ?? []) as PayrollRecord[]).filter((record) =>
-    isEmployeeOnPayrollRun(record.employees, run),
+  const records = sortByEmployeeName(
+    ((run?.payroll_records ?? []) as PayrollRecord[]).filter((record) =>
+      isEmployeeOnPayrollRun(record.employees, run),
+    ),
   )
 
   const act = async (fn: () => Promise<{ message: string }>) => {

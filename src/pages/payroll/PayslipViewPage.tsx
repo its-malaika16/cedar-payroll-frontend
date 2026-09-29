@@ -63,6 +63,7 @@ export function PayslipViewPage() {
   }, [record, run, employee, company])
 
   const displayName = fullName(employee?.first_name, employee?.last_name)
+  const payslipTitle = displayName !== '—' ? displayName : 'Payslip'
   const recordPath = `/payroll/runs/${runId}/records/${recordId}`
   const backTo = inEmployeePortal
     ? '/portal/payslips'
@@ -119,10 +120,17 @@ export function PayslipViewPage() {
         <button
           type="button"
           onClick={() => navigate(backTo, { state: { from: payrollListPathFromRun(run) } })}
-          className="flex items-center gap-3 text-[32px] font-semibold leading-none text-navy"
+          className="flex items-start gap-3 text-[32px] font-semibold leading-none text-navy"
         >
-          <ChevronLeft size={25} strokeWidth={2.4} />
-          Payslip
+          <ChevronLeft className="mt-[3px] shrink-0" size={25} strokeWidth={2.4} />
+          <span className="text-left">
+            <span className="block">{payslipTitle}</span>
+            {model?.payslipFor ? (
+              <span className="mt-2 block text-sm font-medium leading-snug text-navy">
+                {model.payslipFor}
+              </span>
+            ) : null}
+          </span>
         </button>
         <div className="flex flex-wrap items-center gap-2">
           <Button variant="secondary" disabled={busy} onClick={() => void downloadPdf()}>

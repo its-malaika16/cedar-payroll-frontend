@@ -483,6 +483,12 @@ export const hrApi = {
       method: 'POST',
       body: form,
     }),
+  saveStarterForm: (
+    companyId: string,
+    employeeId: string,
+    body: { html: string; file_name: string },
+  ) =>
+    post(`/companies/${companyId}/hr/employees/${employeeId}/compliance/starter-form`, body),
   complianceTypes: (companyId: string, forEmployee = false) =>
     get(
       `/companies/${companyId}/hr/compliance/types?for=${forEmployee ? 'employee' : 'employer'}`,
@@ -593,6 +599,7 @@ export const bureauApi = {
   team: () => get<BureauTeamMember[]>('/bureau/team'),
   addAdmin: (body: { name: string; email: string; password: string }) =>
     post<BureauTeamMember>('/bureau/team', body),
+  removeAdmin: (memberId: string) => del(`/bureau/team/${memberId}`),
 }
 
 export const chatApi = {

@@ -3,7 +3,7 @@ import { useMutation, useQuery } from '@tanstack/react-query'
 import { CalendarDays, ChevronDown, ChevronLeft, ChevronRight, Info, X } from 'lucide-react'
 import { employeesApi, payrollApi } from '../../../api'
 import { Alert } from '../../../components/ui'
-import { fullName, idOf } from '../../../lib/format'
+import { fullName, idOf, compareEmployeeNames } from '../../../lib/format'
 import { taxYearStartDate } from '../../../lib/hmrcTaxCalendar'
 import type { Employee, PayrollSchedule } from '../../../types'
 import {
@@ -47,10 +47,17 @@ function uniqueName(base: string, existing: string[]): string {
   return `${base} (${index})`
 }
 
-function employmentOf(employee: Employee): Record<string, unknown> {
+function scheduleIdOf(employee: Employee) {
   const details = employee.employment_details
-  if (Array.isArray(details)) return (details[0] ?? {}) as Record<string, unknown>
-  return (details ?? {}) as Record<string, unknown>
+  const rows = Array.isArray(details) ? details : details ? [details] : []
+  for (const row of rows) {
+    if (!row || typeof row !== 'object') continue
+    const value = (row as { pay_schedule_id?: unknown }).pay_schedule_id
+    if (value == null || value === '') continue
+    const id = String(value).trim()
+    if (id && id !== '0') return id
+  }
+  return ''
 }
 
 function PayDateSelect({
@@ -175,11 +182,21 @@ export function CreateScheduleModal({
   const groups = useMemo(() => payDateRuleGroups(meta.unit), [meta.unit])
 
   const employeesQuery = useQuery({
-    queryKey: ['employees', companyId],
+    queryKey: ['employees', companyId, 'assign-schedule'],
     queryFn: () => employeesApi.list(companyId),
     enabled: Boolean(companyId) && step === 'assign',
   })
   const employees = (employeesQuery.data?.data ?? []) as Employee[]
+  const unassignedEmployees = useMemo(
+    () =>
+      employees
+        .filter((employee) => !scheduleIdOf(employee))
+        .sort((left, right) => compareEmployeeNames(left, right)),
+    [employees],
+  )
+  const unassignedIds = unassignedEmployees.map((employee) => idOf(employee))
+  const allSelected =
+    unassignedIds.length > 0 && unassignedIds.every((id) => selectedEmployees.includes(id))
 
   const create = useMutation({
     mutationFn: () => {
@@ -225,12 +242,9 @@ export function CreateScheduleModal({
     setError(null)
     try {
       const scheduleId = idOf(createdSchedule)
-      const toAssign = selectedEmployees.filter((employeeId) => {
-        const employee = employees.find((item) => idOf(item) === employeeId)
-        if (!employee) return false
-        const current = String(employmentOf(employee).pay_schedule_id ?? '')
-        return !current || current === scheduleId
-      })
+      const toAssign = selectedEmployees.filter((employeeId) =>
+        unassignedIds.includes(employeeId),
+      )
       if (toAssign.length === 0) {
         setError('Select employees who are not already on another schedule. Use Switch Employee(s) Payment Schedule to move them.')
         return
@@ -270,7 +284,7 @@ export function CreateScheduleModal({
                 ? 'Select how the pay periods and pay dates of the schedule should be organised.'
                 : step === 'preview'
                   ? 'Below is a preview of your schedule. Please ensure the week start and end dates are correct. Pay dates are defaults – they can be changed as you process payroll.'
-                  : 'Choose which employees should use this pay schedule. You can also assign people later from their employment record.'}
+                  : 'Choose employees who are not already on a pay schedule. You can also assign people later from their employment record.'}
             </p>
           </div>
           <button
@@ -444,43 +458,51 @@ export function CreateScheduleModal({
                 <p className="text-sm text-navy/70">
                   No employees yet. You can assign this schedule later from an employee record.
                 </p>
+              ) : unassignedEmployees.length === 0 ? (
+                <p className="text-sm text-navy/70">
+                  All employees are already on a pay schedule. Use Switch Employee(s) Payment Schedule
+                  to move them.
+                </p>
               ) : (
-                <div className="max-h-[48vh] space-y-1 overflow-auto rounded-[10px] border border-[#e6e4df] bg-white p-2">
-                  {employees.map((employee) => {
-                    const employeeId = idOf(employee)
-                    const current = String(employmentOf(employee).pay_schedule_id ?? '')
-                    const alreadyAssigned = Boolean(current) && current !== idOf(createdSchedule)
-                    return (
-                      <label
-                        key={employeeId}
-                        className={`flex items-center gap-3 rounded-[8px] px-3 py-2 ${
-                          alreadyAssigned ? 'cursor-not-allowed opacity-60' : 'cursor-pointer hover:bg-cream'
-                        }`}
-                      >
-                        <input
-                          type="checkbox"
-                          className="size-4 accent-navy"
-                          disabled={alreadyAssigned}
-                          checked={selectedEmployees.includes(employeeId)}
-                          onChange={(e) =>
-                            setSelectedEmployees((currentIds) =>
-                              e.target.checked
-                                ? [...currentIds, employeeId]
-                                : currentIds.filter((id) => id !== employeeId),
-                            )
-                          }
-                        />
-                        <span className="text-sm font-medium text-navy">
-                          {fullName(employee.first_name, employee.last_name)}
-                        </span>
-                        {alreadyAssigned ? (
-                          <span className="text-xs text-muted">
-                            Already on a schedule — use Switch Employee(s) Payment Schedule
+                <div className="overflow-hidden rounded-[10px] border border-[#e6e4df] bg-white">
+                  <label className="flex cursor-pointer items-center gap-3 border-b border-[#eee] px-3 py-2.5 hover:bg-cream">
+                    <input
+                      type="checkbox"
+                      className="size-4 accent-navy"
+                      checked={allSelected}
+                      onChange={(event) =>
+                        setSelectedEmployees(event.target.checked ? unassignedIds : [])
+                      }
+                    />
+                    <span className="text-sm font-semibold text-navy">Select all</span>
+                  </label>
+                  <div className="max-h-[48vh] space-y-0 overflow-auto p-1">
+                    {unassignedEmployees.map((employee) => {
+                      const employeeId = idOf(employee)
+                      return (
+                        <label
+                          key={employeeId}
+                          className="flex cursor-pointer items-center gap-3 rounded-[8px] px-3 py-2 hover:bg-cream"
+                        >
+                          <input
+                            type="checkbox"
+                            className="size-4 accent-navy"
+                            checked={selectedEmployees.includes(employeeId)}
+                            onChange={(event) =>
+                              setSelectedEmployees((currentIds) =>
+                                event.target.checked
+                                  ? [...currentIds, employeeId]
+                                  : currentIds.filter((id) => id !== employeeId),
+                              )
+                            }
+                          />
+                          <span className="text-sm font-medium text-navy">
+                            {fullName(employee.first_name, employee.last_name)}
                           </span>
-                        ) : null}
-                      </label>
-                    )
-                  })}
+                        </label>
+                      )
+                    })}
+                  </div>
                 </div>
               )}
             </div>

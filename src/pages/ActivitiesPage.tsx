@@ -9,10 +9,30 @@ type ActivityRow = {
   id: string
   created_at?: string | null
   activity_name: string
+  employee_name?: string | null
+  employeeName?: string | null
+  schedule_name?: string | null
+  period_label?: string | null
   person_name: string
   email: string
   role: string
   company_name: string
+}
+
+function activityLines(row: ActivityRow) {
+  const named =
+    row.employee_name?.trim() ||
+    row.employeeName?.trim() ||
+    row.schedule_name?.trim() ||
+    row.period_label?.trim()
+  if (named) {
+    return { action: row.activity_name.replace(/\s+for\s+[A-Za-z].*$/, '').trim() || row.activity_name, employee: named }
+  }
+  const match = row.activity_name.match(/^(.*?)\s+for\s+([A-Za-z][A-Za-z' -]{1,80})$/)
+  if (match) return { action: match[1].trim(), employee: match[2].trim() }
+  const created = row.activity_name.match(/^(Created|Deleted) employee\s+(.+)$/i)
+  if (created) return { action: `${created[1]} employee`, employee: created[2].trim() }
+  return { action: row.activity_name, employee: '' }
 }
 
 function when(value?: string | null) {
@@ -68,7 +88,9 @@ export function ActivitiesPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#eee]">
-                {list.map((row) => (
+                {list.map((row) => {
+                  const activity = activityLines(row)
+                  return (
                   <tr key={idOf(row)} className="align-top">
                     <td className="px-5 py-3">
                       <p className="font-semibold text-navy">{row.person_name}</p>
@@ -76,10 +98,16 @@ export function ActivitiesPage() {
                     </td>
                     <td className="px-5 py-3 text-navy">{row.role}</td>
                     <td className="px-5 py-3 text-navy">{row.company_name}</td>
-                    <td className="px-5 py-3 font-medium text-navy">{row.activity_name}</td>
+                    <td className="px-5 py-3">
+                      <p className="font-semibold text-navy">{activity.action}</p>
+                      {activity.employee ? (
+                        <p className="text-xs text-muted">{activity.employee}</p>
+                      ) : null}
+                    </td>
                     <td className="px-5 py-3 whitespace-nowrap text-muted">{when(row.created_at)}</td>
                   </tr>
-                ))}
+                  )
+                })}
               </tbody>
             </table>
           </div>

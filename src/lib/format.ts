@@ -42,6 +42,48 @@ export function formatNiNumber(value?: string | null) {
   return `${compact.slice(0, 2)} ${compact.slice(2, 4)} ${compact.slice(4, 6)} ${compact.slice(6, 8)} ${compact.slice(8)}`
 }
 
+function utcDate(value?: string | Date | null) {
+  if (!value) return null
+  const date = value instanceof Date ? value : new Date(value)
+  if (Number.isNaN(date.getTime())) return null
+  return date
+}
+
+function periodEndingKind(payFrequency?: string | null) {
+  switch (String(payFrequency ?? '').toUpperCase()) {
+    case 'MONTHLY':
+      return 'Month Ending'
+    case 'WEEKLY':
+      return 'Week Ending'
+    case 'FORTNIGHTLY':
+      return 'Fortnight Ending'
+    case 'FOUR_WEEKLY':
+      return 'Period Ending'
+    case 'QUARTERLY':
+      return 'Quarter Ending'
+    case 'YEARLY':
+    case 'ANNUAL':
+      return 'Year Ending'
+    default:
+      return 'Period Ending'
+  }
+}
+
+export function formatPayslipForLabel(
+  end?: string | Date | null,
+  payFrequency?: string | null,
+) {
+  const to = utcDate(end)
+  if (!to) return 'Payslip'
+  const date = to.toLocaleDateString('en-GB', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    timeZone: 'UTC',
+  })
+  return `Payslip for ${periodEndingKind(payFrequency)} ${date}`
+}
+
 export function formatPayslipPeriod(
   start?: string | Date | null,
   end?: string | Date | null,
@@ -112,6 +154,24 @@ export function fullName(
   last?: string | null,
 ) {
   return [first, last].filter(Boolean).join(' ') || '—'
+}
+
+export function compareEmployeeNames(
+  left?: { first_name?: string | null; last_name?: string | null } | null,
+  right?: { first_name?: string | null; last_name?: string | null } | null,
+) {
+  const leftName = [left?.first_name, left?.last_name].filter(Boolean).join(' ').trim()
+  const rightName = [right?.first_name, right?.last_name].filter(Boolean).join(' ').trim()
+  if (!leftName && !rightName) return 0
+  if (!leftName) return 1
+  if (!rightName) return -1
+  return leftName.localeCompare(rightName, 'en-GB', { sensitivity: 'base' })
+}
+
+export function sortByEmployeeName<
+  T extends { employees?: { first_name?: string | null; last_name?: string | null } | null },
+>(items: T[]) {
+  return [...items].sort((left, right) => compareEmployeeNames(left.employees, right.employees))
 }
 
 function starterLeaverRow(employee?: { starters_leavers?: unknown } | null) {

@@ -12,7 +12,7 @@ import { payrollApi } from '../../api'
 import { useAuth } from '../../auth/AuthContext'
 import { Alert, Button, Loading } from '../../components/ui'
 import { BrandIcon } from '../../components/BrandIcon'
-import { formatLongDate, fullName, idOf, isEmployeeOnPayrollRun, money } from '../../lib/format'
+import { formatLongDate, fullName, idOf, isEmployeeOnPayrollRun, money, sortByEmployeeName } from '../../lib/format'
 import type { PayrollRecord, PayrollRun } from '../../types'
 import iconPerson from '../../assets/brand/icon-person.png'
 import { CreateSendMenu, toolbarBtn } from './CreateSendMenu'
@@ -39,8 +39,10 @@ export function ReopenPayslipsPage() {
   })
 
   const run = runQuery.data?.data as PayrollRun | undefined
-  const records = ((run?.payroll_records ?? []) as PayrollRecord[]).filter((record) =>
-    isEmployeeOnPayrollRun(record.employees, run),
+  const records = sortByEmployeeName(
+    ((run?.payroll_records ?? []) as PayrollRecord[]).filter((record) =>
+      isEmployeeOnPayrollRun(record.employees, run),
+    ),
   )
   const locked = ['LOCKED', 'COMPLETED'].includes((run?.status ?? '').toUpperCase())
   const periodLabel = (run?.pay_frequency ?? '').toUpperCase().includes('MONTH')

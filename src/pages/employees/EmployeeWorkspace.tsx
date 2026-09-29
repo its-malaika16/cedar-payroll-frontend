@@ -235,6 +235,7 @@ export function EmployeeWorkspace() {
   const [error, setError] = useState<string | null>(null)
   const [message, setMessage] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
+  const [assigningSchedule, setAssigningSchedule] = useState(false)
   const [photoFile, setPhotoFile] = useState<File | null>(null)
   const [postcodeError, setPostcodeError] = useState<string | null>(null)
   const [postcodeChecking, setPostcodeChecking] = useState(false)
@@ -267,6 +268,9 @@ export function EmployeeWorkspace() {
   const company = companyQuery.data?.data as Company | undefined
   const complianceDocuments = (complianceQuery.data?.data as ComplianceFile[] | undefined) ?? []
   const assignedScheduleId = str(asRecord(employee?.employment_details).pay_schedule_id)
+  const needsSchedule = !isNew && Boolean(employeeId) && !assignedScheduleId
+  const activeSchedules = schedules.filter((schedule) => schedule.is_active !== false)
+  const selectedExistingScheduleId = parsePaySchedule(draft.pay_schedule).id
 
   useEffect(() => {
     if (isNew) {
@@ -360,6 +364,32 @@ export function EmployeeWorkspace() {
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [confirmingDelete, saving])
+
+  async function assignScheduleForEmployee() {
+    if (!companyId || !employeeId) return
+    const schedule = parsePaySchedule(draft.pay_schedule)
+    if (!schedule.id) {
+      setError('Select a pay schedule for this employee')
+      return
+    }
+    setAssigningSchedule(true)
+    setError(null)
+    setMessage(null)
+    try {
+      await employeesApi.updateEmployment(companyId, employeeId, {
+        pay_schedule_id: schedule.id,
+        pay_schedule_request: null,
+      })
+      await queryClient.invalidateQueries({ queryKey: ['employee', companyId, employeeId] })
+      await queryClient.invalidateQueries({ queryKey: ['employees', companyId] })
+      await queryClient.invalidateQueries({ queryKey: ['payroll-runs', companyId] })
+      setMessage('Pay schedule assigned to this employee')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not assign a pay schedule')
+    } finally {
+      setAssigningSchedule(false)
+    }
+  }
 
   async function deleteEmployee() {
     if (!companyId || !employeeId) return
@@ -644,6 +674,39 @@ export function EmployeeWorkspace() {
       <div className="min-h-0 flex-1 pb-4">
         {tab === 'Personal' ? (
           <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1.9fr)_minmax(260px,0.9fr)]">
+            {needsSchedule ? (
+              <Alert tone="warning" className="xl:col-span-2">
+                <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                  <p className="font-medium">
+                    This Employee is not on a pay schedule. Assign a schedule
+                  </p>
+                  {activeSchedules.length === 0 ? (
+                    <Link to="/payroll/schedules" className="shrink-0 text-sm font-semibold text-navy underline">
+                      Create a pay schedule
+                    </Link>
+                  ) : (
+                    <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center lg:max-w-[460px]">
+                      <div className="min-w-0 flex-1">
+                        <OptionSelect
+                          value={selectedExistingScheduleId ? `id:${selectedExistingScheduleId}` : ''}
+                          groups={existingPayScheduleGroups(activeSchedules)}
+                          placeholder="Select pay schedule"
+                          onChange={(value) => setDraft({ ...draft, pay_schedule: value })}
+                        />
+                      </div>
+                      <Button
+                        type="button"
+                        className="shrink-0"
+                        disabled={assigningSchedule || !selectedExistingScheduleId}
+                        onClick={() => void assignScheduleForEmployee()}
+                      >
+                        {assigningSchedule ? 'Assigning…' : 'Assign'}
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              </Alert>
+            ) : null}
             <Section title="Personal Information" icon={<User size={16} />} className="xl:col-span-2">
               <div className="grid grid-cols-2 gap-x-4 gap-y-3 lg:grid-cols-4">
                 <Field label="Title">
@@ -1763,7 +1826,7 @@ function existingScheduleLabel(schedule: PayrollSchedule, all: PayrollSchedule[]
   return duplicates ? `${label} — ${schedule.schedule_name}` : label
 }
 
-function payScheduleGroups(schedules: PayrollSchedule[]): SelectGroup[] {
+function existingPayScheduleGroups(schedules: PayrollSchedule[]): SelectGroup[] {
   return [
     {
       label: 'Existing Schedule',
@@ -1772,6 +1835,12 @@ function payScheduleGroups(schedules: PayrollSchedule[]): SelectGroup[] {
         label: existingScheduleLabel(schedule, schedules),
       })),
     },
+  ]
+}
+
+function payScheduleGroups(schedules: PayrollSchedule[]): SelectGroup[] {
+  return [
+    ...existingPayScheduleGroups(schedules),
     {
       label: 'New Schedule',
       options: NEW_PAY_SCHEDULES.map((option) => ({

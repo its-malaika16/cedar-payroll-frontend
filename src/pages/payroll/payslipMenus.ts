@@ -79,6 +79,7 @@ export function taxableAdditionsFromRecord(record: PayrollRecord | null | undefi
 
   const fromLines = (record.pay_lines ?? []).reduce((sum, line) => {
     if (line.kind !== 'addition') return sum
+    if (line.tax === false) return sum
     const mappedField = line.label ? MAPPED_ADDITION_FIELD_BY_LABEL.get(line.label) : undefined
     if (mappedField && moneyAmount(record[mappedField]) !== 0) return sum
     return sum + moneyAmount(line.amount)
@@ -122,16 +123,34 @@ export function allowableDeductionsFromRecord(record: PayrollRecord | null | und
   if (lines.length > 0) {
     let beforeTax = 0
     let beforeNic = 0
+    let nicOnly = 0
+    let pension = 0
     for (const line of lines) {
       const amount = moneyAmount(line.amount)
+      const hasFlags =
+        typeof line.tax === 'boolean' ||
+        typeof line.nics === 'boolean' ||
+        typeof line.employeePension === 'boolean' ||
+        typeof line.employerPension === 'boolean'
+      if (hasFlags) {
+        const tax = line.tax === true
+        const nics = line.nics === true
+        if (nics && tax) beforeNic += amount
+        else if (nics) nicOnly += amount
+        else if (tax) beforeTax += amount
+        if (line.employeePension === true) pension += amount
+        continue
+      }
       const key = deductionLabelKey(line.label ?? '')
-      if (BEFORE_NIC_DEDUCTION_LABELS.has(key)) beforeNic += amount
-      else if (BEFORE_TAX_DEDUCTION_LABELS.has(key)) beforeTax += amount
+      if (BEFORE_NIC_DEDUCTION_LABELS.has(key)) {
+        beforeNic += amount
+        pension += amount
+      } else if (BEFORE_TAX_DEDUCTION_LABELS.has(key)) beforeTax += amount
     }
     return {
       taxAllowable: roundMoney(beforeTax + beforeNic),
-      nicAllowable: roundMoney(beforeNic),
-      pensionAllowable: roundMoney(beforeNic),
+      nicAllowable: roundMoney(beforeNic + nicOnly),
+      pensionAllowable: roundMoney(pension),
     }
   }
   const beforeTax = moneyAmount(record?.before_tax_deductions)
@@ -177,8 +196,4 @@ export function payslipNetPayToDate(ytd: PayrollRecord['year_to_date']) {
   )
 }
 
-export const DEDUCTION_LINKS = [
-  'Automatic enrolment...',
-  'Attachment orders...',
-  'Saving schemes...',
-] as const
+export const DEDUCTION_LINKS = ['Automatic enrolment...'] as const

@@ -32,6 +32,7 @@ import {
   isEmployeeOnPayrollRun,
   money,
   pensionAppliesToPeriod,
+  sortByEmployeeName,
 } from '../../lib/format'
 import type { Employee, PayrollPayLine, PayrollRecord, PayrollRun, PayrollSchedule, PayrollYearToDate } from '../../types'
 import iconPerson from '../../assets/brand/icon-person.png'
@@ -60,9 +61,17 @@ import {
 } from './payslipMenus'
 import { PayTypeEditor } from './PayTypeEditor'
 import {
+  type CustomAdditionLine,
+  type CustomDeductionLine,
   emptyPayTypeDraft,
+  flagsFromDraft,
+  deductionFlagsFromDraft,
+  flagsFromPayLine,
+  isCustomDeductionLine,
+  isRepeatingRepetition,
   loadSavedPayTypes,
   rememberPayType,
+  resolvePayTypeAmount,
   type PayTypeDraft,
   type PayTypeKind,
   type SavedPayType,
@@ -299,8 +308,10 @@ export function PayrollRecordPage() {
   const [typeDraft, setTypeDraft] = useState<PayTypeDraft>(emptyPayTypeDraft)
   const [typeError, setTypeError] = useState<string | null>(null)
   const [savedTypes, setSavedTypes] = useState<SavedPayType[]>([])
-  const [customAdditions, setCustomAdditions] = useState<{ name: string; amount: string }[]>([])
-  const [, setCustomDeductions] = useState<{ name: string; amount: string }[]>([])
+  const [customAdditions, setCustomAdditions] = useState<CustomAdditionLine[]>([])
+  const [suppressedRepeating, setSuppressedRepeating] = useState<string[]>([])
+  const [customDeductions, setCustomDeductions] = useState<CustomDeductionLine[]>([])
+  const [suppressedRepeatingDeductions, setSuppressedRepeatingDeductions] = useState<string[]>([])
   const [leaveAmount, setLeaveAmount] = useState('')
   const [ratePrompt, setRatePrompt] = useState<{ kind: 'hourly' | 'daily'; value: string } | null>(null)
   const skipHydrate = useRef(false)
@@ -347,8 +358,10 @@ export function PayrollRecordPage() {
   })
 
   const employee = (employeeQuery.data?.data as Employee | undefined) ?? record?.employees
-  const records = ((run?.payroll_records ?? []) as PayrollRecord[]).filter((item) =>
-    isEmployeeOnPayrollRun(item.employees, run),
+  const records = sortByEmployeeName(
+    ((run?.payroll_records ?? []) as PayrollRecord[]).filter((item) =>
+      isEmployeeOnPayrollRun(item.employees, run),
+    ),
   )
   const sidebarRecords = records.length > 0 ? records : record ? [record] : []
   const runLocked = ['LOCKED', 'COMPLETED'].includes((run?.status ?? '').toUpperCase())
@@ -364,7 +377,9 @@ export function PayrollRecordPage() {
     setVisibleDeductions([])
     setDeductionAmounts({})
     setCustomAdditions([])
+    setSuppressedRepeating([])
     setCustomDeductions([])
+    setSuppressedRepeatingDeductions([])
     setOpenMenu(null)
     setTypeEditor(null)
     setTypeError(null)
@@ -429,12 +444,38 @@ export function PayrollRecordPage() {
       unmappedStored.map((line) => ({
         name: line.label || 'Addition',
         amount: moneyInput(line.amount),
+        calculationMethod: line.calculationMethod,
+        repetition: line.repetition ?? 'Include in this period only',
+        ...flagsFromPayLine(line),
       })),
     )
+    setSuppressedRepeating(
+      (record.pay_lines ?? []).flatMap((line) =>
+        line.kind === 'meta' ? (line.suppressed ?? []).map((item) => item.trim().toLowerCase()) : [],
+      ),
+    )
+    setSuppressedRepeatingDeductions(
+      (record.pay_lines ?? []).flatMap((line) =>
+        line.kind === 'meta'
+          ? (line.suppressedDeductions ?? []).map((item) => item.trim().toLowerCase())
+          : [],
+      ),
+    )
     const storedDeductions = record.deduction_lines ?? []
-    setVisibleDeductions(storedDeductions.map((line) => line.label))
+    const customStoredDeductions = storedDeductions.filter((line) => isCustomDeductionLine(line))
+    const builtInStoredDeductions = storedDeductions.filter((line) => !isCustomDeductionLine(line))
+    setCustomDeductions(
+      customStoredDeductions.map((line) => ({
+        name: line.label || 'Deduction',
+        amount: moneyInput(line.amount),
+        calculationMethod: line.calculationMethod,
+        repetition: line.repetition ?? 'Include in this period only',
+        ...flagsFromPayLine(line),
+      })),
+    )
+    setVisibleDeductions(builtInStoredDeductions.map((line) => line.label))
     setDeductionAmounts(
-      Object.fromEntries(storedDeductions.map((line) => [line.label, moneyInput(line.amount)])),
+      Object.fromEntries(builtInStoredDeductions.map((line) => [line.label, moneyInput(line.amount)])),
     )
     if (!locked) queueCalculate()
   }, [recordQuery.dataUpdatedAt])
@@ -444,6 +485,9 @@ export function PayrollRecordPage() {
     hours,
     rate,
     customAdditions,
+    suppressedRepeating,
+    customDeductions,
+    suppressedRepeatingDeductions,
     visibleAdditions,
     additionAmounts,
     visibleDeductions,
@@ -457,6 +501,9 @@ export function PayrollRecordPage() {
     hours,
     rate,
     customAdditions,
+    suppressedRepeating,
+    customDeductions,
+    suppressedRepeatingDeductions,
     visibleAdditions,
     additionAmounts,
     visibleDeductions,
@@ -814,8 +861,14 @@ export function PayrollRecordPage() {
           form.customAdditions,
           form.visibleAdditions,
           form.additionAmounts,
+          form.suppressedRepeating,
+          form.suppressedRepeatingDeductions,
         ),
-        deduction_lines: deductionLinesPayload(form.visibleDeductions, form.deductionAmounts),
+        deduction_lines: deductionLinesPayload(
+          form.visibleDeductions,
+          form.deductionAmounts,
+          form.customDeductions,
+        ),
         unpaid_leave_deduction: Number.isNaN(leave) || leave < 0 ? 0 : leave,
         employee_notes: form.employeeNotes || undefined,
         employer_notes: form.employerNotes || undefined,
@@ -872,6 +925,8 @@ export function PayrollRecordPage() {
     customs = customAdditions,
     visible = visibleAdditions,
     amounts = additionAmounts,
+    suppressed = suppressedRepeating,
+    suppressedDeductions = suppressedRepeatingDeductions,
   ) {
     const extras = lines.map((line) => ({
       id: line.id,
@@ -899,18 +954,55 @@ export function PayrollRecordPage() {
       kind: 'addition' as const,
       label: row.name,
       amount: Number(row.amount || 0),
+      calculationMethod: row.calculationMethod,
+      repetition: row.repetition ?? 'Include in this period only',
+      ...flagsFromDraft(row),
     }))
-    return [...extras, ...unmapped, ...custom]
+    const additionLabels = [...new Set(suppressed.map((item) => item.trim().toLowerCase()).filter(Boolean))]
+    const deductionLabels = [
+      ...new Set(suppressedDeductions.map((item) => item.trim().toLowerCase()).filter(Boolean)),
+    ]
+    const meta =
+      additionLabels.length === 0 && deductionLabels.length === 0
+        ? []
+        : [
+            {
+              id: 'repeating-meta',
+              kind: 'meta' as const,
+              amount: 0,
+              notional: true,
+              tax: false,
+              nics: false,
+              employeePension: false,
+              employerPension: false,
+              minWage: false,
+              ...(additionLabels.length > 0 ? { suppressed: additionLabels } : {}),
+              ...(deductionLabels.length > 0 ? { suppressedDeductions: deductionLabels } : {}),
+            },
+          ]
+    return [...extras, ...unmapped, ...custom, ...meta]
   }
 
   function deductionLinesPayload(
     visible = visibleDeductions,
     amounts = deductionAmounts,
+    customs = customDeductions,
   ) {
-    return visible.map((label) => ({
-      label,
-      amount: Number(amounts[label] || 0),
+    const customNames = new Set(customs.map((row) => row.name.trim().toLowerCase()))
+    const builtIn = visible
+      .filter((label) => !customNames.has(label.trim().toLowerCase()))
+      .map((label) => ({
+        label,
+        amount: Number(amounts[label] || 0),
+      }))
+    const custom = customs.map((row) => ({
+      label: row.name,
+      amount: Number(row.amount || 0),
+      calculationMethod: row.calculationMethod,
+      repetition: row.repetition ?? 'Include in this period only',
+      ...deductionFlagsFromDraft(row),
     }))
+    return [...builtIn, ...custom]
   }
 
   async function persistPayLines(
@@ -919,14 +1011,36 @@ export function PayrollRecordPage() {
     visible = visibleAdditions,
     amounts = additionAmounts,
   ) {
-    await patchRecord({ pay_lines: payLinesPayload(lines, customs, visible, amounts) })
+    const form = latestRef.current
+    await patchRecord({
+      pay_lines: payLinesPayload(
+        lines,
+        customs,
+        visible,
+        amounts,
+        form.suppressedRepeating,
+        form.suppressedRepeatingDeductions,
+      ),
+    })
   }
 
   async function persistDeductions(
     visible = visibleDeductions,
     amounts = deductionAmounts,
+    customs = customDeductions,
   ) {
-    await patchRecord({ deduction_lines: deductionLinesPayload(visible, amounts) })
+    const form = latestRef.current
+    await patchRecord({
+      deduction_lines: deductionLinesPayload(visible, amounts, customs),
+      pay_lines: payLinesPayload(
+        form.extraPay,
+        form.customAdditions,
+        form.visibleAdditions,
+        form.additionAmounts,
+        form.suppressedRepeating,
+        form.suppressedRepeatingDeductions,
+      ),
+    })
   }
 
   function applyHourlyPay(rateValue: string) {
@@ -1041,9 +1155,35 @@ export function PayrollRecordPage() {
 
   function removeCustomAddition(name: string) {
     if (locked) return
+    const removed = customAdditions.find((item) => item.name === name)
     const next = customAdditions.filter((item) => item.name !== name)
+    const nextSuppressed = isRepeatingRepetition(removed?.repetition)
+      ? [...new Set([...suppressedRepeating, name.trim().toLowerCase()])]
+      : suppressedRepeating
     setCustomAdditions(next)
-    latestRef.current = { ...latestRef.current, customAdditions: next }
+    setSuppressedRepeating(nextSuppressed)
+    latestRef.current = {
+      ...latestRef.current,
+      customAdditions: next,
+      suppressedRepeating: nextSuppressed,
+    }
+    void persistAndCalculate()
+  }
+
+  function removeCustomDeduction(name: string) {
+    if (locked) return
+    const removed = customDeductions.find((item) => item.name === name)
+    const next = customDeductions.filter((item) => item.name !== name)
+    const nextSuppressed = isRepeatingRepetition(removed?.repetition)
+      ? [...new Set([...suppressedRepeatingDeductions, name.trim().toLowerCase()])]
+      : suppressedRepeatingDeductions
+    setCustomDeductions(next)
+    setSuppressedRepeatingDeductions(nextSuppressed)
+    latestRef.current = {
+      ...latestRef.current,
+      customDeductions: next,
+      suppressedRepeatingDeductions: nextSuppressed,
+    }
     void persistAndCalculate()
   }
 
@@ -1098,13 +1238,29 @@ export function PayrollRecordPage() {
       setCustomAdditions((current) => {
         const next = current.some((row) => row.name === item.name)
           ? current
-          : [...current, { name: item.name, amount: item.amount }]
+          : [...current, { name: item.name, amount: item.amount, calculationMethod: item.calculationMethod, repetition: item.repetition, ...flagsFromDraft(item) }]
         void persistPayLines(extraPay, next)
         return next
       })
       return
     }
-    addDeduction(item.name, item.amount)
+    setCustomDeductions((current) => {
+      const next = current.some((row) => row.name === item.name)
+        ? current
+        : [
+            ...current,
+            {
+              name: item.name,
+              amount: item.amount,
+              calculationMethod: item.calculationMethod,
+              repetition: item.repetition,
+              ...flagsFromDraft(item),
+            },
+          ]
+      latestRef.current = { ...latestRef.current, customDeductions: next }
+      void persistDeductions(visibleDeductions, deductionAmounts, next)
+      return next
+    })
   }
 
   function savePayTypeForm() {
@@ -1113,17 +1269,73 @@ export function PayrollRecordPage() {
       setTypeError('Enter a name for this type.')
       return
     }
-    const amount = typeDraft.amount.trim() || '0.00'
+    const amount = resolvePayTypeAmount(typeDraft, record)
+    const flags = flagsFromDraft(typeDraft)
     if (typeEditor === 'addition') {
+      const nextSuppressed = suppressedRepeating.filter(
+        (item) => item !== name.trim().toLowerCase(),
+      )
+      setSuppressedRepeating(nextSuppressed)
+      latestRef.current = { ...latestRef.current, suppressedRepeating: nextSuppressed }
       setCustomAdditions((current) => {
         const next = current.some((row) => row.name === name)
-          ? current.map((row) => (row.name === name ? { ...row, amount } : row))
-          : [...current, { name, amount }]
+          ? current.map((row) =>
+              row.name === name
+                ? {
+                    ...row,
+                    amount,
+                    calculationMethod: typeDraft.calculationMethod,
+                    repetition: typeDraft.repetition,
+                    ...flags,
+                  }
+                : row,
+            )
+          : [
+              ...current,
+              {
+                name,
+                amount,
+                calculationMethod: typeDraft.calculationMethod,
+                repetition: typeDraft.repetition,
+                ...flags,
+              },
+            ]
         void persistPayLines(extraPay, next)
         return next
       })
     } else if (typeEditor === 'deduction') {
-      addDeduction(name, amount)
+      const nextSuppressed = suppressedRepeatingDeductions.filter(
+        (item) => item !== name.trim().toLowerCase(),
+      )
+      setSuppressedRepeatingDeductions(nextSuppressed)
+      latestRef.current = { ...latestRef.current, suppressedRepeatingDeductions: nextSuppressed }
+      setCustomDeductions((current) => {
+        const next = current.some((row) => row.name === name)
+          ? current.map((row) =>
+              row.name === name
+                ? {
+                    ...row,
+                    amount,
+                    calculationMethod: typeDraft.calculationMethod,
+                    repetition: typeDraft.repetition,
+                    ...flags,
+                  }
+                : row,
+            )
+          : [
+              ...current,
+              {
+                name,
+                amount,
+                calculationMethod: typeDraft.calculationMethod,
+                repetition: typeDraft.repetition,
+                ...flags,
+              },
+            ]
+        latestRef.current = { ...latestRef.current, customDeductions: next }
+        void persistDeductions(visibleDeductions, deductionAmounts, next)
+        return next
+      })
     }
     if (typeDraft.reuse === 'remember' && companyId && typeEditor) {
       setSavedTypes(rememberPayType(companyId, typeEditor, { ...typeDraft, name, amount }))
@@ -1250,11 +1462,7 @@ export function PayrollRecordPage() {
         />
       </div>
 
-      <div
-        className={`mt-6 grid min-h-0 gap-4 ${
-          typeEditor ? 'xl:grid-cols-[276px_minmax(0,1fr)]' : 'xl:grid-cols-[276px_minmax(0,1fr)_358px]'
-        }`}
-      >
+      <div className="mt-6 grid min-h-0 gap-4 xl:grid-cols-[276px_minmax(0,1fr)_358px]">
         <aside className="h-[min(798px,calc(100vh-16rem))] overflow-hidden rounded-[10px] border border-[#d9d9d9] bg-white">
           <div className="h-full overflow-y-auto">
             {sidebarRecords.map((item, index) => {
@@ -1308,21 +1516,6 @@ export function PayrollRecordPage() {
             {formatPeriodRange(run?.period_start_date, run?.period_end_date)}
           </h2>
 
-          {typeEditor ? (
-            <PayTypeEditor
-              kind={typeEditor}
-              draft={typeDraft}
-              onChange={setTypeDraft}
-              onCancel={() => {
-                setTypeEditor(null)
-                setTypeError(null)
-              }}
-              onSave={savePayTypeForm}
-              locked={locked}
-              error={typeError}
-            />
-          ) : (
-            <>
           <section className="rounded-[10px] border border-[#d9d9d9] bg-white p-5">
             <h3 className="mb-4 flex items-center gap-3 text-xl font-semibold text-navy">
               <span className="flex size-[42px] items-center justify-center rounded-full bg-[#f0f5fe] text-navy">
@@ -1637,8 +1830,39 @@ export function PayrollRecordPage() {
                 ))}
               </PayLineGroup>
             ) : null}
-            {visibleDeductions.length > 0 ? (
+            {customDeductions.length > 0 || visibleDeductions.length > 0 ? (
               <PayLineGroup title="Deductions" tone="deduction">
+                {customDeductions.map((row) => (
+                  <AmountRow
+                    key={row.name}
+                    label={row.name}
+                    value={row.amount}
+                    locked={locked}
+                    tone="deduction"
+                    onRemove={() => removeCustomDeduction(row.name)}
+                    onChange={(value) => {
+                      setCustomDeductions((current) => {
+                        const next = current.map((item) =>
+                          item.name === row.name ? { ...item, amount: value } : item,
+                        )
+                        latestRef.current = { ...latestRef.current, customDeductions: next }
+                        return next
+                      })
+                      queueCalculate()
+                    }}
+                    onBlur={(value) => {
+                      setCustomDeductions((current) => {
+                        const next = current.map((item) =>
+                          item.name === row.name ? { ...item, amount: value } : item,
+                        )
+                        latestRef.current = { ...latestRef.current, customDeductions: next }
+                        return next
+                      })
+                      window.clearTimeout(calcTimer.current)
+                      void persistAndCalculate()
+                    }}
+                  />
+                ))}
                 {visibleDeductions.map((label) => (
                   <AmountRow
                     key={label}
@@ -1724,11 +1948,7 @@ export function PayrollRecordPage() {
                         tone="blue"
                         onClick={() => {
                           setOpenMenu(null)
-                          if (label.startsWith('Automatic')) {
-                            navigate(`/employees/${record.employee_id}`)
-                            return
-                          }
-                          setError(`${label.replace(/\.\.\.$/, '')} is not available on this payslip yet.`)
+                          if (employeeId) navigate(`/employees/pensions/${employeeId}`)
                         }}
                       >
                         {label}
@@ -1806,11 +2026,8 @@ export function PayrollRecordPage() {
             </PortalMenu>
             )}
           </section>
-            </>
-          )}
         </div>
 
-        {typeEditor ? null : (
         <aside className="overflow-hidden rounded-[10px] border border-[#d9d9d9] bg-white">
           <div
             className={`flex gap-3 px-5 py-4 text-[13px] leading-[18px] text-white ${
@@ -1919,8 +2136,36 @@ export function PayrollRecordPage() {
           </div>
           )}
         </aside>
-        )}
       </div>
+      {typeEditor
+        ? createPortal(
+            <div
+              className="fixed inset-0 z-[80] flex items-start justify-center overflow-y-auto bg-navy/40 px-4 py-10"
+              onMouseDown={(event) => {
+                if (event.target === event.currentTarget) {
+                  setTypeEditor(null)
+                  setTypeError(null)
+                }
+              }}
+            >
+              <div className="w-full max-w-4xl pointer-events-auto">
+                <PayTypeEditor
+                  kind={typeEditor}
+                  draft={typeDraft}
+                  onChange={setTypeDraft}
+                  onCancel={() => {
+                    setTypeEditor(null)
+                    setTypeError(null)
+                  }}
+                  onSave={savePayTypeForm}
+                  locked={locked}
+                  error={typeError}
+                />
+              </div>
+            </div>,
+            document.body,
+          )
+        : null}
       {ratePrompt ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-navy/40 px-4">
           <form

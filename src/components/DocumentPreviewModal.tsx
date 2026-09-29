@@ -7,6 +7,7 @@ import { Button } from './ui'
 function previewKind(fileName: string, mime?: string) {
   const name = fileName.toLowerCase()
   if (mime?.startsWith('image/') || /\.(png|jpe?g)$/.test(name)) return 'image'
+  if (mime === 'text/html' || mime === 'application/xhtml+xml' || /\.html?$/.test(name)) return 'html'
   if (mime === 'application/pdf' || name.endsWith('.pdf')) return 'pdf'
   return 'other'
 }
@@ -25,7 +26,7 @@ export function DocumentPreviewModal({
   onDownload?: () => void
 }) {
   const [url, setUrl] = useState<string | null>(null)
-  const [kind, setKind] = useState<'image' | 'pdf' | 'other'>('other')
+  const [kind, setKind] = useState<'image' | 'pdf' | 'html' | 'other'>('other')
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
 
@@ -35,11 +36,18 @@ export function DocumentPreviewModal({
     setLoading(true)
     setError(null)
     void fetchBlob(path)
-      .then((blob) => {
+      .then(async (blob) => {
         if (cancelled) return
-        objectUrl = URL.createObjectURL(blob)
+        const buffer = await blob.arrayBuffer()
+        if (cancelled) return
+        const head = new TextDecoder().decode(buffer.slice(0, 256)).trim().toLowerCase()
+        const asHtml = head.startsWith('<!doctype html') || head.startsWith('<html')
+        const previewBlob = asHtml
+          ? new Blob([buffer], { type: 'text/html' })
+          : new Blob([buffer], { type: blob.type || 'application/octet-stream' })
+        objectUrl = URL.createObjectURL(previewBlob)
         setUrl(objectUrl)
-        setKind(previewKind(fileName, blob.type))
+        setKind(asHtml ? 'html' : previewKind(fileName, previewBlob.type))
         setLoading(false)
       })
       .catch((err) => {
@@ -109,6 +117,8 @@ export function DocumentPreviewModal({
           ) : error ? (
             <p className="p-6 text-sm text-[#d32027]">{error}</p>
           ) : kind === 'pdf' && url ? (
+            <iframe title={title} src={url} className="h-full w-full border-0 bg-white" />
+          ) : kind === 'html' && url ? (
             <iframe title={title} src={url} className="h-full w-full border-0 bg-white" />
           ) : kind === 'image' && url ? (
             <div className="flex h-full items-center justify-center overflow-auto p-4">

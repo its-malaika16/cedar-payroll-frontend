@@ -5,7 +5,7 @@ import { ChevronLeft, RefreshCw, SlidersHorizontal } from 'lucide-react'
 import { employeesApi, payrollApi } from '../../api'
 import { useAuth } from '../../auth/AuthContext'
 import { Alert, Button, Loading } from '../../components/ui'
-import { fullName, idOf, isEmployeeOnPayrollRun } from '../../lib/format'
+import { compareEmployeeNames, fullName, idOf, isEmployeeOnPayrollRun, sortByEmployeeName } from '../../lib/format'
 import type { Employee, PayrollRecord, PayrollRun, PayrollSchedule } from '../../types'
 import { CreateSendMenu, toolbarBtn } from './CreateSendMenu'
 import { PayrollImportMenu } from './PayrollImportMenu'
@@ -76,7 +76,7 @@ export function SwitchSchedulePage() {
       allEmployees.map((employee) => [idOf(employee), scheduleIdOf(employee)]),
     )
     if (run) {
-      return runRecords
+      return sortByEmployeeName(runRecords)
         .map((record) => {
           const id = String(record.employees?.id ?? '')
           return {
@@ -91,9 +91,17 @@ export function SwitchSchedulePage() {
       .map((employee) => ({
         id: idOf(employee),
         name: fullName(employee.first_name, employee.last_name),
+        last_name: employee.last_name,
+        first_name: employee.first_name,
         scheduleId: scheduleIdOf(employee),
       }))
       .filter((person) => person.scheduleId)
+      .sort((left, right) =>
+        compareEmployeeNames(
+          { first_name: left.first_name, last_name: left.last_name },
+          { first_name: right.first_name, last_name: right.last_name },
+        ),
+      )
   }, [run, runRecords, allEmployees, runScheduleId])
 
   const destinations = schedules.filter((schedule) => idOf(schedule) !== runScheduleId)

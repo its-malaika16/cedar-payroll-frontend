@@ -10,7 +10,7 @@ import {
 import { payrollApi, payslipsApi } from '../../api'
 import { useAuth } from '../../auth/AuthContext'
 import { Alert, Button, Loading } from '../../components/ui'
-import { formatLongDate, fullName, idOf, isEmployeeOnPayrollRun } from '../../lib/format'
+import { formatLongDate, fullName, idOf, isEmployeeOnPayrollRun, sortByEmployeeName } from '../../lib/format'
 import type { PayrollRecord, PayrollRun } from '../../types'
 import { downloadBlobFile, zipBinaryFiles } from '../employees/formPdf'
 import { CreateSendMenu, payslipList, toolbarBtn } from './CreateSendMenu'
@@ -89,10 +89,12 @@ export function PayslipDispatchPage() {
   })
 
   const run = runQuery.data?.data as PayrollRun | undefined
-  const records = ((run?.payroll_records ?? []) as PayrollRecord[]).filter(
-    (record) =>
-      (record.status ?? '').toUpperCase() === 'FINALISED' &&
-      isEmployeeOnPayrollRun(record.employees, run),
+  const records = sortByEmployeeName(
+    ((run?.payroll_records ?? []) as PayrollRecord[]).filter(
+      (record) =>
+        (record.status ?? '').toUpperCase() === 'FINALISED' &&
+        isEmployeeOnPayrollRun(record.employees, run),
+    ),
   )
   const locked = ['LOCKED', 'COMPLETED'].includes((run?.status ?? '').toUpperCase())
 

@@ -1,4 +1,10 @@
-import { formatNiNumber, formatPayslipPeriod, formatTaxCodeWithBasis, fullName } from '../../lib/format'
+import {
+  formatNiNumber,
+  formatPayslipForLabel,
+  formatPayslipPeriod,
+  formatTaxCodeWithBasis,
+  fullName,
+} from '../../lib/format'
 import type { Company, Employee, PayrollPayLine, PayrollRecord, PayrollRun } from '../../types'
 
 export type PayslipLine = {
@@ -17,6 +23,7 @@ export type PayslipViewModel = {
   taxCode: string
   niNumber: string
   payPeriod: string
+  payslipFor: string
   netPay: number
   earnings: PayslipLine[]
   totalEarnings: number
@@ -159,7 +166,7 @@ export function buildPayslipViewModel(
     if (n === 0) return
     deductions.push({ description, amount: n })
   }
-  pushDeduction('Income Tax', record.tax)
+  pushDeduction('Tax', record.tax)
   pushDeduction('National Insurance', record.employee_nic)
   pushDeduction('Pension', record.employee_pension)
   pushDeduction('Student Loan', record.student_loan)
@@ -198,6 +205,7 @@ export function buildPayslipViewModel(
     ),
     niNumber: formatNiNumber(String(tax.ni_number ?? '')),
     payPeriod: formatPayslipPeriod(run?.period_start_date, run?.period_end_date, run?.pay_frequency),
+    payslipFor: formatPayslipForLabel(run?.period_end_date ?? run?.period_start_date, run?.pay_frequency),
     netPay,
     earnings,
     totalEarnings,

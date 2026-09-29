@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { Eye, EyeOff } from 'lucide-react'
 import { bureauApi } from '../../api'
 import {
   Alert,
@@ -16,6 +17,7 @@ export function BureauTeamPanel() {
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [message, setMessage] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
@@ -57,6 +59,7 @@ export function BureauTeamPanel() {
             setName('')
             setEmail('')
             setPassword('')
+            setShowPassword(false)
             setMessage('Bureau admin added')
           }, setError, setSaving)}
         >
@@ -80,13 +83,24 @@ export function BureauTeamPanel() {
             />
           </Field>
           <Field label="Password">
-            <UiInput
-              variant="outline"
-              type="password"
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-              autoComplete="new-password"
-            />
+            <span className="relative block">
+              <UiInput
+                variant="outline"
+                type={showPassword ? 'text' : 'password'}
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+                autoComplete="new-password"
+                className="pr-12"
+              />
+              <button
+                type="button"
+                className="absolute top-1/2 right-4 -translate-y-1/2 text-navy"
+                onClick={() => setShowPassword((open) => !open)}
+                aria-label={showPassword ? 'Hide password' : 'Show password'}
+              >
+                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
+            </span>
             <span className="mt-2 block text-xs text-muted">
               At least 8 characters, with uppercase, lowercase, a number and a special
               character.

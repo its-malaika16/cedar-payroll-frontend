@@ -152,14 +152,11 @@ function EmployeeCard({
   employee: FpsEmployee
   showLateReason?: boolean
 }) {
-  const seq = String(employee.sequence).padStart(2, '0')
   return (
     <div className="rounded-[16px] border border-[#d9d9d9]/80 bg-white p-6">
       <div className="mb-4 flex items-center gap-3">
         <PersonBadge />
-        <h3 className="text-lg font-semibold text-navy">
-          Employee {seq} - {employee.full_name}
-        </h3>
+        <h3 className="text-lg font-semibold text-navy">{employee.full_name}</h3>
       </div>
       <div className="pl-[60px]">
         <h4 className="mb-2 text-sm font-semibold text-navy">Employee Details</h4>

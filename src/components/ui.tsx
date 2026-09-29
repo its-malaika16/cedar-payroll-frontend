@@ -165,12 +165,12 @@ export function EmptyState({
   body,
 }: {
   title: string
-  body: string
+  body?: string
 }) {
   return (
     <div className="px-6 py-14 text-center">
       <p className="text-xl font-semibold text-navy">{title}</p>
-      <p className="mt-1 text-sm text-muted">{body}</p>
+      {body ? <p className="mt-1 text-sm text-muted">{body}</p> : null}
     </div>
   )
 }

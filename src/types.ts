@@ -280,16 +280,32 @@ export type PayrollPension = {
 
 export type PayrollPayLine = {
   id: string
-  kind: 'daily' | 'monthly' | 'benefit' | 'addition'
+  kind: 'daily' | 'monthly' | 'benefit' | 'addition' | 'meta'
   label?: string
   qty?: number
   rate?: number
   amount?: number
+  tax?: boolean
+  nics?: boolean
+  employeePension?: boolean
+  employerPension?: boolean
+  notional?: boolean
+  minWage?: boolean
+  calculationMethod?: string
+  repetition?: string
+  suppressed?: string[]
+  suppressedDeductions?: string[]
 }
 
 export type PayrollDeductionLine = {
   label: string
   amount: number
+  tax?: boolean
+  nics?: boolean
+  employeePension?: boolean
+  employerPension?: boolean
+  calculationMethod?: string
+  repetition?: string
 }
 
 export type PayrollRecord = {

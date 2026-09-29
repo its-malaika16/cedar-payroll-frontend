@@ -12,7 +12,7 @@ import { payrollApi } from '../../api'
 import { useAuth } from '../../auth/AuthContext'
 import { Alert, Button, Loading } from '../../components/ui'
 import { BrandIcon } from '../../components/BrandIcon'
-import { formatLongDate, fullName, idOf, isEmployeeOnPayrollRun } from '../../lib/format'
+import { formatLongDate, fullName, idOf, isEmployeeOnPayrollRun, sortByEmployeeName } from '../../lib/format'
 import type { PayrollDeductionLine, PayrollRecord, PayrollRun } from '../../types'
 import iconPerson from '../../assets/brand/icon-person.png'
 import { CreateSendMenu, toolbarBtn } from './CreateSendMenu'
@@ -36,6 +36,21 @@ const ZERO_FIELDS = [
   'car_allowance',
   'service_charges',
 ] as const
+
+function isPayslipOpen(record: PayrollRecord) {
+  const status = String(record.status ?? '').toUpperCase()
+  if (status === 'FINALISED' || status === 'LOCKED') return false
+  return !record.finalised_at
+}
+
+function zeroisePayload(record: PayrollRecord) {
+  return {
+    ...Object.fromEntries(ZERO_FIELDS.map((field) => [field, 0])),
+    pay_lines: (record.pay_lines ?? []).filter((line) => line.kind !== 'addition'),
+    deduction_lines: [],
+    recalculate: true,
+  }
+}
 
 const titles: Record<string, string> = {
   addition: 'Add Addition To Multiple Payslips',
@@ -81,10 +96,12 @@ export function BulkPayslipActionPage() {
   })
 
   const run = runQuery.data?.data as PayrollRun | undefined
-  const records = ((run?.payroll_records ?? []) as PayrollRecord[]).filter((record) =>
-    isEmployeeOnPayrollRun(record.employees, run) &&
-    (record.status ?? '').toUpperCase() !== 'FINALISED',
+  const records = sortByEmployeeName(
+    ((run?.payroll_records ?? []) as PayrollRecord[]).filter(
+      (record) => isEmployeeOnPayrollRun(record.employees, run) && isPayslipOpen(record),
+    ),
   )
+  const recordIds = records.map((record) => idOf(record)).filter(Boolean).join('|')
   const locked = ['LOCKED', 'COMPLETED'].includes((run?.status ?? '').toUpperCase())
   const periodLabel = (run?.pay_frequency ?? '').toUpperCase().includes('MONTH')
     ? 'Month Ending'
@@ -96,14 +113,14 @@ export function BulkPayslipActionPage() {
     : []
 
   useEffect(() => {
-    if (records.length === 0) return
-    setSelected(records.map((record) => idOf(record)))
-  }, [records.length])
+    setSelected(recordIds ? recordIds.split('|') : [])
+  }, [recordIds])
 
   useEffect(() => {
-    if (focusedId || records.length === 0) return
-    setFocusedId(idOf(records[0]))
-  }, [focusedId, records])
+    const ids = recordIds ? recordIds.split('|') : []
+    if (focusedId && ids.includes(focusedId)) return
+    setFocusedId(ids[0] ?? '')
+  }, [focusedId, recordIds])
 
   useEffect(() => {
     function onPointer(event: MouseEvent) {
@@ -140,10 +157,11 @@ export function BulkPayslipActionPage() {
     if (!companyId) throw new Error('Select a company first')
     for (const recordId of selected) {
       const record = records.find((item) => idOf(item) === recordId)
-      if (!record) continue
+      if (!record || !isPayslipOpen(record)) continue
       await payrollApi.updateRecord(companyId, runId, recordId, getBody(record))
     }
     await queryClient.invalidateQueries({ queryKey: ['payroll-run', companyId, runId] })
+    await queryClient.invalidateQueries({ queryKey: ['payroll-record', companyId, runId] })
   }
 
   async function onOk() {
@@ -160,8 +178,10 @@ export function BulkPayslipActionPage() {
     setBusy(true)
     try {
       if (action === 'zeroise') {
-        await applyToSelected(() => Object.fromEntries(ZERO_FIELDS.map((field) => [field, 0])))
-        setMessage(`Zeroised ${selected.length} payslip${selected.length === 1 ? '' : 's'}.`)
+        await applyToSelected((record) => zeroisePayload(record))
+        setMessage(
+          `Zeroised additions and deductions on ${selected.length} open payslip${selected.length === 1 ? '' : 's'}.`,
+        )
       } else if (action === 'note') {
         if (!note.trim()) throw new Error('Enter a note.')
         await applyToSelected((record) => {
@@ -221,9 +241,29 @@ export function BulkPayslipActionPage() {
             reuse: 'remember',
           })
         }
-        await applyToSelected((record) => ({
-          deduction_lines: mergeDeductionLine(record.deduction_lines, label, value),
-        }))
+        await applyToSelected((record) => {
+          const saved =
+            source === 'existing' && companyId
+              ? loadSavedPayTypes(companyId).find(
+                  (item) => item.kind === 'deduction' && item.name === label,
+                )
+              : undefined
+          const extras =
+            source === 'new' || saved
+              ? {
+                  tax: saved?.tax ?? true,
+                  nics: saved?.nics ?? true,
+                  employeePension: saved?.employeePension ?? false,
+                  employerPension: saved?.employerPension ?? false,
+                  calculationMethod: saved?.calculationMethod ?? 'Basic amount',
+                  repetition: saved?.repetition ?? 'Include in this period only',
+                }
+              : {}
+          return {
+            deduction_lines: mergeDeductionLine(record.deduction_lines, label, value, extras),
+            recalculate: true,
+          }
+        })
         setMessage(`Added ${label} to ${selected.length} payslip${selected.length === 1 ? '' : 's'}.`)
       }
     } catch (err) {
@@ -310,7 +350,12 @@ export function BulkPayslipActionPage() {
       <div className="mt-6 grid min-h-0 gap-4 xl:grid-cols-[276px_minmax(220px,320px)_minmax(0,1fr)]">
         <aside className="h-[min(640px,calc(100vh-16rem))] overflow-hidden rounded-[10px] border border-[#d9d9d9] bg-white">
           <div className="h-full overflow-y-auto">
-            {records.map((item, index) => {
+            {records.length === 0 ? (
+              <p className="px-4 py-6 text-xs font-medium text-muted">
+                No open payslips in this pay run.
+              </p>
+            ) : (
+              records.map((item, index) => {
               const id = idOf(item)
               const active = id === currentId
               const name = fullName(item.employees?.first_name, item.employees?.last_name)
@@ -330,7 +375,8 @@ export function BulkPayslipActionPage() {
                   ) : null}
                 </button>
               )
-            })}
+            })
+            )}
           </div>
         </aside>
 
@@ -348,7 +394,12 @@ export function BulkPayslipActionPage() {
             Employee
           </label>
           <div className="min-h-0 flex-1 overflow-y-auto">
-            {records.map((record) => {
+            {records.length === 0 ? (
+              <p className="px-5 py-6 text-sm text-muted">
+                Finalised payslips are hidden. Reopen a payslip to include it here.
+              </p>
+            ) : (
+              records.map((record) => {
               const id = idOf(record)
               const name = fullName(record.employees?.first_name, record.employees?.last_name)
               return (
@@ -365,7 +416,8 @@ export function BulkPayslipActionPage() {
                   <span className="truncate">{name === '—' ? 'Employee Name' : name}</span>
                 </label>
               )
-            })}
+            })
+            )}
           </div>
           <p className="border-t border-[#d9d9d9] px-5 py-3 text-xs font-medium text-muted">
             {selected.length} of {records.length} employees selected.
@@ -483,7 +535,8 @@ export function BulkPayslipActionPage() {
 
           {action === 'zeroise' ? (
             <p className="text-sm font-medium text-navy">
-              Clear bonus, overtime, allowances and other pay additions on the selected payslips.
+              Clear all additions and deductions on the selected open payslips. Basic pay is kept and
+              tax, NI and pension are recalculated.
             </p>
           ) : null}
 
@@ -497,7 +550,7 @@ export function BulkPayslipActionPage() {
             <Button type="button" variant="secondary" onClick={() => navigate(backTo, { state: backState })}>
               Cancel
             </Button>
-            <Button type="button" disabled={busy || locked} onClick={() => void onOk()}>
+            <Button type="button" disabled={busy || locked || records.length === 0} onClick={() => void onOk()}>
               OK
             </Button>
           </div>
@@ -511,6 +564,7 @@ function mergeDeductionLine(
   lines: PayrollDeductionLine[] | null | undefined,
   label: string,
   amount: number,
+  extras: Partial<PayrollDeductionLine> = {},
 ): PayrollDeductionLine[] {
   const next = [...(lines ?? [])]
   const match = label.trim().toLowerCase()
@@ -518,11 +572,12 @@ function mergeDeductionLine(
   if (index >= 0) {
     next[index] = {
       ...next[index],
+      ...extras,
       label,
       amount: Number(next[index].amount ?? 0) + amount,
     }
     return next
   }
-  next.push({ label, amount })
+  next.push({ label, amount, ...extras })
   return next
 }

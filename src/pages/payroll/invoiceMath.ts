@@ -97,7 +97,7 @@ export function invoiceTotals(lines: InvoiceLine[]) {
 }
 
 export function mapApiLines(lines?: Array<Record<string, unknown>> | InvoiceLine[]) {
-  return (lines ?? []).map((line, index) => {
+  const mapped = (lines ?? []).map((line, index) => {
     const kind = line.kind === 'HEADING' ? 'HEADING' : 'ITEM'
     if (kind === 'HEADING') {
       return headingLine(String(line.description ?? ''), {
@@ -111,6 +111,24 @@ export function mapApiLines(lines?: Array<Record<string, unknown>> | InvoiceLine
       employee_id: line.employee_id ? String(line.employee_id) : null,
     })
   })
+  return sortInvoiceEmployeeLines(mapped)
+}
+
+export function sortInvoiceEmployeeLines(lines: InvoiceLine[]) {
+  const headings = lines.filter((line) => line.kind === 'HEADING')
+  const items = lines
+    .filter((line) => line.kind !== 'HEADING')
+    .sort((left, right) => compareInvoiceEmployeeLabel(left.description, right.description))
+  return [...headings, ...items]
+}
+
+function compareInvoiceEmployeeLabel(left: string, right: string) {
+  const leftKey = String(left ?? '').trim()
+  const rightKey = String(right ?? '').trim()
+  if (!leftKey && !rightKey) return 0
+  if (!leftKey) return 1
+  if (!rightKey) return -1
+  return leftKey.localeCompare(rightKey, 'en-GB', { sensitivity: 'base' })
 }
 
 export function invoiceStatusLabel(status?: string | null) {

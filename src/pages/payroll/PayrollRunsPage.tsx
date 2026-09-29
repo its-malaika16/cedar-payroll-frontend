@@ -17,6 +17,7 @@ import {
   isEmployeeOnPayrollRun,
   labelize,
   money,
+  sortByEmployeeName,
 } from '../../lib/format'
 import { taxYearStartFromDate } from '../../lib/hmrcTaxCalendar'
 import type { PayrollRecord, PayrollRun, PayrollSchedule } from '../../types'
@@ -167,8 +168,8 @@ export function PayrollRunsPage() {
   })
   const selectedRun = (runDetail.data?.data as PayrollRun | undefined) ?? selectedSummary
   const records = (selectedRun?.payroll_records ?? []) as PayrollRecord[]
-  const visibleRecords = records.filter((record) =>
-    isEmployeeOnPayrollRun(record.employees, selectedRun),
+  const visibleRecords = sortByEmployeeName(
+    records.filter((record) => isEmployeeOnPayrollRun(record.employees, selectedRun)),
   )
 
   const locked = isCompleted(selectedRun?.status)

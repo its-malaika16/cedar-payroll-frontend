@@ -45,7 +45,7 @@ export function CompliancePage() {
       <div className="mb-6">
         <HrTitle title="Compliance" onBack={() => navigate('/hr')} />
         <p className="mt-2 text-sm font-semibold text-muted">
-          Company and bureau view of employee documents, including expiry tracking.
+          Upload and view Employee documents
         </p>
       </div>
       <div className="grid min-h-0 flex-1 gap-4 overflow-hidden lg:grid-cols-[260px_minmax(0,1fr)]">
@@ -99,7 +99,6 @@ export function CompliancePage() {
                 <h2 className="text-lg font-semibold text-navy">
                   {fullName(selected.first_name, selected.last_name)}
                 </h2>
-                <p className="text-sm text-muted">Upload, review and control which employer files the employee can see.</p>
               </div>
               <ComplianceDocumentsPanel
                 companyId={companyId}

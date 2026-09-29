@@ -4,6 +4,7 @@ import { Button } from '../../components/ui'
 import {
   CALCULATION_METHODS,
   REPETITION_OPTIONS,
+  isPercentageMethod,
   type PayTypeDraft,
   type PayTypeKind,
 } from './payTypes'
@@ -13,10 +14,10 @@ const inputClass =
 
 function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <label className="block min-w-0">
+    <div className="block min-w-0">
       <span className="mb-1.5 block text-xs font-medium text-navy">{label}</span>
       {children}
-    </label>
+    </div>
   )
 }
 
@@ -64,6 +65,15 @@ function RadioRow({
   )
 }
 
+function OptionGroup({ heading, children }: { heading: string; children: ReactNode }) {
+  return (
+    <div className="grid gap-3 border-t border-[#d9d9d9] pt-4 sm:grid-cols-[120px_minmax(0,1fr)]">
+      <p className="pt-0.5 text-sm font-semibold italic text-navy">{heading}</p>
+      <div className="space-y-3">{children}</div>
+    </div>
+  )
+}
+
 export function PayTypeEditor({
   kind,
   draft,
@@ -83,11 +93,15 @@ export function PayTypeEditor({
 }) {
   const isAddition = kind === 'addition'
   const title = isAddition ? 'New Addition Type' : 'New Deduction Type'
+  const percent = isPercentageMethod(draft.calculationMethod)
   const set = <K extends keyof PayTypeDraft>(key: K, value: PayTypeDraft[K]) =>
     onChange({ ...draft, [key]: value })
 
   return (
-    <section className="rounded-[10px] border border-[#d9d9d9] bg-white p-6">
+    <section
+      className="rounded-[10px] border border-[#d9d9d9] bg-white p-6 shadow-xl"
+      onMouseDown={(event) => event.stopPropagation()}
+    >
       <button
         type="button"
         onClick={onCancel}
@@ -109,9 +123,9 @@ export function PayTypeEditor({
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label="Name">
             <input
+              autoFocus
               className={inputClass}
               value={draft.name}
-              disabled={locked}
               onChange={(event) => set('name', event.target.value)}
               required
             />
@@ -119,12 +133,11 @@ export function PayTypeEditor({
           <Field label="Amount">
             <div className="flex">
               <span className="flex h-[35px] items-center rounded-l-[6px] border-[0.5px] border-r-0 border-[#d9d9d9] bg-white px-3 text-xs text-navy">
-                £
+                {percent ? '%' : '£'}
               </span>
               <input
                 className={`${inputClass} rounded-l-none`}
                 value={draft.amount}
-                disabled={locked}
                 onChange={(event) => set('amount', event.target.value)}
               />
             </div>
@@ -133,11 +146,12 @@ export function PayTypeEditor({
             <select
               className={inputClass}
               value={draft.calculationMethod}
-              disabled={locked}
               onChange={(event) => set('calculationMethod', event.target.value)}
             >
               {CALCULATION_METHODS.map((option) => (
-                <option key={option}>{option}</option>
+                <option key={option} value={option}>
+                  {option}
+                </option>
               ))}
             </select>
           </Field>
@@ -145,98 +159,104 @@ export function PayTypeEditor({
             <select
               className={inputClass}
               value={draft.repetition}
-              disabled={locked}
               onChange={(event) => set('repetition', event.target.value)}
             >
               {REPETITION_OPTIONS.map((option) => (
-                <option key={option}>{option}</option>
+                <option key={option} value={option}>
+                  {option}
+                </option>
               ))}
             </select>
           </Field>
         </div>
 
-        <div className="space-y-3">
+        <div className="space-y-0">
+          <OptionGroup heading="Deductions">
+            {isAddition ? (
+              <>
+                <CheckRow
+                  label="Tax can be deducted"
+                  checked={draft.tax}
+                  onChange={(checked) => set('tax', checked)}
+                />
+                <CheckRow
+                  label="NICs can be deducted"
+                  checked={draft.nics}
+                  onChange={(checked) => set('nics', checked)}
+                />
+                <CheckRow
+                  label="Employee pension can be deducted"
+                  checked={draft.employeePension}
+                  onChange={(checked) => set('employeePension', checked)}
+                />
+                <CheckRow
+                  label="Employer pension can be deducted"
+                  checked={draft.employerPension}
+                  onChange={(checked) => set('employerPension', checked)}
+                />
+              </>
+            ) : (
+              <>
+                <CheckRow
+                  label="Deduct before tax"
+                  checked={draft.tax}
+                  onChange={(checked) => set('tax', checked)}
+                />
+                <CheckRow
+                  label="Deduct before NICs"
+                  checked={draft.nics}
+                  onChange={(checked) => set('nics', checked)}
+                />
+                <CheckRow
+                  label="Deduct before employee pension"
+                  checked={draft.employeePension}
+                  onChange={(checked) => set('employeePension', checked)}
+                />
+                <CheckRow
+                  label="Deduct before employer pension"
+                  checked={draft.employerPension}
+                  onChange={(checked) => set('employerPension', checked)}
+                />
+              </>
+            )}
+          </OptionGroup>
           {isAddition ? (
-            <>
+            <OptionGroup heading="Settings">
               <CheckRow
-                label="Tax can be deducted"
-                checked={draft.tax}
-                onChange={(checked) => set('tax', checked)}
-              />
-              <CheckRow
-                label="NICs can be deducted"
-                checked={draft.nics}
-                onChange={(checked) => set('nics', checked)}
-              />
-              <CheckRow
-                label="Employee pension can be deducted"
-                checked={draft.employeePension}
-                onChange={(checked) => set('employeePension', checked)}
-              />
-              <CheckRow
-                label="Employer pension can be deducted"
-                checked={draft.employerPension}
-                onChange={(checked) => set('employerPension', checked)}
-              />
-              <CheckRow
-                label="Contribute to gross for minimum wage"
+                label="Contributes to gross for minimum wage"
                 checked={draft.minWage}
                 onChange={(checked) => set('minWage', checked)}
               />
               <CheckRow
-                label="Notional — only calculate the tax, NICs and/or pension on the addition amount — do not add amount to the employee's pay"
+                label="Notional — only calculate and deduct tax, NICs and/or pension on the addition amount — do not add amount to the employee's pay"
                 checked={draft.notional}
                 onChange={(checked) => set('notional', checked)}
               />
-            </>
-          ) : (
-            <>
-              <CheckRow
-                label="Deduct before tax"
-                checked={draft.tax}
-                onChange={(checked) => set('tax', checked)}
-              />
-              <CheckRow
-                label="Deduct before NICs"
-                checked={draft.nics}
-                onChange={(checked) => set('nics', checked)}
-              />
-              <CheckRow
-                label="Deduct before employee pension"
-                checked={draft.employeePension}
-                onChange={(checked) => set('employeePension', checked)}
-              />
-              <CheckRow
-                label="Deduct before employer pension"
-                checked={draft.employerPension}
-                onChange={(checked) => set('employerPension', checked)}
-              />
-            </>
-          )}
-        </div>
-
-        <div className="space-y-3">
-          <RadioRow
-            label={isAddition ? 'This is one-off addition type' : 'This is one-off deduction type'}
-            checked={draft.reuse === 'one-off'}
-            onChange={() => set('reuse', 'one-off')}
-          />
-          <RadioRow
-            label={
-              isAddition
-                ? 'Remember this addition type for use by any employee'
-                : 'Remember this deduction type for use by any employee'
-            }
-            checked={draft.reuse === 'remember'}
-            onChange={() => set('reuse', 'remember')}
-          />
+            </OptionGroup>
+          ) : null}
+          <OptionGroup heading="Re-use">
+            <RadioRow
+              label={isAddition ? 'This is a one-off addition type' : 'This is a one-off deduction type'}
+              checked={draft.reuse === 'one-off'}
+              onChange={() => set('reuse', 'one-off')}
+            />
+            <RadioRow
+              label={
+                isAddition
+                  ? 'Remember this addition type for use by any employee'
+                  : 'Remember this deduction type for use by any employee'
+              }
+              checked={draft.reuse === 'remember'}
+              onChange={() => set('reuse', 'remember')}
+            />
+          </OptionGroup>
         </div>
 
         <div className="flex justify-end gap-3 pt-2">
           <Button type="button" variant="secondary" className="min-w-[108px]" onClick={onCancel}>
             Cancel
           </Button>
-          <Button type="submit" className="min-w-[108px]" disabled={locked}>
+          <Button type="submit" className="min-w-[108px]" disabled={locked || !draft.name.trim()}>
             Save
           </Button>
         </div>
