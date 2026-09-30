@@ -16,6 +16,7 @@ import type {
   Role,
   User,
   BureauTeamMember,
+  BureauDetails,
 } from '../types'
 import { api, del, download, fetchBlob, get, post, patch, put } from './client'
 
@@ -380,8 +381,12 @@ export const reportsApi = {
 export const invoicesApi = {
   list: (companyId: string) =>
     get(`/companies/${companyId}/payroll-invoices`),
-  defaults: (companyId: string) =>
-    get(`/companies/${companyId}/payroll-invoices/defaults`),
+  defaults: (companyId: string, type?: string, payrollRunId?: string) =>
+    get(
+      `/companies/${companyId}/payroll-invoices/defaults?type=${encodeURIComponent(type || 'PAY')}${
+        payrollRunId ? `&payrollRunId=${encodeURIComponent(payrollRunId)}` : ''
+      }`,
+    ),
   get: (companyId: string, invoiceId: string) =>
     get(`/companies/${companyId}/payroll-invoices/${invoiceId}`),
   create: (companyId: string, body: Record<string, unknown>) =>
@@ -392,12 +397,18 @@ export const invoicesApi = {
     post(`/companies/${companyId}/payroll-invoices/${invoiceId}/approve`),
   markPaid: (companyId: string, invoiceId: string) =>
     post(`/companies/${companyId}/payroll-invoices/${invoiceId}/paid`),
+  remove: (companyId: string, invoiceId: string) =>
+    del(`/companies/${companyId}/payroll-invoices/${invoiceId}`),
   fileBlob: (companyId: string, invoiceId: string) =>
     fetchBlob(`/companies/${companyId}/payroll-invoices/${invoiceId}/file`),
   forRun: (companyId: string, runId: string) =>
     get(`/companies/${companyId}/payroll-invoices/${runId}`),
-  generate: (companyId: string, runId: string) =>
-    post(`/companies/${companyId}/payroll-invoices/from-run/${runId}`),
+  generate: (companyId: string, runId: string, type?: string) =>
+    post(
+      `/companies/${companyId}/payroll-invoices/from-run/${runId}${
+        type ? `?type=${encodeURIComponent(type)}` : ''
+      }`,
+    ),
 }
 
 export const hrApi = {
@@ -596,6 +607,10 @@ export const helpApi = {
 }
 
 export const bureauApi = {
+  details: () => get<BureauDetails>('/bureau'),
+  update: (body: Record<string, unknown>) => patch<BureauDetails>('/bureau', body),
+  uploadLogo: (form: FormData) =>
+    api<ApiSuccess<BureauDetails>>('/bureau/logo', { method: 'POST', body: form }),
   team: () => get<BureauTeamMember[]>('/bureau/team'),
   addAdmin: (body: { name: string; email: string; password: string }) =>
     post<BureauTeamMember>('/bureau/team', body),

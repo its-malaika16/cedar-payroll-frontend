@@ -6,6 +6,7 @@ import { useAuth } from '../../auth/AuthContext'
 import { DocumentPreviewModal } from '../../components/DocumentPreviewModal'
 import { Alert, Button, Card, Field, Input, Loading, PageHeader, Textarea } from '../../components/ui'
 import { money } from '../../lib/format'
+import { isFormDirty } from '../../lib/formDirty'
 import { FileChip, MetaTile, StatusPill, invoiceIcons, prettyDate } from './InvoiceChrome'
 import { invoiceStatusLabel, type CompanyInvoice } from './invoiceTypes'
 
@@ -78,6 +79,24 @@ export function CompanyInvoiceFormPage() {
   const status = invoice?.status ?? 'DRAFT'
   const canEdit = isNew || status === 'DRAFT'
   const needsReason = status === 'REASON_REQUESTED'
+  const invoiceDirty =
+    Boolean(file) ||
+    isFormDirty(
+      {
+        title: title.trim(),
+        description: description.trim(),
+        amount: amount.trim(),
+        dueDate,
+      },
+      invoice
+        ? {
+            title: (invoice.title ?? '').trim(),
+            description: (invoice.description ?? '').trim(),
+            amount: invoice.amount ? String(invoice.amount) : '',
+            dueDate: invoice.due_date ? String(invoice.due_date).slice(0, 10) : '',
+          }
+        : { title: '', description: '', amount: '', dueDate: '' },
+    )
 
   function onSubmit(event: FormEvent, send: boolean) {
     event.preventDefault()
@@ -176,10 +195,10 @@ export function CompanyInvoiceFormPage() {
 
             {canEdit ? (
               <div className="flex flex-wrap gap-2 border-t border-[#f0efec] pt-5">
-                <Button type="submit" variant="secondary" disabled={save.isPending}>
+                <Button type="submit" variant="secondary" disabled={save.isPending || !invoiceDirty}>
                   {save.isPending ? 'Saving…' : 'Save'}
                 </Button>
-                <Button type="button" disabled={save.isPending} onClick={(event) => onSubmit(event, true)}>
+                <Button type="button" disabled={save.isPending || !invoiceDirty} onClick={(event) => onSubmit(event, true)}>
                   {save.isPending ? 'Sending…' : 'Send'}
                 </Button>
               </div>

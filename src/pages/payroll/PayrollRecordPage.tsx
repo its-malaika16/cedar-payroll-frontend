@@ -25,6 +25,7 @@ import { Alert, Button, Loading } from '../../components/ui'
 import { BrandIcon } from '../../components/BrandIcon'
 import {
   formatLongDate,
+  formatPeriodEndingLabel,
   formatPeriodRange,
   formatTaxCodeWithBasis,
   fullName,
@@ -673,6 +674,7 @@ export function PayrollRecordPage() {
           ['NIC-able gross to date', source?.nicable_gross],
           ['Employee NIC to date', source?.employee_nic],
           ['Employer NIC to date', source?.employer_nic],
+          ['Student Loan to date', source?.student_loan],
         ],
         [
           ['Pension-able gross to date', source?.pensionable_gross],
@@ -1348,6 +1350,10 @@ export function PayrollRecordPage() {
   if (!record) return <Alert>Payslip not found</Alert>
 
   const displayName = name === '—' ? 'Employee Name' : name
+  const periodEndingLabel = formatPeriodEndingLabel(
+    run?.period_end_date ?? run?.period_start_date ?? record?.pay_date,
+    run?.pay_frequency,
+  )
   const displayedPay =
     payTotal || Number(record.basic_pay ?? 0)
       ? (payTotal || Number(record.basic_pay ?? 0)).toFixed(2)
@@ -1451,7 +1457,13 @@ export function PayrollRecordPage() {
         </div>
       ) : null}
 
-      <div className="mt-6 flex flex-wrap justify-end rounded-[16px] bg-white px-5 py-4">
+      <div className="mt-6 flex flex-wrap items-center justify-between gap-4 rounded-[16px] bg-white px-6 py-[18px]">
+        <p className="min-w-0 flex-1 truncate text-left text-[18px] leading-none text-navy">
+          <span className="font-semibold tracking-tight">{displayName}</span>
+          {periodEndingLabel ? (
+            <span className="font-normal text-[#5a6b7d]"> {periodEndingLabel}</span>
+          ) : null}
+        </p>
         <PayslipPeriodSwitcher
           schedules={scheduleList}
           scheduleId={currentScheduleId}
@@ -2218,7 +2230,7 @@ export function PayrollRecordPage() {
               <Button type="button" variant="secondary" onClick={() => setRatePrompt(null)}>
                 Cancel
               </Button>
-              <Button type="submit">Add</Button>
+              <Button type="submit" disabled={!ratePrompt.value.trim()}>Add</Button>
             </div>
           </form>
         </div>

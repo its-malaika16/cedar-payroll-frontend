@@ -20,8 +20,8 @@ import {
   type StarterFormEmployeeSource,
 } from './starterFormData'
 import { StarterFormEditor } from './StarterFormEditor'
-import { starterFormDownloadBlob, starterFormPdfFilename, starterFormPdfFromHtml } from './starterFormPdf'
-import { buildStarterFormHtml, starterFormFilename } from './starterFormTemplate'
+import { starterFormDownloadBlob, starterFormPdfFilename, buildStarterFormPdf } from './starterFormPdf'
+import { starterFormFilename } from './starterFormTemplate'
 
 const ACCEPT = '.png,.jpg,.jpeg,.pdf,.doc,.docx,.html,.htm'
 
@@ -222,8 +222,7 @@ export function ComplianceDocumentsPanel({
           starterSource,
         )
       }
-      const html = await buildStarterFormHtml(starterDraft)
-      const pdf = await starterFormPdfFromHtml(html)
+      const pdf = await buildStarterFormPdf(starterDraft)
       const filename = starterFormFilename(starterDraft)
       const form = new FormData()
       form.append('file', new File([pdf], filename, { type: 'application/pdf' }))
@@ -338,7 +337,7 @@ export function ComplianceDocumentsPanel({
               Visible to employee
             </label>
           ) : null}
-          <Button type="submit" disabled={upload.isPending || (isStarterType && hasStarterForm)}>
+          <Button type="submit" disabled={upload.isPending || !file || (isStarterType && hasStarterForm)}>
             Upload
           </Button>
         </div>

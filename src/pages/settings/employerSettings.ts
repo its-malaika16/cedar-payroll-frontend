@@ -5,7 +5,6 @@ export const SETTINGS_TABS = [
   'PAYE Registration',
   'Typical Employee',
   'RTI',
-  'Bureau Team',
 ] as const
 
 export type SettingsTab = (typeof SETTINGS_TABS)[number]

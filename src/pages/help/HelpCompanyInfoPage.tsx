@@ -12,6 +12,7 @@ import {
 } from '../settings/employerSettings'
 import { HrTitle } from '../hr/HrChrome'
 import type { Company } from '../../types'
+import { isFormDirty } from '../../lib/formDirty'
 
 type CompanyInfoForm = {
   company_name: string
@@ -386,7 +387,7 @@ export function HelpCompanyInfoPage() {
         </div>
 
         <div className="flex justify-end">
-          <Button type="submit" disabled={saving}>
+          <Button type="submit" disabled={saving || !isFormDirty(form, formFromCompany(company))}>
             {saving ? 'Saving…' : 'Save company info'}
           </Button>
         </div>

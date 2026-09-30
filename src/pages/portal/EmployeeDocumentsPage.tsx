@@ -663,8 +663,8 @@ export function EmployeeDocumentUploadPage() {
               </button>
               <button
                 type="submit"
-                disabled={busy}
-                className="h-11 rounded-full bg-navy px-6 text-sm font-semibold text-white disabled:opacity-40"
+                disabled={busy || !file}
+                className="h-11 rounded-full bg-navy px-6 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-40"
               >
                 Upload Document
               </button>

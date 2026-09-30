@@ -708,49 +708,109 @@ export function EmployeeWorkspace() {
               </Alert>
             ) : null}
             <Section title="Personal Information" icon={<User size={16} />} className="xl:col-span-2">
-              <div className="grid grid-cols-2 gap-x-4 gap-y-3 lg:grid-cols-4">
-                <Field label="Title">
-                  <Select value={draft.title} onChange={(e) => setDraft({ ...draft, title: e.target.value })}>
-                    {TITLE_OPTIONS.map((option) => (
-                      <option key={option}>{option}</option>
-                    ))}
-                  </Select>
-                </Field>
-                <Field label="First Name">
-                  <Input
-                    placeholder="First Name"
-                    value={draft.first_name}
-                    onChange={(e) => setDraft({ ...draft, first_name: e.target.value })}
-                  />
-                </Field>
-                <Field label="Middle Name" hint="(Optional)">
-                  <Input
-                    placeholder="Middle Name"
-                    value={draft.middle_name}
-                    onChange={(e) => setDraft({ ...draft, middle_name: e.target.value })}
-                  />
-                </Field>
-                <Field label="Last Name">
-                  <Input
-                    placeholder="Last Name"
-                    value={draft.last_name}
-                    onChange={(e) => setDraft({ ...draft, last_name: e.target.value })}
-                  />
-                </Field>
-                <Field label="Gender">
-                  <Select value={draft.gender} onChange={(e) => setDraft({ ...draft, gender: e.target.value })}>
-                    <option value="">Select</option>
-                    {GENDER_OPTIONS.map((option) => (
-                      <option key={option}>{option}</option>
-                    ))}
-                  </Select>
-                </Field>
-                <Field label="Date of Birth">
-                  <Input type="date" value={draft.dob} onChange={(e) => setDraft({ ...draft, dob: e.target.value })} />
-                </Field>
-                <Field label="Age">
-                  <Input value={age} readOnly className="bg-[#f8f7f4]" />
-                </Field>
+              <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:gap-6">
+                <div className="order-first mx-auto w-[220px] shrink-0 sm:order-last sm:mx-0">
+                  <label
+                    className={`group relative block size-[220px] cursor-pointer overflow-hidden rounded-[16px] transition ${
+                      photoPreview
+                        ? 'bg-[#f8f7f4] ring-1 ring-[#e4e2dc]'
+                        : 'border border-dashed border-[#cfd6e0] bg-[#f8f7f4] hover:border-navy/40 hover:bg-[#f0f5fe]'
+                    }`}
+                  >
+                    {photoPreview ? (
+                      <img
+                        src={photoPreview}
+                        alt={fullName(draft) || 'Employee photo'}
+                        className="size-full object-cover object-top"
+                      />
+                    ) : (
+                      <span className="flex size-full flex-col items-center justify-center gap-1.5 px-3 text-center">
+                        <span className="flex size-10 items-center justify-center rounded-full bg-white text-navy">
+                          <Camera size={18} />
+                        </span>
+                        <span className="text-xs font-semibold text-navy">Add photo</span>
+                      </span>
+                    )}
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(event) => setPhotoFile(event.target.files?.[0] ?? null)}
+                    />
+                  </label>
+                  <div className="mt-2 flex items-center justify-center gap-3 text-[11px]">
+                    <label className="cursor-pointer font-semibold text-navy hover:underline">
+                      {photoPreview ? 'Change' : 'Upload'}
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={(event) => setPhotoFile(event.target.files?.[0] ?? null)}
+                      />
+                    </label>
+                    {photoPreview ? (
+                      <button
+                        type="button"
+                        className="font-medium text-brand hover:underline"
+                        onClick={() => {
+                          setPhotoFile(null)
+                          setDraft({ ...draft, photo_url: '' })
+                        }}
+                      >
+                        Remove
+                      </button>
+                    ) : null}
+                  </div>
+                </div>
+
+                <div className="min-w-0 flex-1 space-y-4">
+                  <div className="grid grid-cols-2 gap-x-4 gap-y-4 lg:grid-cols-[128px_minmax(0,1fr)_minmax(0,1fr)]">
+                    <Field label="Title">
+                      <Select value={draft.title} onChange={(e) => setDraft({ ...draft, title: e.target.value })}>
+                        {TITLE_OPTIONS.map((option) => (
+                          <option key={option}>{option}</option>
+                        ))}
+                      </Select>
+                    </Field>
+                    <Field label="First Name">
+                      <Input
+                        placeholder="First Name"
+                        value={draft.first_name}
+                        onChange={(e) => setDraft({ ...draft, first_name: e.target.value })}
+                      />
+                    </Field>
+                    <Field label="Middle Name" hint="(Optional)">
+                      <Input
+                        placeholder="Middle Name"
+                        value={draft.middle_name}
+                        onChange={(e) => setDraft({ ...draft, middle_name: e.target.value })}
+                      />
+                    </Field>
+                  </div>
+                  <div className="grid grid-cols-2 gap-x-4 gap-y-4 lg:grid-cols-[minmax(0,1.15fr)_150px_minmax(0,1fr)_88px]">
+                    <Field label="Last Name">
+                      <Input
+                        placeholder="Last Name"
+                        value={draft.last_name}
+                        onChange={(e) => setDraft({ ...draft, last_name: e.target.value })}
+                      />
+                    </Field>
+                    <Field label="Gender">
+                      <Select value={draft.gender} onChange={(e) => setDraft({ ...draft, gender: e.target.value })}>
+                        <option value="">Select</option>
+                        {GENDER_OPTIONS.map((option) => (
+                          <option key={option}>{option}</option>
+                        ))}
+                      </Select>
+                    </Field>
+                    <Field label="Date of Birth">
+                      <Input type="date" value={draft.dob} onChange={(e) => setDraft({ ...draft, dob: e.target.value })} />
+                    </Field>
+                    <Field label="Age">
+                      <Input value={age} readOnly className="bg-[#f8f7f4]" />
+                    </Field>
+                  </div>
+                </div>
               </div>
             </Section>
 
@@ -839,25 +899,6 @@ export function EmployeeWorkspace() {
                   </Field>
                 </div>
               </div>
-            </Section>
-
-            <Section title="Photo" icon={<Camera size={16} />} className="xl:col-span-2">
-              <label className="flex min-h-[76px] cursor-pointer items-center justify-center gap-3 rounded-[10px] border border-dashed border-[#d9d9d9] px-4 py-3">
-                {photoPreview ? (
-                  <img src={photoPreview} alt="" className="h-14 w-14 rounded-full object-cover" />
-                ) : (
-                  <span className="flex size-14 items-center justify-center rounded-full bg-[#f0f5fe] text-navy">
-                    <Camera size={22} />
-                  </span>
-                )}
-                <span className="text-base font-medium text-navy">Upload photo</span>
-                <input
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={(event) => setPhotoFile(event.target.files?.[0] ?? null)}
-                />
-              </label>
             </Section>
           </div>
         ) : null}

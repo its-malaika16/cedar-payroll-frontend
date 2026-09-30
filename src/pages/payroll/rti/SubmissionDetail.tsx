@@ -605,7 +605,11 @@ export function SubmissionDetail({
             </label>
             <Button
               onClick={() => saveReason.mutate(lateReason)}
-              disabled={saveReason.isPending || !lateReason.trim()}
+              disabled={
+                saveReason.isPending ||
+                !lateReason.trim() ||
+                lateReason.trim() === (fpsPayload?.late_submission?.reason ?? '').trim()
+              }
             >
               {saveReason.isPending ? 'Saving…' : 'Save reason'}
             </Button>

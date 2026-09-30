@@ -1,4 +1,5 @@
-﻿import { Link, useNavigate } from 'react-router-dom'
+import { Link } from 'react-router-dom'
+import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Download, Eye } from 'lucide-react'
 import { employeesApi } from '../../api'
@@ -8,6 +9,7 @@ import {
   Loading,
 } from '../../components/ui'
 import { formatDate, formatPayslipPeriod, idOf, money } from '../../lib/format'
+import { PayslipPreviewModal } from '../payroll/PayslipPreviewModal'
 
 export { PortalAttendancePage } from './EmployeeAttendancePage'
 export { PortalLeavePage } from './EmployeeLeavePage'
@@ -26,7 +28,7 @@ function payslipName(item: Record<string, unknown>) {
 export function PortalPayslipsPage() {
   const { companyId, currentEmployee } = useAuth()
   const employeeId = currentEmployee?.employee_id
-  const navigate = useNavigate()
+  const [preview, setPreview] = useState<{ runId: string; recordId: string } | null>(null)
   const query = useQuery({
     queryKey: ['my-payslips', companyId, employeeId],
     queryFn: () => employeesApi.myPayslips(companyId!, employeeId!),
@@ -83,7 +85,7 @@ export function PortalPayslipsPage() {
                           <button
                             type="button"
                             disabled={!runId || !recordId}
-                            onClick={() => navigate(`/portal/payslips/${runId}/${recordId}`)}
+                            onClick={() => setPreview({ runId, recordId })}
                             className="inline-flex h-9 items-center gap-2 rounded-full border border-navy px-4 text-xs font-semibold text-navy disabled:opacity-40"
                           >
                             <Eye size={14} />
@@ -114,6 +116,13 @@ export function PortalPayslipsPage() {
           </div>
         )}
       </div>
+      {preview ? (
+        <PayslipPreviewModal
+          runId={preview.runId}
+          recordId={preview.recordId}
+          onClose={() => setPreview(null)}
+        />
+      ) : null}
     </div>
   )
 }

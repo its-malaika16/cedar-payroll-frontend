@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom'
+import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { CalendarDays, CreditCard, UserRound } from 'lucide-react'
 import { employeesApi } from '../../api'
@@ -6,6 +7,7 @@ import { useAuth } from '../../auth/AuthContext'
 import { Loading } from '../../components/ui'
 import { formatLongDate, fullName, money } from '../../lib/format'
 import type { EmployeePortalDashboard } from '../../types'
+import { PayslipPreviewModal } from '../payroll/PayslipPreviewModal'
 
 const SLICE_COLORS = {
   additions: '#17375e',
@@ -141,10 +143,9 @@ export function EmployeeDashboardPage() {
   const data = query.data?.data
   const name = fullName(data?.first_name ?? user?.first_name, data?.last_name ?? user?.last_name) || 'there'
   const slices = data ? toSlices(data.breakdown) : []
-  const payslipTo =
-    data?.latest_run_id && data.latest_record_id
-      ? `/portal/payslips/${data.latest_run_id}/${data.latest_record_id}`
-      : '/portal/payslips'
+  const [previewOpen, setPreviewOpen] = useState(false)
+  const latestRunId = data?.latest_run_id ? String(data.latest_run_id) : ''
+  const latestRecordId = data?.latest_record_id ? String(data.latest_record_id) : ''
 
   if (query.isLoading) return <Loading />
 
@@ -168,9 +169,19 @@ export function EmployeeDashboardPage() {
               <p className="mt-2 text-xs text-muted">
                 {data?.latest_pay_date ? `Paid on ${formatLongDate(data.latest_pay_date)}` : 'No finalised payslip yet'}
               </p>
-              <Link to={payslipTo} className="mt-3 inline-block text-xs font-semibold text-navy">
-                View Payslip →
-              </Link>
+              {latestRunId && latestRecordId ? (
+                <button
+                  type="button"
+                  className="mt-3 inline-block text-xs font-semibold text-navy"
+                  onClick={() => setPreviewOpen(true)}
+                >
+                  View Payslip →
+                </button>
+              ) : (
+                <Link to="/portal/payslips" className="mt-3 inline-block text-xs font-semibold text-navy">
+                  View Payslip →
+                </Link>
+              )}
             </div>
           </div>
         </article>
@@ -282,6 +293,13 @@ export function EmployeeDashboardPage() {
           <p className="mt-3 text-sm text-muted">No published shift is assigned yet.</p>
         )}
       </article>
+      {previewOpen && latestRunId && latestRecordId ? (
+        <PayslipPreviewModal
+          runId={latestRunId}
+          recordId={latestRecordId}
+          onClose={() => setPreviewOpen(false)}
+        />
+      ) : null}
     </div>
   )
 }

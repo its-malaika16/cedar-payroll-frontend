@@ -19,6 +19,7 @@ import { assetUrl } from '../../api/client'
 import { useAuth } from '../../auth/AuthContext'
 import { Alert, Button, Loading } from '../../components/ui'
 import { formatDate, formatLongDate, formatNiNumber, fullName, toDateInput } from '../../lib/format'
+import { isFormDirty } from '../../lib/formDirty'
 import type { Employee, EmployeePortalDashboard } from '../../types'
 import {
   COUNTRY_OPTIONS,
@@ -207,6 +208,7 @@ export function EmployeeInformationPage() {
   const [error, setError] = useState<string | null>(null)
   const [message, setMessage] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
+  const [personalReady, setPersonalReady] = useState(false)
   const query = useQuery({
     queryKey: ['my-employee', companyId, employeeId],
     queryFn: () => employeesApi.me(companyId!, employeeId!),
@@ -263,6 +265,7 @@ export function EmployeeInformationPage() {
   useEffect(() => {
     if (!employee) return
     setDraft(draftFromEmployee(employee))
+    setPersonalReady(true)
   }, [employee, address])
 
   const workEmail = employee
@@ -530,7 +533,7 @@ export function EmployeeInformationPage() {
                 <Button
                   type="button"
                   className="h-10 min-w-[105px] rounded-full text-xs"
-                  disabled={saving}
+                  disabled={saving || !personalReady || !isFormDirty(draft, draftFromEmployee(employee))}
                   onClick={() => void savePersonal()}
                 >
                   {saving ? 'Saving…' : 'Save'}

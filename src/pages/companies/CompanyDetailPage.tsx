@@ -6,6 +6,7 @@ import { companiesApi } from '../../api'
 import { useAuth } from '../../auth/AuthContext'
 import { Alert, Button, Loading, onSubmit } from '../../components/ui'
 import { idOf } from '../../lib/format'
+import { formSnapshot } from '../../lib/formDirty'
 import {
   OrganizationForm,
   emptyOrganizationForm,
@@ -27,6 +28,7 @@ export function CompanyDetailPage() {
   const [form, setForm] = useState<OrganizationFormValues>(emptyOrganizationForm())
   const [hydrated, setHydrated] = useState(false)
   const originalMemberIds = useRef<string[]>([])
+  const [baseline, setBaseline] = useState('')
 
   const rolesQuery = useQuery({
     queryKey: ['company-assignable-roles'],
@@ -50,6 +52,7 @@ export function CompanyDetailPage() {
     if (!company || hydrated || rolesQuery.isLoading) return
     const next = organizationFormFromCompany(company, roles)
     setForm(next)
+    setBaseline(formSnapshot(next))
     originalMemberIds.current = next.members.map((member) => member.userId).filter((id): id is string => Boolean(id))
     setHydrated(true)
   }, [company, roles, rolesQuery.isLoading, hydrated])
@@ -76,6 +79,7 @@ export function CompanyDetailPage() {
         error={error}
         saving={saving}
         disabled={!auth.canManageOrganizations}
+        canSave={Boolean(baseline) && formSnapshot(form) !== baseline}
         submitLabel="Save Organisation"
         savingLabel="Saving…"
         onChange={setForm}
@@ -149,6 +153,7 @@ export function CompanyDetailPage() {
           await queryClient.invalidateQueries({ queryKey: ['companies'] })
           const next = organizationFormFromCompany(refreshed.data as Company, roles)
           setForm(next)
+          setBaseline(formSnapshot(next))
           originalMemberIds.current = next.members
             .map((member) => member.userId)
             .filter((id): id is string => Boolean(id))

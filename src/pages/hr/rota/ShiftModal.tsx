@@ -10,6 +10,7 @@ import {
   User,
 } from 'lucide-react'
 import { Alert, Button } from '../../../components/ui'
+import { isFormDirty } from '../../../lib/formDirty'
 import {
   combineDateAndMinutes,
   decodeShiftNotes,
@@ -212,6 +213,7 @@ export function ShiftModal({
   const title = mode === 'edit' ? 'Edit Shift' : mode === 'move' ? 'Move Shift' : 'Add Shift'
   const submitLabel = mode === 'edit' ? 'Save Edits' : mode === 'move' ? 'Save' : 'Add Shift'
   const moveOnly = mode === 'move'
+  const canSave = mode === 'create' || isFormDirty(form, emptyForm(initial))
 
     return (
     <div
@@ -383,7 +385,7 @@ export function ShiftModal({
             <Button type="button" variant="secondary" onClick={onClose}>
               Cancel
             </Button>
-            <Button type="submit" disabled={saving}>
+            <Button type="submit" disabled={saving || !canSave}>
               {submitLabel}
             </Button>
           </div>

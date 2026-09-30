@@ -69,6 +69,21 @@ function periodEndingKind(payFrequency?: string | null) {
   }
 }
 
+export function formatPeriodEndingLabel(
+  end?: string | Date | null,
+  payFrequency?: string | null,
+) {
+  const to = utcDate(end)
+  if (!to) return ''
+  const when = to.toLocaleDateString('en-GB', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+    timeZone: 'UTC',
+  })
+  return `${periodEndingKind(payFrequency)} ${when}`
+}
+
 export function formatPayslipForLabel(
   end?: string | Date | null,
   payFrequency?: string | null,
@@ -290,7 +305,9 @@ export function statusTone(status?: string | null) {
   if (['PENDING', 'DRAFT', 'PROCESSING', 'GENERATED', 'LATE', 'UPCOMING'].includes(value)) {
     return 'warning'
   }
-  if (['REJECTED', 'FAILED', 'INACTIVE', 'CANCELLED', 'EXPIRED', 'ABSENT'].includes(value)) {
+  if (
+    ['REJECTED', 'FAILED', 'INACTIVE', 'CANCELLED', 'EXPIRED', 'ABSENT', 'OVERDUE'].includes(value)
+  ) {
     return 'danger'
   }
   return 'neutral'

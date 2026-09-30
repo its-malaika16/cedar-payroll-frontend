@@ -47,16 +47,16 @@ export function Button({
 }) {
   const styles = {
     primary:
-      'bg-navy text-white hover:bg-navy-mid disabled:bg-[#d9d9d9]',
+      'bg-navy text-white hover:bg-navy-mid disabled:bg-[#d9d9d9] disabled:text-white/80',
     secondary:
-      'border-[0.5px] border-navy bg-white text-navy hover:bg-cream',
-    ghost: 'text-navy hover:bg-white',
-    danger: 'bg-brand text-white hover:bg-gold-600',
-    accent: 'bg-brand text-white hover:bg-gold-600 disabled:bg-[#d9d9d9]',
+      'border-[0.5px] border-navy bg-white text-navy hover:bg-cream disabled:border-[#d9d9d9] disabled:bg-[#f3f2ef] disabled:text-[#9aa3ad]',
+    ghost: 'text-navy hover:bg-white disabled:text-[#9aa3ad] disabled:hover:bg-transparent',
+    danger: 'bg-brand text-white hover:bg-gold-600 disabled:bg-[#d9d9d9] disabled:text-white/80',
+    accent: 'bg-brand text-white hover:bg-gold-600 disabled:bg-[#d9d9d9] disabled:text-white/80',
   }[variant]
   return (
     <button
-      className={`inline-flex items-center justify-center gap-2 rounded-[8px] px-4 py-2.5 text-sm font-medium transition disabled:cursor-not-allowed ${styles} ${className}`}
+      className={`inline-flex items-center justify-center gap-2 rounded-[8px] px-4 py-2.5 text-sm font-medium transition disabled:pointer-events-none disabled:cursor-not-allowed ${styles} ${className}`}
       {...props}
     >
       {children}

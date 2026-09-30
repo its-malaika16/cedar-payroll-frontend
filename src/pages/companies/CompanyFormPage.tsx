@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query'
 import { companiesApi } from '../../api'
 import { useAuth } from '../../auth/AuthContext'
 import { Alert, Loading, onSubmit } from '../../components/ui'
+import { isFormDirty } from '../../lib/formDirty'
 import {
   OrganizationForm,
   emptyOrganizationForm,
@@ -54,6 +55,10 @@ export function CompanyFormPage() {
         error={error}
         saving={saving}
         disabled={!auth.canManageOrganizations}
+        canSave={isFormDirty(
+          { ...form, owner_role_id: '' },
+          { ...emptyOrganizationForm(roles), owner_role_id: '' },
+        )}
         submitLabel="Create Organisation"
         savingLabel="Creating…"
         onChange={setForm}

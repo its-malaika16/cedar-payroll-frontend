@@ -4,25 +4,27 @@ import type { StarterFormData } from './starterFormData'
 
 const CSS = `
 * { box-sizing: border-box; }
-body { margin: 0; background: #f8f7f4; }
+html, body { margin: 0; padding: 0; background: #fff; }
 .starter-sheet {
-  width: 190mm;
+  width: 718px;
   margin: 0 auto;
-  padding: 14px 16px 18px;
-  font-family: Montserrat, Arial, sans-serif;
+  padding: 16px 18px 20px;
+  font-family: Arial, Helvetica, sans-serif;
   color: #17375e;
   background: #fff;
   font-size: 11px;
-  line-height: 1.4;
+  line-height: 1.35;
 }
-.starter-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
-.starter-logo { height: 36px; width: auto; object-fit: contain; }
+table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+td { vertical-align: top; }
+.starter-top td { padding: 0; }
+.starter-logo { height: 36px; width: auto; }
 .starter-ref { text-align: right; }
-.starter-ref strong { display: block; font-size: 18px; letter-spacing: 0.04em; }
-.starter-ref span { font-size: 10px; color: #5c6e82; }
-.starter-title { margin: 14px 0 12px; text-align: center; font-size: 20px; font-weight: 700; letter-spacing: 0.04em; }
-.starter-rule { height: 3px; background: #d32027; margin: 0 0 14px; }
-.starter-box { border: 1px solid #e4e7ec; border-radius: 8px; overflow: hidden; margin-bottom: 12px; }
+.starter-ref strong { display: block; font-size: 18px; font-weight: 700; }
+.starter-ref span { display: block; font-size: 10px; color: #5c6e82; }
+.starter-title { margin: 14px 0 10px; text-align: center; font-size: 20px; font-weight: 700; }
+.starter-rule { height: 3px; background: #d32027; margin: 0 0 14px; font-size: 0; line-height: 0; }
+.starter-box { border: 1px solid #d9d9d9; margin-bottom: 12px; }
 .starter-box h2 {
   margin: 0;
   background: #17375e;
@@ -30,84 +32,83 @@ body { margin: 0; background: #f8f7f4; }
   padding: 8px 12px;
   font-size: 11px;
   font-weight: 700;
-  letter-spacing: 0.08em;
   text-transform: uppercase;
 }
-.starter-body { padding: 12px; }
-.starter-grid { display: grid; gap: 10px 16px; }
-.cols-2 { grid-template-columns: 1fr 1fr; }
-.cols-3 { grid-template-columns: 1fr 1fr 1fr; }
-.cols-4 { grid-template-columns: 1fr 1fr 1fr 1fr; }
+.starter-body { padding: 10px 12px 12px; }
+.starter-grid td { padding: 6px 10px 8px 0; }
+.starter-grid td:last-child { padding-right: 0; }
 .field .label {
   display: block;
-  font-size: 9px;
-  font-weight: 600;
-  letter-spacing: 0.06em;
+  font-size: 8px;
+  font-weight: 700;
   text-transform: uppercase;
   color: #5c6e82;
-  margin-bottom: 3px;
+  margin: 0 0 3px;
 }
 .field .value {
-  min-height: 22px;
-  border-bottom: 1px solid #d9d9d9;
+  display: block;
+  min-height: 18px;
+  border-bottom: 1px solid #b8b8b8;
   font-size: 12px;
-  font-weight: 600;
-  padding: 2px 0;
+  font-weight: 700;
+  padding: 1px 0 3px;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
 }
-.span-2 { grid-column: span 2; }
-.span-3 { grid-column: span 3; }
-.days { display: flex; gap: 6px; flex-wrap: wrap; }
+.days { margin-top: 6px; font-size: 0; }
 .day {
-  width: 28px;
-  height: 28px;
+  display: inline-block;
+  width: 26px;
+  height: 26px;
+  margin: 0 5px 0 0;
   border: 1px solid #17375e;
   border-radius: 6px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
   font-size: 10px;
   font-weight: 700;
+  line-height: 24px;
+  text-align: center;
+  color: #17375e;
+  vertical-align: top;
 }
 .day.on { background: #17375e; color: #fff; }
-.choices { display: flex; gap: 8px; margin-top: 2px; }
+.choices { margin-top: 2px; font-size: 0; }
 .choice {
-  min-width: 52px;
-  height: 28px;
+  display: inline-block;
+  width: 52px;
+  height: 26px;
+  margin: 0 6px 0 0;
   border: 1px solid #17375e;
   border-radius: 6px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
   font-size: 11px;
   font-weight: 700;
+  line-height: 24px;
+  text-align: center;
+  color: #17375e;
+  vertical-align: top;
 }
 .choice.on { background: #17375e; color: #fff; }
-.statement { margin: 0 0 8px; padding: 8px 10px; border: 1px solid #e4e7ec; border-radius: 6px; }
+.statement { width: 100%; margin: 0 0 8px; border: 1px solid #e4e7ec; border-collapse: separate; }
 .statement.on { border-color: #17375e; background: #e8eef6; }
+.statement td { padding: 8px 10px; vertical-align: middle; }
+.statement .mark-cell { width: 28px; padding-right: 0; }
 .statement .mark {
-  display: inline-flex;
+  display: block;
   width: 18px;
   height: 18px;
-  margin-right: 8px;
-  border: 1.5px solid #17375e;
-  border-radius: 50%;
-  align-items: center;
-  justify-content: center;
+  border: 1px solid #17375e;
+  border-radius: 9px;
   font-size: 10px;
   font-weight: 700;
-  vertical-align: middle;
+  line-height: 16px;
+  text-align: center;
+  color: #17375e;
 }
 .statement.on .mark { background: #17375e; color: #fff; }
-.statement p { display: inline; margin: 0; font-size: 10.5px; }
+.statement .copy { font-size: 10.5px; line-height: 1.4; }
 .starter-note { margin: 0 0 8px; font-size: 10px; font-weight: 700; }
-.starter-foot {
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
-  margin-top: 10px;
-  font-size: 9.5px;
-  color: #5c6e82;
-}
+.starter-foot td { padding-top: 8px; font-size: 9.5px; color: #5c6e82; }
+.starter-foot .right { text-align: right; }
+.starter-foot .center { text-align: center; }
 @media print {
   body { background: #fff; }
   .starter-sheet { width: auto; padding: 0; }
@@ -115,8 +116,13 @@ body { margin: 0; background: #f8f7f4; }
 @page { size: A4 portrait; margin: 12mm; }
 `
 
-function field(label: string, value: string, className = '') {
-  return `<div class="field ${className}"><span class="label">${esc(label)}</span><span class="value">${esc(value) || '&nbsp;'}</span></div>`
+function field(label: string, value: string) {
+  return `<div class="field"><div class="label">${esc(label)}</div><div class="value">${esc(value) || '&nbsp;'}</div></div>`
+}
+
+function cell(label: string, value: string, colspan = 1) {
+  const span = colspan > 1 ? ` colspan="${colspan}"` : ''
+  return `<td${span}>${field(label, value)}</td>`
 }
 
 function yesNoChoices(value: string) {
@@ -145,71 +151,100 @@ function dayMarks(selected: string[]) {
 
 function statement(code: 'A' | 'B' | 'C', selected: string, copy: string) {
   const on = selected === code
-  return `<div class="statement${on ? ' on' : ''}"><span class="mark">${code}</span><p>${esc(copy)}</p></div>`
+  return `<table class="statement${on ? ' on' : ''}"><tr><td class="mark-cell"><span class="mark">${code}</span></td><td class="copy">${esc(copy)}</td></tr></table>`
 }
 
 export function starterFormBodyHtml(data: StarterFormData, logoSrc: string) {
   return `
   <article class="starter-sheet">
-    <header class="starter-top">
-      <img class="starter-logo" src="${esc(logoSrc)}" alt="Cedar Payroll" />
-      <div class="starter-ref">
-        <strong>HR-1</strong>
-        <span>Employee Starter Form</span>
-      </div>
-    </header>
+    <table class="starter-top">
+      <tr>
+        <td><img class="starter-logo" src="${esc(logoSrc)}" alt="Cedar Payroll" /></td>
+        <td class="starter-ref">
+          <strong>HR-1</strong>
+          <span>Employee Starter Form</span>
+        </td>
+      </tr>
+    </table>
     <h1 class="starter-title">Employee Starter Form</h1>
     <div class="starter-rule"></div>
 
     <section class="starter-box">
       <h2>Employer full name</h2>
-      <div class="starter-body">${field('Employer', data.employerName)}</div>
+      <div class="starter-body">
+        <table class="starter-grid"><tr>${cell('Employer', data.employerName)}</tr></table>
+      </div>
     </section>
 
     <section class="starter-box">
       <h2>Employee personal details</h2>
       <div class="starter-body">
-        <div class="starter-grid cols-3">
-          ${field('Title', data.title)}
-          ${field('Gender (M/F)', data.gender)}
-          ${field('Marital status', data.maritalStatus)}
-          ${field('First names', data.firstNames)}
-          ${field('Last name', data.lastName, 'span-2')}
-          ${field('Date of birth', data.dob)}
-          ${field('National Insurance number', data.niNumber, 'span-2')}
-          ${field('Address', data.address, 'span-3')}
-          ${field('Town', data.town)}
-          ${field('County', data.county)}
-          ${field('Postcode', data.postcode)}
-          ${field('Passport no.', data.passportNo)}
-          ${field('Tel no.', data.phone)}
-          ${field('Email', data.email)}
-        </div>
+        <table class="starter-grid">
+          <tr>
+            ${cell('Title', data.title)}
+            ${cell('Gender (M/F)', data.gender)}
+            ${cell('Marital status', data.maritalStatus)}
+          </tr>
+          <tr>
+            ${cell('First name', data.firstNames)}
+            ${cell('Middle name', data.middleName)}
+            ${cell('Last name', data.lastName)}
+          </tr>
+          <tr>
+            ${cell('Date of birth', data.dob)}
+            ${cell('National Insurance number', data.niNumber, 2)}
+          </tr>
+          <tr>
+            ${cell('Address', data.address, 3)}
+          </tr>
+          <tr>
+            ${cell('Town', data.town)}
+            ${cell('County', data.county)}
+            ${cell('Postcode', data.postcode)}
+          </tr>
+          <tr>
+            ${cell('Passport no.', data.passportNo)}
+            ${cell('Tel no.', data.phone)}
+            ${cell('Email', data.email)}
+          </tr>
+        </table>
       </div>
     </section>
 
     <section class="starter-box">
       <h2>Employment details</h2>
       <div class="starter-body">
-        <div class="starter-grid cols-3">
-          ${field('Start date', data.startDate)}
-          ${field('Department', data.department)}
-          ${field('Director', data.director)}
-          ${field('Salary rate', data.salaryRate)}
-          ${field('Hourly rate', data.hourlyRate)}
-          ${field('Hours per week', data.hoursPerWeek)}
-          ${field('Days per week', data.daysPerWeek)}
-          <div class="field span-2">
-            <span class="label">Hours per day / working days</span>
-            <span class="value">${esc(data.hoursPerDay)}${data.hoursPerDay ? ' hours' : ''}</span>
-            <div style="margin-top:8px">${dayMarks(data.workingDays)}</div>
-          </div>
-          ${field('Student loan to be repaid', data.studentLoan)}
-          <div class="field span-2">
-            <span class="label">P45 attached / to follow</span>
-            ${yesNoChoices(data.p45)}
-          </div>
-        </div>
+        <table class="starter-grid">
+          <tr>
+            ${cell('Start date', data.startDate)}
+            ${cell('Department', data.department)}
+            ${cell('Director', data.director)}
+          </tr>
+          <tr>
+            ${cell('Salary rate', data.salaryRate)}
+            ${cell('Hourly rate', data.hourlyRate)}
+            ${cell('Hours per week', data.hoursPerWeek)}
+          </tr>
+          <tr>
+            ${cell('Days per week', data.daysPerWeek)}
+            <td colspan="2">
+              <div class="field">
+                <div class="label">Hours per day / working days</div>
+                <div class="value">${esc(data.hoursPerDay)}${data.hoursPerDay ? ' hours' : ''}&nbsp;</div>
+              </div>
+              ${dayMarks(data.workingDays)}
+            </td>
+          </tr>
+          <tr>
+            ${cell('Student loan to be repaid', data.studentLoan)}
+            <td colspan="2">
+              <div class="field">
+                <div class="label">P45 attached / to follow</div>
+              </div>
+              ${yesNoChoices(data.p45)}
+            </td>
+          </tr>
+        </table>
       </div>
     </section>
 
@@ -238,22 +273,30 @@ export function starterFormBodyHtml(data: StarterFormData, logoSrc: string) {
     <section class="starter-box">
       <h2>Bank details</h2>
       <div class="starter-body">
-        <div class="starter-grid cols-2">
-          ${field('Name of bank', data.bankName)}
-          ${field('Branch name', data.branchName)}
-          ${field('Sort code', data.sortCode)}
-          ${field('Account name', data.accountName)}
-          ${field('Account number', data.accountNumber)}
-          ${field('Building society reference / roll no.', data.buildingSocietyRef)}
-        </div>
+        <table class="starter-grid">
+          <tr>
+            ${cell('Name of bank', data.bankName)}
+            ${cell('Branch name', data.branchName)}
+          </tr>
+          <tr>
+            ${cell('Sort code', data.sortCode)}
+            ${cell('Account name', data.accountName)}
+          </tr>
+          <tr>
+            ${cell('Account number', data.accountNumber)}
+            ${cell('Building society reference / roll no.', data.buildingSocietyRef)}
+          </tr>
+        </table>
       </div>
     </section>
 
-    <footer class="starter-foot">
-      <span>Cedar Payroll</span>
-      <span>Version 1</span>
-      <span>Date: ${esc(data.createdOn)}</span>
-    </footer>
+    <table class="starter-foot">
+      <tr>
+        <td>Cedar Payroll</td>
+        <td class="center">Version 1</td>
+        <td class="right">Date: ${esc(data.createdOn)}</td>
+      </tr>
+    </table>
   </article>`
 }
 
@@ -264,9 +307,6 @@ export function starterFormDocument(data: StarterFormData, logoSrc: string) {
   <head>
     <meta charset="utf-8" />
     <title>${esc(title)}</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet" />
     <style>${CSS}</style>
   </head>
   <body>${starterFormBodyHtml(data, logoSrc)}</body>

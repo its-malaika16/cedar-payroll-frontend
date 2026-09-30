@@ -8,6 +8,7 @@ export type StarterFormData = {
   gender: string
   maritalStatus: string
   firstNames: string
+  middleName: string
   lastName: string
   displayName: string
   dob: string
@@ -250,18 +251,6 @@ function toEmployeeGender(value: string): 'Male' | 'Female' | 'Other' | undefine
   throw new Error('Gender must be M, F or Other')
 }
 
-function splitFirstNames(firstNames: string, source: StarterFormEmployeeSource) {
-  const composed = [source.first_name, source.middle_name].filter(Boolean).join(' ').trim()
-  if (firstNames.trim() === composed) {
-    return { first_name: source.first_name, middle_name: source.middle_name }
-  }
-  const parts = firstNames.trim().split(/\s+/).filter(Boolean)
-  return {
-    first_name: parts[0] ?? '',
-    middle_name: parts.slice(1).join(' '),
-  }
-}
-
 function changed(original: StarterFormData, next: StarterFormData, key: keyof StarterFormData) {
   if (key === 'workingDays') {
     return JSON.stringify(original.workingDays) !== JSON.stringify(next.workingDays)
@@ -314,7 +303,8 @@ export async function loadStarterFormData(
     declaration === 'A' || declaration === 'B' || declaration === 'C' ? declaration : ''
 
   const previousPay = Number(starter.previous_gross_taxable_pay ?? 0)
-  const firstNames = [employee.first_name, employee.middle_name].filter(Boolean).join(' ').trim()
+  const firstNames = text(employee.first_name)
+  const middleName = text(employee.middle_name)
   const lastName = text(employee.last_name)
 
   const form: StarterFormData = {
@@ -323,8 +313,9 @@ export async function loadStarterFormData(
     gender: genderMark(employee.gender),
     maritalStatus: '',
     firstNames,
+    middleName,
     lastName,
-    displayName: [firstNames, lastName].filter(Boolean).join(' ') || 'Employee',
+    displayName: [firstNames, middleName, lastName].filter(Boolean).join(' ') || 'Employee',
     dob: displayUkDate(employee.dob),
     niNumber: formatNiNumber(String(tax.ni_number ?? '')) === '—' ? '' : formatNiNumber(String(tax.ni_number ?? '')),
     address: street || fallbackAddress,
@@ -381,17 +372,14 @@ export async function applyStarterFormToEmployee(
   const updates: Array<Promise<unknown>> = []
 
   if (
-    anyChanged(original, next, ['title', 'firstNames', 'lastName', 'gender', 'dob', 'phone', 'email'])
+    anyChanged(original, next, ['title', 'firstNames', 'middleName', 'lastName', 'gender', 'dob', 'phone', 'email'])
   ) {
-    const names = splitFirstNames(next.firstNames, source)
-    if (!names.first_name.trim()) throw new Error('Enter the first name')
+    if (!next.firstNames.trim()) throw new Error('Enter the first name')
     if (!next.lastName.trim()) throw new Error('Enter the last name')
     const personal: Record<string, unknown> = {}
     if (changed(original, next, 'title')) personal.title = next.title
-    if (changed(original, next, 'firstNames')) {
-      personal.first_name = names.first_name
-      personal.middle_name = names.middle_name || undefined
-    }
+    if (changed(original, next, 'firstNames')) personal.first_name = next.firstNames.trim()
+    if (changed(original, next, 'middleName')) personal.middle_name = next.middleName.trim() || undefined
     if (changed(original, next, 'lastName')) personal.last_name = next.lastName.trim()
     if (changed(original, next, 'gender')) {
       const gender = toEmployeeGender(next.gender)

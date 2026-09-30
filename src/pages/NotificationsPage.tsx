@@ -1,4 +1,5 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useNavigate } from 'react-router-dom'
 import { notificationsApi } from '../api'
 import { useAuth } from '../auth/AuthContext'
 import { Card, EmptyState, Loading, PageHeader } from '../components/ui'
@@ -11,10 +12,20 @@ type AppNotification = {
   type: string
   is_read: boolean
   created_at: string
+  data?: { invoice_id?: string | null }
+}
+
+function notificationPath(item: AppNotification) {
+  const invoiceId = item.data?.invoice_id
+  if (item.type === 'INVOICE_APPROVED' && invoiceId) {
+    return `/payroll/invoices/${invoiceId}`
+  }
+  return ''
 }
 
 export function NotificationsPage() {
   const { companyId } = useAuth()
+  const navigate = useNavigate()
   const queryClient = useQueryClient()
   const query = useQuery({
     queryKey: ['notifications', companyId],
@@ -33,23 +44,34 @@ export function NotificationsPage() {
             <EmptyState title="No notifications" body="Rota updates, invoices and document expiry alerts will appear here." />
         ) : (
           <div className="divide-y divide-[#eceae6]">
-            {list.map((item) => (
+            {list.map((item) => {
+              const href = notificationPath(item)
+              return (
               <button
                 key={idOf(item)}
                 type="button"
                 className={`block w-full px-5 py-4 text-left ${item.is_read ? 'bg-white' : 'bg-[#f8f7f4]'}`}
                 onClick={() => {
-                  if (!companyId || item.is_read) return
-                  void notificationsApi.markRead(companyId, idOf(item)).then(() =>
-                    queryClient.invalidateQueries({ queryKey: ['notifications', companyId] }),
-                  )
+                  if (!companyId) return
+                  const open = () => {
+                    if (href) navigate(href)
+                  }
+                  if (item.is_read) {
+                    open()
+                    return
+                  }
+                  void notificationsApi.markRead(companyId, idOf(item)).then(() => {
+                    void queryClient.invalidateQueries({ queryKey: ['notifications', companyId] })
+                    open()
+                  })
                 }}
               >
                 <p className="text-sm font-semibold text-navy">{item.title}</p>
                 <p className="mt-1 text-sm text-muted">{item.body}</p>
                 <p className="mt-1 text-xs text-muted">{formatLongDate(item.created_at)}</p>
               </button>
-            ))}
+              )
+            })}
           </div>
         )}
       </Card>

@@ -552,7 +552,8 @@ export function EmployeeCalendarPage() {
               />
               <button
                 type="button"
-                className="h-[35px] rounded-[6px] bg-navy px-3 text-xs font-semibold text-white"
+                className="h-[35px] rounded-[6px] bg-navy px-3 text-xs font-semibold text-white disabled:cursor-not-allowed disabled:bg-[#d9d9d9]"
+                disabled={!customLabel.trim()}
                 onClick={() => assign('CUSTOM', customLabel.trim())}
               >
                 Save

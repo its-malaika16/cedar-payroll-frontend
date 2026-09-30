@@ -485,6 +485,7 @@ export function OrganizationForm({
   onSubmit,
   onCancel,
   onDelete,
+  canSave = true,
 }: {
   title: string
   subtitle: string
@@ -499,6 +500,7 @@ export function OrganizationForm({
   onSubmit: (event: FormEvent<HTMLFormElement>) => void
   onCancel: () => void
   onDelete?: () => void
+  canSave?: boolean
 }) {
   const set = <K extends keyof OrganizationFormValues>(key: K, value: OrganizationFormValues[K]) =>
     onChange({ ...values, [key]: value })
@@ -911,7 +913,7 @@ export function OrganizationForm({
             </Button>
           ) : null}
         </div>
-        <Button type="submit" disabled={saving || readOnly}>
+        <Button type="submit" disabled={saving || readOnly || !canSave}>
           <Save size={16} />
           {saving ? savingLabel : submitLabel}
         </Button>

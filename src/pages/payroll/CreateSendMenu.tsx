@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { ChevronRight, Download, Eye, FileText, Send } from 'lucide-react'
 import { payslipsApi } from '../../api'
 import { idOf } from '../../lib/format'
+import { PayslipPreviewModal } from './PayslipPreviewModal'
 
 export const toolbarBtn =
   'inline-flex h-[47px] items-center justify-center gap-2 rounded-[8px] border-[0.5px] border-navy bg-white px-4 text-sm font-medium text-navy hover:bg-cream disabled:cursor-not-allowed disabled:border-[#9b9a9a] disabled:bg-[#f1efef] disabled:text-muted'
@@ -54,6 +55,7 @@ export function CreateSendMenu({
 }: CreateSendMenuProps) {
   const navigate = useNavigate()
   const { ref, open, setOpen } = useMenuOpen()
+  const [previewOpen, setPreviewOpen] = useState(false)
 
   async function generateAndDownload() {
     if (!recordId) return
@@ -112,9 +114,7 @@ export function CreateSendMenu({
                 className={menuItemClass}
                 onClick={() => {
                   setOpen(false)
-                  navigate(`/payroll/payslips/${runId}/${recordId}`, {
-                    state: { from: `/payroll/runs/${runId}/records/${recordId}` },
-                  })
+                  setPreviewOpen(true)
                 }}
               >
                 <Eye size={14} className="shrink-0" />
@@ -159,6 +159,13 @@ export function CreateSendMenu({
             Download payslip PDF to multiple employees...
           </button>
         </div>
+      ) : null}
+      {previewOpen && recordId ? (
+        <PayslipPreviewModal
+          runId={runId}
+          recordId={recordId}
+          onClose={() => setPreviewOpen(false)}
+        />
       ) : null}
     </div>
   )

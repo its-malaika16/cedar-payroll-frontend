@@ -1,17 +1,17 @@
-import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { payrollApi, payslipsApi } from '../../api'
 import { useAuth } from '../../auth/AuthContext'
+import { useState } from 'react'
 import { Button, Card, EmptyState, Field, Loading, PageHeader, Select } from '../../components/ui'
 import { formatDate, fullName, idOf } from '../../lib/format'
 import type { PayrollRun } from '../../types'
-import { useState } from 'react'
 import { payslipList } from './CreateSendMenu'
+import { PayslipPreviewModal } from './PayslipPreviewModal'
 
 export function PayslipsPage() {
   const { companyId } = useAuth()
-  const navigate = useNavigate()
   const [runId, setRunId] = useState('')
+  const [preview, setPreview] = useState<{ runId: string; recordId: string } | null>(null)
   const runs = useQuery({
     queryKey: ['payroll-runs', companyId],
     queryFn: () => payrollApi.runs(companyId!),
@@ -71,11 +71,7 @@ export function PayslipsPage() {
                     {recordId ? (
                       <Button
                         variant="secondary"
-                        onClick={() =>
-                          navigate(`/payroll/payslips/${runId}/${recordId}`, {
-                            state: { from: `/payroll/runs/${runId}/records/${recordId}` },
-                          })
-                        }
+                        onClick={() => setPreview({ runId, recordId })}
                       >
                         View
                       </Button>
@@ -99,6 +95,13 @@ export function PayslipsPage() {
           </div>
         )}
       </Card>
+      {preview ? (
+        <PayslipPreviewModal
+          runId={preview.runId}
+          recordId={preview.recordId}
+          onClose={() => setPreview(null)}
+        />
+      ) : null}
     </div>
   )
 }

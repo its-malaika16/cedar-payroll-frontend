@@ -1,15 +1,15 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Link, Outlet, useMatch, useNavigate } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { CalendarDays, ChevronLeft, Search } from 'lucide-react'
-import { employeesApi } from '../../api'
+import { CalendarDays, ChevronLeft, Filter, Search } from 'lucide-react'
+import { employeesApi, payrollApi } from '../../api'
 import { ApiError } from '../../api/client'
 import { useAuth } from '../../auth/AuthContext'
 import { Alert, Button, Loading, PageHeader } from '../../components/ui'
 import { BrandIcon } from '../../components/BrandIcon'
 import { employeeLeaveDate, fullName, idOf } from '../../lib/format'
-import type { Employee } from '../../types'
+import type { Employee, PayrollSchedule } from '../../types'
 import iconPerson from '../../assets/brand/icon-person.png'
 import iconPlus from '../../assets/brand/icon-plus.svg'
 import iconBenefits from '../../assets/brand/icon-benefits.png'
@@ -61,6 +61,10 @@ export function EmployeesPage() {
         : selected?.params.employeeId
   const inWorkspace = creating || Boolean(selectedId) || inCalendar || inPensions || inBenefits || inForms
   const [queryText, setQueryText] = useState('')
+  const [filterOpen, setFilterOpen] = useState(false)
+  const [filterKind, setFilterKind] = useState<'' | 'department' | 'schedule'>('')
+  const [departmentFilter, setDepartmentFilter] = useState('')
+  const [scheduleFilter, setScheduleFilter] = useState('')
   const [addOpen, setAddOpen] = useState(false)
   const [csvFile, setCsvFile] = useState<ParsedCsv | null>(null)
   const [csvMapping, setCsvMapping] = useState<Record<string, string>>({})
@@ -70,11 +74,14 @@ export function EmployeesPage() {
   const [deleting, setDeleting] = useState(false)
   const [deleteError, setDeleteError] = useState<string | null>(null)
   const addMenuRef = useRef<HTMLDivElement>(null)
+  const filterRef = useRef<HTMLDivElement>(null)
   const csvInputRef = useRef<HTMLInputElement>(null)
+  const filterActive = Boolean(departmentFilter || scheduleFilter)
 
   useEffect(() => {
     function onPointer(event: MouseEvent) {
       if (addMenuRef.current && !addMenuRef.current.contains(event.target as Node)) setAddOpen(false)
+      if (filterRef.current && !filterRef.current.contains(event.target as Node)) setFilterOpen(false)
     }
     document.addEventListener('mousedown', onPointer)
     return () => document.removeEventListener('mousedown', onPointer)
@@ -85,8 +92,36 @@ export function EmployeesPage() {
     queryFn: () => employeesApi.list(companyId!),
     enabled: Boolean(companyId),
   })
-  const employees = ((query.data?.data ?? []) as Employee[])
+  const schedulesQuery = useQuery({
+    queryKey: ['payroll-schedules', companyId],
+    queryFn: () => payrollApi.schedules(companyId!),
+    enabled: Boolean(companyId),
+  })
+  const allEmployees = (query.data?.data ?? []) as Employee[]
+  const schedules = ((schedulesQuery.data?.data ?? []) as PayrollSchedule[]).slice().sort((left, right) =>
+    left.schedule_name.localeCompare(right.schedule_name, 'en-GB', { sensitivity: 'base' }),
+  )
+  const departmentOptions = useMemo(() => {
+    const names = new Set<string>()
+    for (const employee of allEmployees) {
+      for (const name of departmentsOf(employee)) names.add(name)
+    }
+    return [...names].sort((left, right) => left.localeCompare(right, 'en-GB', { sensitivity: 'base' }))
+  }, [allEmployees])
+  const employees = allEmployees
     .filter((employee) => {
+      const departments = departmentsOf(employee)
+      if (departmentFilter === '__none__' && departments.length) return false
+      if (
+        departmentFilter &&
+        departmentFilter !== '__none__' &&
+        !departments.some((name) => name.toLowerCase() === departmentFilter.toLowerCase())
+      ) {
+        return false
+      }
+      const scheduleId = scheduleIdOf(employee)
+      if (scheduleFilter === '__none__' && scheduleId) return false
+      if (scheduleFilter && scheduleFilter !== '__none__' && scheduleId !== scheduleFilter) return false
       const haystack = `${fullName(employee.first_name, employee.last_name)} ${employee.employee_code ?? ''} ${employee.email ?? ''}`.toLowerCase()
       return haystack.includes(queryText.toLowerCase())
     })
@@ -97,7 +132,7 @@ export function EmployeesPage() {
         { sensitivity: 'base' },
       ),
     )
-  const selectedEmployee = employees.find((employee) => idOf(employee) === selectedId)
+  const selectedEmployee = allEmployees.find((employee) => idOf(employee) === selectedId)
   const visibleIds = employees.map((employee) => idOf(employee))
   const allVisibleSelected = visibleIds.length > 0 && visibleIds.every((id) => selectedIds.includes(id))
   const someVisibleSelected = visibleIds.some((id) => selectedIds.includes(id))
@@ -313,31 +348,169 @@ export function EmployeesPage() {
       )}
       <div className="flex min-h-0 flex-1 flex-col gap-6 xl:flex-row">
         <aside className={`${inWorkspace ? 'hidden xl:flex' : 'flex'} h-full min-h-0 w-full shrink-0 flex-col overflow-hidden rounded-[10px] bg-white shadow-[3px_4px_1.95px_rgba(0,0,0,0.09)] print:hidden xl:w-[288px]`}>
-          <div className="flex items-center justify-between gap-2 px-4 pt-4">
-            <label className="flex items-center gap-2 text-sm font-semibold text-navy">
-              <input
-                type="checkbox"
-                checked={allVisibleSelected}
-                ref={(element) => {
-                  if (element) element.indeterminate = someVisibleSelected && !allVisibleSelected
-                }}
-                onChange={toggleAllVisible}
-                disabled={employees.length === 0}
-                className="size-3.5 rounded border-[#d9d9d9] accent-navy"
-              />
-              All Employees
-            </label>
-            {selectedIds.length ? (
-              <button
-                type="button"
-                onClick={() => {
-                  setDeleteError(null)
-                  setConfirmingDelete(true)
-                }}
-                className="text-xs font-semibold text-brand hover:underline"
-              >
-                Delete ({selectedIds.length})
-              </button>
+          <div ref={filterRef} className="relative shrink-0">
+            <div className="flex items-center justify-between gap-2 px-4 pt-4">
+              <label className="flex min-w-0 items-center gap-2 text-sm font-semibold text-navy">
+                <input
+                  type="checkbox"
+                  checked={allVisibleSelected}
+                  ref={(element) => {
+                    if (element) element.indeterminate = someVisibleSelected && !allVisibleSelected
+                  }}
+                  onChange={toggleAllVisible}
+                  disabled={employees.length === 0}
+                  className="size-3.5 rounded border-[#d9d9d9] accent-navy"
+                />
+                All Employees
+              </label>
+              <div className="flex shrink-0 items-center gap-2">
+                {selectedIds.length ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDeleteError(null)
+                      setConfirmingDelete(true)
+                    }}
+                    className="text-xs font-semibold text-brand hover:underline"
+                  >
+                    Delete ({selectedIds.length})
+                  </button>
+                ) : null}
+                <button
+                  type="button"
+                  title="Filter employees"
+                  aria-label="Filter employees"
+                  aria-expanded={filterOpen}
+                  onClick={() => {
+                    if (filterOpen) {
+                      setFilterOpen(false)
+                      return
+                    }
+                    setFilterKind(
+                      departmentFilter ? 'department' : scheduleFilter ? 'schedule' : '',
+                    )
+                    setFilterOpen(true)
+                  }}
+                  className={`flex size-7 items-center justify-center rounded-[6px] ${
+                    filterActive || filterOpen
+                      ? 'bg-[#f0f5fe] text-navy'
+                      : 'text-navy hover:bg-[#f0f5fe]'
+                  }`}
+                >
+                  <Filter size={15} />
+                </button>
+              </div>
+            </div>
+            {filterOpen ? (
+              <div className="absolute inset-x-3 top-full z-30 mt-1 overflow-hidden rounded-[10px] border border-[#d9d9d9] bg-white shadow-[0_8px_24px_rgba(23,55,94,0.12)]">
+                {filterKind === '' ? (
+                  <div className="py-1">
+                    <button
+                      type="button"
+                      className="block w-full px-3 py-2.5 text-left text-sm font-medium text-navy hover:bg-[#f0f5fe]"
+                      onClick={() => {
+                        setScheduleFilter('')
+                        setFilterKind('department')
+                      }}
+                    >
+                      Department
+                    </button>
+                    <button
+                      type="button"
+                      className="block w-full px-3 py-2.5 text-left text-sm font-medium text-navy hover:bg-[#f0f5fe]"
+                      onClick={() => {
+                        setDepartmentFilter('')
+                        setFilterKind('schedule')
+                      }}
+                    >
+                      Pay schedule
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    <button
+                      type="button"
+                      className="flex w-full items-center gap-1 border-b border-[#eceae6] px-2 py-2.5 text-left text-sm font-semibold text-navy hover:bg-[#f0f5fe]"
+                      onClick={() => setFilterKind('')}
+                    >
+                      <ChevronLeft size={16} />
+                      {filterKind === 'department' ? 'Department' : 'Pay schedule'}
+                    </button>
+                    <div className="max-h-56 overflow-y-auto py-1">
+                      {filterKind === 'department' ? (
+                        <>
+                          <FilterChoice
+                            active={!departmentFilter}
+                            onClick={() => {
+                              setDepartmentFilter('')
+                              setFilterOpen(false)
+                            }}
+                          >
+                            All departments
+                          </FilterChoice>
+                          <FilterChoice
+                            active={departmentFilter === '__none__'}
+                            onClick={() => {
+                              setDepartmentFilter('__none__')
+                              setFilterOpen(false)
+                            }}
+                          >
+                            No department
+                          </FilterChoice>
+                          {departmentOptions.map((name) => (
+                            <FilterChoice
+                              key={name}
+                              active={departmentFilter.toLowerCase() === name.toLowerCase()}
+                              onClick={() => {
+                                setDepartmentFilter(name)
+                                setFilterOpen(false)
+                              }}
+                            >
+                              {name}
+                            </FilterChoice>
+                          ))}
+                        </>
+                      ) : (
+                        <>
+                          <FilterChoice
+                            active={!scheduleFilter}
+                            onClick={() => {
+                              setScheduleFilter('')
+                              setFilterOpen(false)
+                            }}
+                          >
+                            All pay schedules
+                          </FilterChoice>
+                          <FilterChoice
+                            active={scheduleFilter === '__none__'}
+                            onClick={() => {
+                              setScheduleFilter('__none__')
+                              setFilterOpen(false)
+                            }}
+                          >
+                            No pay schedule
+                          </FilterChoice>
+                          {schedules.map((schedule) => {
+                            const id = idOf(schedule)
+                            return (
+                              <FilterChoice
+                                key={id}
+                                active={scheduleFilter === id}
+                                onClick={() => {
+                                  setScheduleFilter(id)
+                                  setFilterOpen(false)
+                                }}
+                              >
+                                {schedule.schedule_name}
+                              </FilterChoice>
+                            )
+                          })}
+                        </>
+                      )}
+                    </div>
+                  </>
+                )}
+              </div>
             ) : null}
           </div>
           <label className="relative mx-3 mt-3 block">
@@ -496,4 +669,44 @@ export function EmployeesPage() {
         : null}
     </div>
   )
+}
+
+function FilterChoice({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean
+  onClick: () => void
+  children: string
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`block w-full px-3 py-2.5 text-left text-sm leading-snug break-words hover:bg-[#f0f5fe] ${
+        active ? 'bg-[#f0f5fe] font-semibold text-navy' : 'text-navy'
+      }`}
+    >
+      {children}
+    </button>
+  )
+}
+
+function employmentOf(employee: Employee) {
+  const details = employee.employment_details
+  if (Array.isArray(details)) return (details[0] ?? {}) as Record<string, unknown>
+  return (details ?? {}) as Record<string, unknown>
+}
+
+function departmentsOf(employee: Employee) {
+  return String(employmentOf(employee).department ?? '')
+    .split(',')
+    .map((item) => item.trim())
+    .filter(Boolean)
+}
+
+function scheduleIdOf(employee: Employee) {
+  const value = employmentOf(employee).pay_schedule_id
+  return value == null || value === '' ? '' : String(value)
 }

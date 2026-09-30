@@ -18,7 +18,7 @@ const STATEMENTS: Array<{ code: 'A' | 'B' | 'C'; copy: string }> = [
 ]
 
 function patchDisplayName(draft: StarterFormData): StarterFormData {
-  const displayName = [draft.firstNames, draft.lastName].filter(Boolean).join(' ').trim() || 'Employee'
+  const displayName = [draft.firstNames, draft.middleName, draft.lastName].filter(Boolean).join(' ').trim() || 'Employee'
   return { ...draft, displayName }
 }
 
@@ -56,7 +56,7 @@ export function StarterFormEditor({
 
   function set<K extends keyof StarterFormData>(key: K, next: StarterFormData[K]) {
     const updated = { ...value, [key]: next }
-    onChange(key === 'firstNames' || key === 'lastName' ? patchDisplayName(updated) : updated)
+    onChange(key === 'firstNames' || key === 'middleName' || key === 'lastName' ? patchDisplayName(updated) : updated)
   }
 
   function toggleDay(day: string) {
@@ -97,14 +97,15 @@ export function StarterFormEditor({
           <Field label="Marital status">
             <Input value={value.maritalStatus} onChange={(e) => set('maritalStatus', e.target.value)} />
           </Field>
-          <Field label="First names">
+          <Field label="First name">
             <Input value={value.firstNames} onChange={(e) => set('firstNames', e.target.value)} />
           </Field>
-          <div className="sm:col-span-2">
-            <Field label="Last name">
-              <Input value={value.lastName} onChange={(e) => set('lastName', e.target.value)} />
-            </Field>
-          </div>
+          <Field label="Middle name">
+            <Input value={value.middleName ?? ''} onChange={(e) => set('middleName', e.target.value)} />
+          </Field>
+          <Field label="Last name">
+            <Input value={value.lastName} onChange={(e) => set('lastName', e.target.value)} />
+          </Field>
           <Field label="Date of birth">
             <Input value={value.dob} onChange={(e) => set('dob', e.target.value)} />
           </Field>

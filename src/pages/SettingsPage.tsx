@@ -5,7 +5,10 @@ import { companiesApi } from '../api'
 import { useAuth } from '../auth/AuthContext'
 import { Alert, Button, Field, Input, Loading, PageHeader, onSubmit } from '../components/ui'
 import type { Company } from '../types'
+import { BureauInformationForm } from './settings/BureauInformationForm'
 import { EmployerSettingsForm } from './settings/EmployerSettingsForm'
+
+type BureauSettingsView = 'company' | 'bureau'
 
 export function SettingsPage() {
   const auth = useAuth()
@@ -14,6 +17,7 @@ export function SettingsPage() {
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [form, setForm] = useState<Record<string, string>>({})
+  const [bureauView, setBureauView] = useState<BureauSettingsView>('company')
 
   const canEditEmployer =
     auth.canManageOrganizations ||
@@ -37,32 +41,61 @@ export function SettingsPage() {
 
   const pensionProvider = form.pension_provider ?? company?.pension_provider ?? ''
   const pensionEmployerId = form.pension_employer_id ?? company?.pension_employer_id ?? ''
+  const companyName = company?.name?.trim()
+  const pensionDirty =
+    pensionProvider !== (company?.pension_provider ?? '') ||
+    pensionEmployerId !== (company?.pension_employer_id ?? '')
 
   return (
     <div>
       <PageHeader
         title="Settings"
         subtitle={
-          canEditEmployer
-            ? 'Employer details used as defaults for employees, payslips and RTI.'
-            : 'Company workspace, pension scheme and account.'
+          auth.isBureauAdmin
+            ? bureauView === 'company'
+              ? companyName
+                ? `Company information for ${companyName}.`
+                : 'Employer details for the company which is currently open.'
+              : 'Bureau name, address, bank details and team.'
+            : canEditEmployer
+              ? 'Employer details used as defaults for employees, payslips and RTI.'
+              : 'Company workspace, pension scheme and account.'
         }
       />
 
       {canEditEmployer ? (
         <div className="space-y-6">
-          {!auth.companyId ? (
+          {auth.isBureauAdmin ? (
+            <div className="grid gap-4 sm:grid-cols-2">
+              <SettingsOption
+                title="Company information"
+                description={
+                  companyName
+                    ? companyName
+                    : 'The company which is currently open'
+                }
+                selected={bureauView === 'company'}
+                onClick={() => setBureauView('company')}
+              />
+              <SettingsOption
+                title="Bureau information"
+                description="Name, address, bank details and bureau team"
+                selected={bureauView === 'bureau'}
+                onClick={() => setBureauView('bureau')}
+              />
+            </div>
+          ) : null}
+
+          {auth.isBureauAdmin && bureauView === 'bureau' ? (
+            <BureauInformationForm />
+          ) : !auth.companyId ? (
             <Alert tone="info">Select an organisation to edit employer settings.</Alert>
           ) : query.isLoading ? (
             <Loading />
           ) : !company ? (
             <Alert>Organisation not found</Alert>
           ) : (
-            <EmployerSettingsForm
-              key={String(company.id)}
-              company={company}
-              showBureauTeam={auth.isBureauAdmin}
-            />
+            <EmployerSettingsForm key={String(company.id)} company={company} />
           )}
           <AccountCard
             email={auth.user?.email}
@@ -121,7 +154,7 @@ export function SettingsPage() {
                     placeholder="EMP006282768"
                   />
                 </Field>
-                <Button type="submit" disabled={saving || !company}>
+                <Button type="submit" disabled={saving || !company || !pensionDirty}>
                   Save pension settings
                 </Button>
               </form>
@@ -130,6 +163,31 @@ export function SettingsPage() {
         </div>
       )}
     </div>
+  )
+}
+
+function SettingsOption({
+  title,
+  description,
+  selected,
+  onClick,
+}: {
+  title: string
+  description: string
+  selected: boolean
+  onClick: () => void
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`rounded-[16px] border bg-white p-5 text-left transition ${
+        selected ? 'border-navy ring-2 ring-navy/15' : 'border-[#d9d9d9] hover:border-navy/40'
+      }`}
+    >
+      <p className="text-lg font-semibold text-navy">{title}</p>
+      <p className="mt-1 text-sm text-muted">{description}</p>
+    </button>
   )
 }
 

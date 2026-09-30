@@ -6,6 +6,7 @@ import { employeesApi } from '../../api'
 import { useAuth } from '../../auth/AuthContext'
 import { Button } from '../../components/ui'
 import { fullName, idOf } from '../../lib/format'
+import { isFormDirty } from '../../lib/formDirty'
 import type { Employee } from '../../types'
 import {
   BENEFIT_TYPES,
@@ -207,7 +208,7 @@ export function EmployeeBenefitsPage() {
       )}
 
       <div className="mt-8 flex justify-center gap-3">
-        <Button className="min-w-[120px]" onClick={() => setSaved(items)}>
+        <Button className="min-w-[120px]" disabled={!isFormDirty(items, saved)} onClick={() => setSaved(items)}>
           Save
         </Button>
         <Button variant="secondary" className="min-w-[120px]" onClick={() => {

@@ -16,6 +16,7 @@ import { payrollApi, timesheetsApi } from '../../../api'
 import { useAuth } from '../../../auth/AuthContext'
 import { Alert, Button, Loading } from '../../../components/ui'
 import { formatPeriodRange, fullName, idOf } from '../../../lib/format'
+import { isFormDirty } from '../../../lib/formDirty'
 import type { PayrollSchedule } from '../../../types'
 import { parseDateKey } from '../rota/rotaDates'
 import { formatClock, formatTimeRange } from '../rota/rotaModel'
@@ -82,6 +83,7 @@ export function TimesheetDetailPage({ mode }: { mode: 'review' | 'edit' }) {
   const editing = mode === 'edit'
   const [error, setError] = useState<string | null>(null)
   const [days, setDays] = useState<TimesheetDay[]>([])
+  const [daysBaseline, setDaysBaseline] = useState<TimesheetDay[] | null>(null)
 
   const detail = useQuery({
     queryKey: ['timesheet-detail', companyId, employeeId, from, to],
@@ -92,7 +94,9 @@ export function TimesheetDetailPage({ mode }: { mode: 'review' | 'edit' }) {
   const sheet = detail.data?.data as TimesheetDetail | undefined
 
   useEffect(() => {
-    if (sheet?.days) setDays(sheet.days)
+    if (!sheet?.days) return
+    setDays(sheet.days)
+    setDaysBaseline(sheet.days)
   }, [sheet])
 
   const totals = useMemo(() => {
@@ -327,7 +331,11 @@ export function TimesheetDetailPage({ mode }: { mode: 'review' | 'edit' }) {
 
       <div className="mt-5 flex flex-wrap justify-end gap-2">
         {editing ? (
-          <Button variant="secondary" onClick={() => save.mutate()} disabled={save.isPending}>
+          <Button
+            variant="secondary"
+            onClick={() => save.mutate()}
+            disabled={save.isPending || !daysBaseline || !isFormDirty(days, daysBaseline)}
+          >
             Save changes
           </Button>
         ) : canEdit(status) ? (

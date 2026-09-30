@@ -1,6 +1,7 @@
 import { money } from '../../lib/format'
+import { assetUrl } from '../../api/client'
 import type { InvoiceLine, InvoiceRecord } from './invoiceMath'
-import { invoiceTotals } from './invoiceMath'
+import { invoiceTotals, parseInvoiceType } from './invoiceMath'
 
 const NAVY = '#17375e'
 const CREAM = '#f4f1ea'
@@ -42,12 +43,18 @@ export function InvoiceDocument({
 }) {
   const totals = invoiceTotals(lines)
   const vatRate = invoice.vat_rate || 20
+  const invoiceType = parseInvoiceType(invoice.invoice_type)
+  const employer = invoiceType === 'EMPLOYER_ONCOST'
+  const gridClass = employer
+    ? 'grid-cols-[minmax(0,1fr)_7.5rem_7rem_5rem_6.5rem_7.5rem]'
+    : 'grid-cols-[minmax(0,1fr)_6.5rem_5rem_6.5rem_7.5rem]'
   const billTo =
     invoice.contact_name ||
     invoice.companies?.trading_name ||
     invoice.companies?.company_name ||
     '—'
   const fromName = invoice.from_name || 'Cedar Payroll'
+  const fromLogo = assetUrl(invoice.from_logo_path)
   const details = bank ?? invoice
 
   return (
@@ -57,72 +64,99 @@ export function InvoiceDocument({
           Invoice Document · A4
         </p>
         <article className="invoice-a4-page overflow-hidden bg-white shadow-[0_1px_8px_rgba(23,55,94,0.08)]">
-          <div className="px-[14mm] py-7 text-white" style={{ backgroundColor: NAVY }}>
-            <p className="text-[11px] font-semibold tracking-[0.16em]">CEDAR PAYROLL</p>
-            <h2 className="mt-3 text-[32px] font-semibold leading-none">Tax Invoice</h2>
-          </div>
           <div className="px-[14mm] pb-[14mm] pt-8">
-            <div className="grid gap-8 sm:grid-cols-2">
-              <div>
-                <p className="text-[10px] font-semibold tracking-[0.08em]" style={{ color: LABEL }}>
-                  BILL TO
-                </p>
-                <p className="mt-2 text-sm font-semibold" style={{ color: NAVY }}>
-                  {billTo}
-                </p>
-                <p className="mt-1 whitespace-pre-line text-sm" style={{ color: NAVY }}>
-                  {invoice.bill_to_address || '—'}
-                </p>
-              </div>
-              <div>
-                <p className="text-[10px] font-semibold tracking-[0.08em]" style={{ color: LABEL }}>
-                  FROM
-                </p>
-                <p className="mt-2 text-sm font-semibold" style={{ color: NAVY }}>
+            <div className="flex items-start justify-between gap-6">
+              <h2 className="text-[32px] font-semibold leading-none" style={{ color: NAVY }}>
+                Tax Invoice
+              </h2>
+              <div className="max-w-[48%] text-right">
+                {fromLogo ? (
+                  <img
+                    src={fromLogo}
+                    alt={`${fromName} logo`}
+                    className="ml-auto mb-2 max-h-14 max-w-[160px] object-contain"
+                  />
+                ) : null}
+                <p className="text-sm font-semibold" style={{ color: NAVY }}>
                   {fromName}
                 </p>
-                <p className="mt-1 whitespace-pre-line text-sm" style={{ color: NAVY }}>
-                  {invoice.from_address || '—'}
-                </p>
-                {invoice.from_crn ? (
-                  <p className="mt-1 text-sm" style={{ color: NAVY }}>
-                    CRN: {invoice.from_crn}
-                  </p>
-                ) : null}
               </div>
             </div>
 
-            <div
-              className="mt-6 grid gap-4 rounded-[12px] px-5 py-4 sm:grid-cols-4"
-              style={{ backgroundColor: CREAM }}
-            >
-              {[
-                ['Issue date', formatDate(invoice.issue_date)],
-                ['Due date', formatDate(invoice.due_date)],
-                ['Invoice number', invoice.invoice_number || '—'],
-                ['Reference', invoice.reference || invoice.invoice_number || '—'],
-              ].map(([label, value]) => (
-                <div key={label}>
-                  <p className="text-[10px] font-semibold" style={{ color: LABEL }}>
-                    {label}
-                  </p>
-                  <p className="mt-1 text-sm font-semibold" style={{ color: NAVY }}>
-                    {value}
-                  </p>
-                </div>
-              ))}
+            <div className="mt-8 max-w-[320px]">
+              <p className="text-[13px] font-semibold" style={{ color: NAVY }}>
+                Bill to
+              </p>
+              <p className="mt-1 text-sm font-semibold" style={{ color: NAVY }}>
+                {billTo}
+              </p>
+              {invoice.bill_to_address ? (
+                <p className="mt-1 whitespace-pre-line text-sm leading-5" style={{ color: NAVY }}>
+                  {invoice.bill_to_address}
+                </p>
+              ) : null}
+            </div>
+
+            <div className="mt-8 grid grid-cols-2 gap-x-6 gap-y-5 sm:grid-cols-5">
+              <div>
+                <p className="text-[12px] font-medium" style={{ color: LABEL }}>
+                  Amount due
+                </p>
+                <p className="mt-1 text-[22px] font-semibold leading-none" style={{ color: NAVY }}>
+                  {money(totals.total)}
+                </p>
+              </div>
+              <div>
+                <p className="text-[12px] font-medium" style={{ color: LABEL }}>
+                  Due date
+                </p>
+                <p className="mt-1 text-[22px] font-semibold leading-none" style={{ color: NAVY }}>
+                  {formatDate(invoice.due_date)}
+                </p>
+              </div>
+              <div>
+                <p className="text-[12px] font-medium" style={{ color: LABEL }}>
+                  Issue date
+                </p>
+                <p className="mt-1 text-sm font-semibold" style={{ color: NAVY }}>
+                  {formatDate(invoice.issue_date)}
+                </p>
+              </div>
+              <div>
+                <p className="text-[12px] font-medium" style={{ color: LABEL }}>
+                  Invoice number
+                </p>
+                <p className="mt-1 text-sm font-semibold" style={{ color: NAVY }}>
+                  {invoice.invoice_number || '—'}
+                </p>
+              </div>
+              <div>
+                <p className="text-[12px] font-medium" style={{ color: LABEL }}>
+                  Reference
+                </p>
+                <p className="mt-1 text-sm font-semibold" style={{ color: NAVY }}>
+                  {invoice.reference || invoice.invoice_number || '—'}
+                </p>
+              </div>
             </div>
 
             <div className="mt-6 overflow-hidden rounded-[10px] border border-[#d8dee8]">
               <div
-                className="grid grid-cols-[minmax(0,1fr)_6.5rem_5rem_6.5rem_7rem] px-3 py-2.5 text-[10px] font-semibold"
+                className={`grid ${gridClass} px-3 py-2.5 text-[10px] font-semibold`}
                 style={{ backgroundColor: CREAM, color: NAVY }}
               >
                 <span>Employee Name</span>
-                <span className="text-right">Amount</span>
+                {employer ? (
+                  <>
+                    <span className="text-right">Employer Pension</span>
+                    <span className="text-right">Employer NIC</span>
+                  </>
+                ) : (
+                  <span className="text-right">Amount</span>
+                )}
                 <span className="text-right">Tax Rate</span>
                 <span className="text-right">Tax Amount</span>
-                <span className="text-right">Total amount</span>
+                <span className="text-right">Total Amount</span>
               </div>
               {lines.map((line) =>
                 line.kind === 'HEADING' ? (
@@ -136,11 +170,18 @@ export function InvoiceDocument({
                 ) : (
                   <div
                     key={line.key}
-                    className="grid grid-cols-[minmax(0,1fr)_6.5rem_5rem_6.5rem_7rem] border-t border-[#edf1f6] px-3 py-2 text-xs"
+                    className={`grid ${gridClass} border-t border-[#edf1f6] px-3 py-2 text-xs`}
                     style={{ color: NAVY }}
                   >
                     <span>{line.description}</span>
-                    <span className="text-right tabular-nums">{amount(line.amount)}</span>
+                    {employer ? (
+                      <>
+                        <span className="text-right tabular-nums">{amount(line.employer_pension)}</span>
+                        <span className="text-right tabular-nums">{amount(line.employer_nic)}</span>
+                      </>
+                    ) : (
+                      <span className="text-right tabular-nums">{amount(line.amount)}</span>
+                    )}
                     <span className="text-right tabular-nums">{Number(line.tax_rate).toFixed(0)}%</span>
                     <span className="text-right tabular-nums">{amount(line.tax_amount)}</span>
                     <span className="text-right font-semibold tabular-nums">{amount(line.total_amount)}</span>

@@ -1,17 +1,9 @@
 import { useEffect, useRef, useState, type ComponentProps, type ReactNode } from 'react'
+import { isFormDirty } from '../../lib/formDirty'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { companiesApi } from '../../api'
 import { assetUrl } from '../../api/client'
 import { Alert, Button, Field, Input as UiInput, Select as UiSelect, onSubmit } from '../../components/ui'
-import { BureauTeamPanel } from './BureauTeamPanel'
-
-function Input(props: ComponentProps<typeof UiInput>) {
-  return <UiInput variant="outline" {...props} />
-}
-
-function Select(props: ComponentProps<typeof UiSelect>) {
-  return <UiSelect variant="outline" {...props} />
-}
 import type { Company } from '../../types'
 import {
   LEAVE_CALCULATION_METHODS,
@@ -33,13 +25,15 @@ import {
   type SettingsTab,
 } from './employerSettings'
 
-export function EmployerSettingsForm({
-  company,
-  showBureauTeam = false,
-}: {
-  company: Company
-  showBureauTeam?: boolean
-}) {
+function Input(props: ComponentProps<typeof UiInput>) {
+  return <UiInput variant="outline" {...props} />
+}
+
+function Select(props: ComponentProps<typeof UiSelect>) {
+  return <UiSelect variant="outline" {...props} />
+}
+
+export function EmployerSettingsForm({ company }: { company: Company }) {
   const queryClient = useQueryClient()
   const fileInput = useRef<HTMLInputElement>(null)
   const [tab, setTab] = useState<SettingsTab>('Basic Details')
@@ -49,14 +43,14 @@ export function EmployerSettingsForm({
   const [saving, setSaving] = useState(false)
   const [uploading, setUploading] = useState(false)
 
-  useEffect(() => {
-    setForm(formFromCompany(company))
-  }, [company.id, company.updated_at, company.logo_path])
-
   const save = useMutation({
     mutationFn: (body: Record<string, unknown>) => companiesApi.update(String(company.id), body),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['company', String(company.id)] }),
   })
+
+  useEffect(() => {
+    setForm(formFromCompany(company))
+  }, [company.id, company.updated_at, company.logo_path])
 
   function patchForm(next: Partial<EmployerForm>) {
     setForm((current) => ({ ...current, ...next }))
@@ -91,18 +85,16 @@ export function EmployerSettingsForm({
 
   const logoSrc = assetUrl(company.logo_path)
   const employerName = form.company_name.trim() || 'this employer'
-  const tabs = showBureauTeam
-    ? SETTINGS_TABS
-    : SETTINGS_TABS.filter((item) => item !== 'Bureau Team')
+  const canSave = isFormDirty(form, formFromCompany(company))
 
   return (
     <div className="space-y-4">
-      {tab !== 'Bureau Team' && error ? <Alert>{error}</Alert> : null}
-      {tab !== 'Bureau Team' && message ? <Alert tone="success">{message}</Alert> : null}
+      {error ? <Alert>{error}</Alert> : null}
+      {message ? <Alert tone="success">{message}</Alert> : null}
 
       <div className="overflow-x-auto rounded-[10px] border border-[#d9d9d9] bg-white">
         <div className="flex min-w-max gap-8 px-6 pt-4">
-          {tabs.map((item) => (
+          {SETTINGS_TABS.map((item) => (
             <button
               key={item}
               type="button"
@@ -120,19 +112,16 @@ export function EmployerSettingsForm({
         </div>
       </div>
 
-      {tab === 'Bureau Team' && showBureauTeam ? (
-        <BureauTeamPanel />
-      ) : (
-        <form
-          className="space-y-4"
-          onSubmit={onSubmit(async () => {
-            if (!form.company_name.trim()) {
-              throw new Error('Enter the employer name')
-            }
-            await save.mutateAsync(payloadFromForm(form))
-            setMessage('Employer settings saved')
-          }, setError, setSaving)}
-        >
+      <form
+        className="space-y-4"
+        onSubmit={onSubmit(async () => {
+          if (!form.company_name.trim()) {
+            throw new Error('Enter the employer name')
+          }
+          await save.mutateAsync(payloadFromForm(form))
+          setMessage('Employer settings saved')
+        }, setError, setSaving)}
+      >
 
       {tab === 'Basic Details' ? (
         <div className="grid gap-4 xl:grid-cols-2">
@@ -587,12 +576,11 @@ export function EmployerSettingsForm({
       ) : null}
 
           <div className="flex justify-end">
-            <Button type="submit" disabled={saving}>
+            <Button type="submit" disabled={saving || !canSave}>
               {saving ? 'Saving…' : 'Save employer settings'}
             </Button>
           </div>
         </form>
-      )}
     </div>
   )
 }

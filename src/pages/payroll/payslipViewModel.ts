@@ -35,6 +35,7 @@ export type PayslipViewModel = {
     employeeNi: number
     employerNi: number
     pension: number
+    studentLoan: number
   }
   period: {
     taxableGross: number
@@ -186,6 +187,8 @@ export function buildPayslipViewModel(
   const tax = firstRecord(employee?.employee_tax_details)
   const netPay = amount(record.take_home_pay)
   const ytd = record.year_to_date
+  const thisEmployment = ytd?.this_employment ?? ytd
+  const combined = ytd?.combined ?? thisEmployment
   const totalEarnings = amount(earnings.reduce((sum, line) => sum + line.amount, 0))
   const totalDeductions = amount(deductions.reduce((sum, line) => sum + line.amount, 0))
   const payDate = run?.pay_date ?? record.pay_date
@@ -212,11 +215,12 @@ export function buildPayslipViewModel(
     deductions,
     totalDeductions,
     ytd: {
-      taxablePay: amount(ytd?.taxable_gross),
-      taxPaid: amount(ytd?.tax),
-      employeeNi: amount(ytd?.employee_nic),
-      employerNi: amount(ytd?.employer_nic),
-      pension: amount(ytd?.employee_pension),
+      taxablePay: amount(combined?.taxable_gross),
+      taxPaid: amount(combined?.tax),
+      employeeNi: amount(thisEmployment?.employee_nic),
+      employerNi: amount(thisEmployment?.employer_nic),
+      pension: amount(thisEmployment?.employee_pension),
+      studentLoan: amount(thisEmployment?.student_loan),
     },
     period: {
       taxableGross: amount(record.taxable_gross),

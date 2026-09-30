@@ -99,6 +99,21 @@ export type BureauTeamMember = {
   created_at?: string | null
 }
 
+export type BureauDetails = {
+  id: string
+  name: string
+  email?: string | null
+  phone?: string | null
+  address?: string | null
+  postcode?: string | null
+  bank_sort_code?: string | null
+  bank_account_number?: string | null
+  bank_account_holder?: string | null
+  bank_name?: string | null
+  logo_path?: string | null
+  updated_at?: string | null
+}
+
 export type AuthPayload = {
   user: User
   access_token: string

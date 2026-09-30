@@ -13,6 +13,7 @@ import {
   Select,
 } from '../../components/ui'
 import { downloadBlobFile, zipBinaryFiles } from './formPdf'
+import { PayslipPreviewModal } from '../payroll/PayslipPreviewModal'
 import {
   formatDate,
   formatPayslipPeriod,
@@ -76,6 +77,7 @@ export function CompanyPayslipsPage() {
   const [error, setError] = useState<string | null>(null)
   const [message, setMessage] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+  const [previewRecordId, setPreviewRecordId] = useState('')
 
   const schedulesQuery = useQuery({
     queryKey: ['schedules', companyId],
@@ -198,18 +200,6 @@ export function CompanyPayslipsPage() {
       setError(err instanceof Error ? err.message : 'Could not download payslips')
     } finally {
       setBusy(false)
-    }
-  }
-
-  async function viewPdf(item: PublishedEmployee) {
-    if (!companyId || !item.payslip_id) return
-    setError(null)
-    try {
-      const blob = await payslipsApi.fileBlob(companyId, String(item.payslip_id))
-      const url = URL.createObjectURL(blob)
-      window.open(url, '_blank', 'noopener')
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not open payslip')
     }
   }
 
@@ -348,7 +338,11 @@ export function CompanyPayslipsPage() {
                     <div className="flex gap-2">
                       {hasFile ? (
                         <>
-                          <Button variant="secondary" disabled={busy} onClick={() => void viewPdf(item)}>
+                          <Button
+                            variant="secondary"
+                            disabled={busy || !item.payroll_record_id}
+                            onClick={() => setPreviewRecordId(String(item.payroll_record_id))}
+                          >
                             View
                           </Button>
                           <Button variant="secondary" disabled={busy} onClick={() => void downloadOne(item)}>
@@ -366,6 +360,13 @@ export function CompanyPayslipsPage() {
           </div>
         )}
       </Card>
+      {previewRecordId && runId ? (
+        <PayslipPreviewModal
+          runId={runId}
+          recordId={previewRecordId}
+          onClose={() => setPreviewRecordId('')}
+        />
+      ) : null}
     </div>
   )
 }

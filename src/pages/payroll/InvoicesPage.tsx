@@ -1,14 +1,17 @@
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { ChevronLeft } from 'lucide-react'
 import { invoicesApi } from '../../api'
 import { useAuth } from '../../auth/AuthContext'
 import { Badge, Button, Card, EmptyState, Loading } from '../../components/ui'
 import { formatDate, idOf, money } from '../../lib/format'
+import { InvoiceDeleteDialog } from './InvoiceViewPage'
 import {
   displayInvoiceNumber,
+  invoiceBadgeStatus,
   invoiceStatusLabel,
+  invoiceTypeLabel,
   type InvoiceRecord,
   type InvoiceStatus,
 } from './invoiceMath'
@@ -306,28 +309,41 @@ function sortRecentInvoices<T extends { issue_date?: string | null; invoice_numb
 function InvoiceRow({
   item,
   onView,
+  onDelete,
 }: {
   item: {
     id: string
     invoice_number: string
+    invoice_type?: string | null
     issue_date?: string | null
+    due_date?: string | null
     status: InvoiceStatus
     total_due: number
   }
   onView: () => void
+  onDelete?: () => void
 }) {
   return (
     <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-3">
       <div>
         <p className="font-semibold text-navy">{displayInvoiceNumber(item.invoice_number)}</p>
-        <p className="text-sm text-muted">{formatDate(item.issue_date)}</p>
+        <p className="text-sm text-muted">
+          {invoiceTypeLabel(item.invoice_type)} · {formatDate(item.issue_date)}
+        </p>
       </div>
       <div className="flex items-center gap-3">
-        <Badge status={item.status}>{invoiceStatusLabel(item.status)}</Badge>
+        <Badge status={invoiceBadgeStatus(item.status, item.due_date)}>
+          {invoiceStatusLabel(item.status)}
+        </Badge>
         <p className="font-semibold text-navy">{money(item.total_due)}</p>
         <Button variant="secondary" onClick={onView}>
           View
         </Button>
+        {onDelete ? (
+          <Button variant="danger" onClick={onDelete}>
+            Delete
+          </Button>
+        ) : null}
       </div>
     </div>
   )
@@ -336,9 +352,13 @@ function InvoiceRow({
 export function InvoicesPage() {
   const { companyId, isBureauAdmin, isSuperAdmin, isCompanyAdmin } = useAuth()
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
   const canManage = isBureauAdmin || isSuperAdmin
   const [range, setRange] = useState<RangeKey>('weekly')
   const [listOpen, setListOpen] = useState(false)
+  const [pendingDelete, setPendingDelete] = useState<{ id: string; invoice_number: string } | null>(null)
+  const [deleting, setDeleting] = useState(false)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
   const today = useMemo(() => dateUTC(new Date()), [])
 
   const invoices = useQuery({
@@ -379,6 +399,34 @@ export function InvoicesPage() {
     return day ? inRange(day, currentBucket.start, currentBucket.end) : false
   }).length
 
+  async function removeInvoice() {
+    if (!companyId || !pendingDelete) return
+    setDeleteError(null)
+    setDeleting(true)
+    try {
+      await invoicesApi.remove(companyId, pendingDelete.id)
+      setPendingDelete(null)
+      await queryClient.invalidateQueries({ queryKey: ['invoices', companyId] })
+    } catch (err) {
+      setDeleteError(err instanceof Error ? err.message : 'Could not delete invoice')
+    } finally {
+      setDeleting(false)
+    }
+  }
+
+  function rowProps(item: (typeof list)[number]) {
+    return {
+      item,
+      onView: () => navigate(`/payroll/invoices/${item.id}`),
+      onDelete: canManage
+        ? () => {
+            setDeleteError(null)
+            setPendingDelete({ id: item.id, invoice_number: item.invoice_number })
+          }
+        : undefined,
+    }
+  }
+
   if (listOpen) {
     return (
       <div>
@@ -401,15 +449,22 @@ export function InvoicesPage() {
           ) : (
             <div className="divide-y divide-[#eceae6]">
               {list.map((item) => (
-                <InvoiceRow
-                  key={item.id}
-                  item={item}
-                  onView={() => navigate(`/payroll/invoices/${item.id}`)}
-                />
+                <InvoiceRow key={item.id} {...rowProps(item)} />
               ))}
             </div>
           )}
         </Card>
+        {pendingDelete ? (
+          <InvoiceDeleteDialog
+            invoiceNumber={displayInvoiceNumber(pendingDelete.invoice_number)}
+            deleting={deleting}
+            error={deleteError}
+            onKeep={() => {
+              if (!deleting) setPendingDelete(null)
+            }}
+            onDelete={() => void removeInvoice()}
+          />
+        ) : null}
       </div>
     )
   }
@@ -506,11 +561,7 @@ export function InvoicesPage() {
                 ) : (
                   <div className="divide-y divide-[#eceae6]">
                     {recent.map((item) => (
-                      <InvoiceRow
-                        key={item.id}
-                        item={item}
-                        onView={() => navigate(`/payroll/invoices/${item.id}`)}
-                      />
+                      <InvoiceRow key={item.id} {...rowProps(item)} />
                     ))}
                   </div>
                 )}
@@ -519,6 +570,17 @@ export function InvoicesPage() {
           </>
         )}
       </div>
+        {pendingDelete ? (
+          <InvoiceDeleteDialog
+            invoiceNumber={displayInvoiceNumber(pendingDelete.invoice_number)}
+            deleting={deleting}
+            error={deleteError}
+            onKeep={() => {
+              if (!deleting) setPendingDelete(null)
+            }}
+            onDelete={() => void removeInvoice()}
+          />
+        ) : null}
     </div>
   )
 }

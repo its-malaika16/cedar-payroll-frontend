@@ -107,7 +107,7 @@ export function BureauTeamPanel() {
             </span>
           </Field>
           <div className="flex justify-end">
-            <Button type="submit" disabled={saving}>
+            <Button type="submit" disabled={saving || !name.trim() || !email.trim() || !password}>
               {saving ? 'Adding…' : 'Add bureau admin'}
             </Button>
           </div>

@@ -37,7 +37,7 @@ const MODULES = [
   {
     to: '/hr/financial',
     name: 'Financial Report',
-    description: 'Hours, labour cost, and visual spend across the year.',
+    description: 'Staff cost, HMRC, pension, and spend by department for the tax year.',
     action: 'View Reports',
     icon: FileBarChart,
   },

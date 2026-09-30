@@ -52,8 +52,8 @@ export function PayslipDocument({ model }: { model: PayslipViewModel }) {
     .join(' - ')
 
   return (
-    <div className="overflow-hidden rounded-[16px] bg-white shadow-[0_1px_8px_rgba(23,55,94,0.08)]">
-      <div className="px-8 pb-8 pt-7">
+    <div className="bg-white" style={{ minHeight: '297mm' }}>
+      <div className="box-border px-[12mm] py-[12mm]">
         <div className="flex items-start justify-between gap-4">
           <div>
             <h2 className="text-[28px] font-semibold leading-none" style={{ color: NAVY }}>
@@ -180,6 +180,7 @@ export function PayslipDocument({ model }: { model: PayslipViewModel }) {
             <SummaryRow label="Tax Paid" value={model.ytd.taxPaid} />
             <SummaryRow label="Employee NI" value={model.ytd.employeeNi} />
             <SummaryRow label="Employer NI" value={model.ytd.employerNi} />
+            <SummaryRow label="Student Loan" value={model.ytd.studentLoan} />
             <SummaryRow label="Pension Contributions" value={model.ytd.pension} />
           </section>
           <section className="overflow-hidden rounded-[8px] border border-[#e4e7ec]">
