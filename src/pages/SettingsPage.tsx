@@ -41,7 +41,7 @@ export function SettingsPage() {
 
   const pensionProvider = form.pension_provider ?? company?.pension_provider ?? ''
   const pensionEmployerId = form.pension_employer_id ?? company?.pension_employer_id ?? ''
-  const companyName = company?.name?.trim()
+  const companyName = company?.company_name?.trim()
   const pensionDirty =
     pensionProvider !== (company?.pension_provider ?? '') ||
     pensionEmployerId !== (company?.pension_employer_id ?? '')

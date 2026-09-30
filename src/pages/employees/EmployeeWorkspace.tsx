@@ -720,7 +720,7 @@ export function EmployeeWorkspace() {
                     {photoPreview ? (
                       <img
                         src={photoPreview}
-                        alt={fullName(draft) || 'Employee photo'}
+                        alt={fullName(draft.first_name, draft.last_name) || 'Employee photo'}
                         className="size-full object-cover object-top"
                       />
                     ) : (
