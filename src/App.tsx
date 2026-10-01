@@ -58,6 +58,7 @@ import { HelpLeavePage } from './pages/help/HelpLeavePage'
 import { HelpChatPage } from './pages/help/HelpChatPage'
 import { HelpCompanyInfoPage } from './pages/help/HelpCompanyInfoPage'
 import { NotificationsPage } from './pages/NotificationsPage'
+import { CommunicationPage } from './pages/CommunicationPage'
 import { TimesheetsPage } from './pages/hr/timesheets/TimesheetsPage'
 import { TimesheetDetailPage } from './pages/hr/timesheets/TimesheetDetailPage'
 import { SettingsPage } from './pages/SettingsPage'
@@ -79,6 +80,7 @@ function isCompanyAdminPath(pathname: string) {
   if (pathname.startsWith('/hr')) return true
   if (pathname.startsWith('/timesheets')) return true
   if (pathname.startsWith('/notifications')) return true
+  if (pathname.startsWith('/communication')) return true
   if (pathname.startsWith('/help')) return true
   if (pathname.startsWith('/company-info')) return true
   if (pathname.startsWith('/payroll/reports')) return true
@@ -198,6 +200,7 @@ export default function App() {
           }
         />
         <Route path="/help/company-info" element={<Navigate to="/company-info" replace />} />
+        <Route path="/communication" element={<CommunicationPage />} />
         <Route path="/settings" element={<SettingsPage />} />
         <Route path="/payroll/schedules" element={<SchedulesPage />} />
         <Route path="/payroll/runs" element={<PayrollRunsPage />} />

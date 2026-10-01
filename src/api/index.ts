@@ -586,6 +586,27 @@ export const companyInvoicesApi = {
     `/companies/${companyId}/company-invoice-requests/${invoiceId}/file`,
 }
 
+export const communicationApi = {
+  list: () => get('/communication'),
+  preview: (body: {
+    from: string
+    audience: string
+    all_companies?: boolean
+    company_ids?: string[]
+    employee_ids?: string[]
+  }) => {
+    const params = new URLSearchParams({
+      from: body.from,
+      audience: body.audience,
+      all_companies: body.all_companies ? 'true' : 'false',
+    })
+    if (body.company_ids?.length) params.set('company_ids', body.company_ids.join(','))
+    if (body.employee_ids?.length) params.set('employee_ids', body.employee_ids.join(','))
+    return get(`/communication/preview?${params.toString()}`)
+  },
+  send: (body: Record<string, unknown>) => post('/communication', body),
+}
+
 export const notificationsApi = {
   list: (companyId: string) => get(`/companies/${companyId}/notifications`),
   markRead: (companyId: string, notificationId: string) =>

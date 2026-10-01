@@ -574,10 +574,12 @@ export function DashboardPage() {
                 ['Add New Client', '/companies/new'],
                 ['Invoices', '/payroll/invoices'],
                 ['Support', '/help'],
+                ['Communication', '/communication'],
                 ['Track Activities', '/activities'],
               ]
                 .filter(([, to]) => {
                   if (to === '/activities') return auth.isBureauAdmin
+                  if (to === '/communication') return auth.isBureauAdmin || auth.isCompanyAdmin
                   if (to === '/companies/new') return auth.canManageOrganizations
                   return true
                 })

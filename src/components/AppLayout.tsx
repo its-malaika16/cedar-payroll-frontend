@@ -92,6 +92,7 @@ const adminNav: NavItem[] = [
     isActive: (pathname) => pathname.startsWith('/payroll/reports'),
   },
   { to: '/activities', label: 'Activities', icon: iconActivityCheck },
+  { to: '/communication', label: 'Communication', icon: iconNotifications },
 ]
 
 const footerNav: NavItem[] = [
@@ -204,6 +205,10 @@ export function AppLayout() {
       if (item.to === '/company-invoices') return auth.isCompanyAdmin && auth.hasModule('INVOICE')
       if (item.to === '/hr' || item.to === '/hr/shifts') return auth.hasModule('HR')
       if (item.to === '/activities') return auth.isBureauAdmin
+      if (item.to === '/communication') {
+        if (auth.isBureauAdmin || auth.isSuperAdmin) return true
+        return auth.isCompanyAdmin && (auth.hasModule('PAYROLL') || auth.hasModule('HR'))
+      }
       if (item.to === '/companies') return auth.canManageOrganizations
       if (item.to === '/employees/payslips') {
         return auth.isCompanyAdmin && auth.hasModule('PAYROLL') && !auth.hasModule('INVOICE')
@@ -224,6 +229,7 @@ export function AppLayout() {
           '/hr/shifts',
           '/timesheets',
           '/payroll/reports',
+          '/communication',
         ].includes(item.to)
       }
       return true
