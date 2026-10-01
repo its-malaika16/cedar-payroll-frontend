@@ -1,6 +1,8 @@
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import { useAuth } from './auth/AuthContext'
+import { OnboardingWorkspacePage } from './pages/onboarding/OnboardingWorkspacePage'
 import { AppLayout } from './components/AppLayout'
+import { OnboardingLayout } from './components/OnboardingLayout'
 import { EmployeeLayout } from './components/EmployeeLayout'
 import { Loading } from './components/ui'
 import { LoginPage } from './pages/LoginPage'
@@ -8,6 +10,8 @@ import { RegisterPage } from './pages/RegisterPage'
 import { DashboardPage } from './pages/DashboardPage'
 import { CompaniesPage } from './pages/companies/CompaniesPage'
 import { CompanyFormPage } from './pages/companies/CompanyFormPage'
+import { CompanyOnboardPage } from './pages/companies/CompanyOnboardPage'
+import { CompanyOnboardingReviewPage } from './pages/companies/CompanyOnboardingReviewPage'
 import { CompanyDetailPage } from './pages/companies/CompanyDetailPage'
 import { EmployeeWorkspace } from './pages/employees/EmployeeWorkspace'
 import { EmployeeCalendarPage } from './pages/employees/EmployeeCalendarPage'
@@ -95,6 +99,7 @@ function AdminLayout() {
   const location = useLocation()
   if (auth.loading) return <Loading />
   if (!auth.token) return <Navigate to="/login" replace />
+  if (auth.needsOnboarding) return <Navigate to="/onboarding" replace />
   if (auth.isEmployeeOnly) return <Navigate to="/portal" replace />
   if (auth.isCompanyAdmin && !isCompanyAdminPath(location.pathname)) {
     return <Navigate to="/" replace />
@@ -122,6 +127,9 @@ export default function App() {
     <Routes>
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
+      <Route element={<OnboardingLayout />}>
+        <Route path="/onboarding" element={<OnboardingWorkspacePage />} />
+      </Route>
       <Route element={<AdminLayout />}>
         <Route path="/" element={<DashboardPage />} />
         <Route path="/requested-invoices" element={<RequestedInvoicesPage />} />
@@ -130,6 +138,8 @@ export default function App() {
         <Route path="/company-invoices" element={<CompanyInvoicesPage />} />
         <Route path="/companies" element={<CompaniesPage />} />
         <Route path="/companies/new" element={<CompanyFormPage />} />
+        <Route path="/companies/onboard" element={<CompanyOnboardPage />} />
+        <Route path="/companies/:companyId/onboarding" element={<CompanyOnboardingReviewPage />} />
         <Route path="/companies/:companyId" element={<CompanyDetailPage />} />
         <Route
           path="/employees/payslips"

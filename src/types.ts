@@ -23,6 +23,7 @@ export type CompanyMembership = {
   role_id?: string
   role_name?: string
   is_owner?: boolean
+  company_status?: string | null
   modules: string[]
   permissions: string[]
 }
@@ -190,6 +191,48 @@ export type Company = {
     payroll_runs?: number
     payroll_schedules?: number
   }
+}
+
+export type OnboardingContract = {
+  id: string
+  title: string
+  module: string
+  original_file_name: string
+  signed_file_name?: string | null
+  signed_at?: string | null
+  signed: boolean
+}
+
+export type OnboardingCompany = {
+  id: string
+  company_name: string
+  trading_name?: string | null
+  office_number?: string | null
+  address_line_1?: string | null
+  address_line_2?: string | null
+  address_line_3?: string | null
+  address_line_4?: string | null
+  postcode?: string | null
+  country?: string | null
+  sector?: string | null
+  paye_reference?: string | null
+  accounts_office_reference?: string | null
+  company_registration_number?: string | null
+  pension_provider?: string | null
+  pension_employer_id?: string | null
+  status: string
+  onboarding_submitted_at?: string | null
+  onboarding_approved_at?: string | null
+  onboarding_review_note?: string | null
+  modules: string[]
+  owner?: {
+    id: string
+    first_name?: string | null
+    last_name?: string | null
+    email: string
+    is_registered?: boolean
+  } | null
+  contracts: OnboardingContract[]
 }
 
 export type CompanyUserRole = {

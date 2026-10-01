@@ -10,6 +10,7 @@ import {
   Check,
   ChevronLeft,
   ChevronRight,
+  FileText,
   LayoutGrid,
   LayoutList,
   MoreHorizontal,
@@ -23,11 +24,11 @@ import { Alert, Button, Card, EmptyState, Loading, PageHeader } from '../../comp
 import { idOf } from '../../lib/format'
 import type { Company } from '../../types'
 
-type StatusFilter = 'ALL' | 'ACTIVE' | 'INACTIVE'
+type StatusFilter = 'ALL' | 'ACTIVE' | 'INACTIVE' | 'ONBOARDING' | 'PENDING_REVIEW'
 type ModuleFilter = 'ALL' | 'PAYROLL' | 'HR' | 'INVOICE'
 type SortKey = 'name-asc' | 'name-desc' | 'employees' | 'created'
 type ViewMode = 'list' | 'grid'
-type DisplayStatus = 'Active' | 'Inactive'
+type DisplayStatus = 'Active' | 'Inactive' | 'Onboarding' | 'Pending review'
 
 const PAGE_SIZE = 8
 const AVATAR_TONES = ['bg-navy', 'bg-navy-mid', 'bg-[#5c738f]', 'bg-emerald-800']
@@ -56,12 +57,29 @@ function ownerRole(company: Company) {
   return role.replaceAll('_', ' ').toLowerCase().replace(/\b\w/g, (letter) => letter.toUpperCase())
 }
 
+function companyStatus(company: Company) {
+  return (company.status ?? (company.is_active === false ? 'INACTIVE' : 'ACTIVE')).toUpperCase()
+}
+
 function isCompanyActive(company: Company) {
-  return (company.status ?? 'ACTIVE').toUpperCase() === 'ACTIVE'
+  return companyStatus(company) === 'ACTIVE'
+}
+
+function isOnboardingCompany(company: Company) {
+  const status = companyStatus(company)
+  return status === 'ONBOARDING' || status === 'PENDING_REVIEW'
+}
+
+function companyPath(company: Company) {
+  const id = idOf(company)
+  return isOnboardingCompany(company) ? `/companies/${id}/onboarding` : `/companies/${id}`
 }
 
 function displayStatus(company: Company): DisplayStatus {
-  return isCompanyActive(company) ? 'Active' : 'Inactive'
+  const status = companyStatus(company)
+  if (status === 'ONBOARDING') return 'Onboarding'
+  if (status === 'PENDING_REVIEW') return 'Pending review'
+  return status === 'ACTIVE' ? 'Active' : 'Inactive'
 }
 
 function activeModules(company: Company) {
@@ -82,10 +100,14 @@ function StatusPill({ status }: { status: DisplayStatus }) {
   const styles = {
     Active: 'bg-emerald-50 text-emerald-800',
     Inactive: 'bg-[#f0efec] text-muted',
+    Onboarding: 'bg-amber-50 text-amber-900',
+    'Pending review': 'bg-sky-50 text-sky-800',
   }[status]
   const dot = {
     Active: 'bg-emerald-500',
     Inactive: 'bg-[#c5c4c0]',
+    Onboarding: 'bg-amber-500',
+    'Pending review': 'bg-sky-500',
   }[status]
   return (
     <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ${styles}`}>
@@ -224,25 +246,38 @@ function ActionMenu({
 
 function CompanyMenuItems({
   onEdit,
+  onReview,
   onToggleStatus,
   statusLabel,
   onDelete,
 }: {
   onEdit: () => void
+  onReview?: () => void
   onToggleStatus?: () => void
   statusLabel?: string
   onDelete?: () => void
 }) {
   return (
     <>
-      <button
-        type="button"
-        role="menuitem"
-        className="w-full rounded-[8px] px-3 py-2 text-left text-sm font-medium text-navy hover:bg-cream"
-        onClick={onEdit}
-      >
-        Edit organisation
-      </button>
+      {onReview ? (
+        <button
+          type="button"
+          role="menuitem"
+          className="w-full rounded-[8px] px-3 py-2 text-left text-sm font-medium text-navy hover:bg-cream"
+          onClick={onReview}
+        >
+          Review onboarding
+        </button>
+      ) : (
+        <button
+          type="button"
+          role="menuitem"
+          className="w-full rounded-[8px] px-3 py-2 text-left text-sm font-medium text-navy hover:bg-cream"
+          onClick={onEdit}
+        >
+          Edit organisation
+        </button>
+      )}
       {onToggleStatus && statusLabel ? (
         <button
           type="button"
@@ -269,6 +304,59 @@ function CompanyMenuItems({
 
 const filterClass =
   'h-10 rounded-xl border border-[#eceae6] bg-white px-3 text-sm text-navy shadow-[0_1px_2px_rgba(23,55,94,0.04)]'
+
+function OnboardingSection({
+  companies,
+  onOpen,
+}: {
+  companies: Company[]
+  onOpen: (id: string) => void
+}) {
+  return (
+    <section className="mb-5 overflow-hidden rounded-[16px] border border-[#e6eaf0] bg-white shadow-[0_1px_8px_rgba(23,55,94,0.04)]">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#eef1f5] px-5 py-4">
+        <div>
+          <h2 className="text-lg font-semibold text-navy">Onboarding</h2>
+          <p className="mt-1 text-sm text-muted">
+            Companies invited by the bureau. Review details and signed contracts before they can use the software.
+          </p>
+        </div>
+        <Link to="/companies/onboard">
+          <Button variant="secondary">
+            <FileText size={15} />
+            Onboard company
+          </Button>
+        </Link>
+      </div>
+      {companies.length === 0 ? (
+        <p className="px-5 py-6 text-sm text-muted">No companies are onboarding at the moment.</p>
+      ) : (
+        <ul className="divide-y divide-[#eef1f5]">
+          {companies.map((company) => {
+            const id = idOf(company)
+            return (
+              <li key={id}>
+                <button
+                  type="button"
+                  className="flex w-full items-center justify-between gap-3 px-5 py-4 text-left hover:bg-cream/70"
+                  onClick={() => onOpen(id)}
+                >
+                  <div className="min-w-0">
+                    <p className="font-semibold text-navy">{company.company_name}</p>
+                    <p className="truncate text-xs text-muted">
+                      {ownerName(company)} · {activeModules(company).map((module) => (module === 'INVOICE' ? 'Invoice' : module === 'HR' ? 'HR' : 'Payroll')).join(', ') || 'No modules'}
+                    </p>
+                  </div>
+                  <StatusPill status={displayStatus(company)} />
+                </button>
+              </li>
+            )
+          })}
+        </ul>
+      )}
+    </section>
+  )
+}
 
 export function CompaniesPage() {
   const auth = useAuth()
@@ -317,8 +405,8 @@ export function CompaniesPage() {
   const filtered = useMemo(() => {
     const term = search.trim().toLowerCase()
     const rows = companies.filter((company) => {
-      const status = displayStatus(company)
-      if (statusFilter !== 'ALL' && status.toUpperCase() !== statusFilter) return false
+      const status = companyStatus(company)
+      if (statusFilter !== 'ALL' && status !== statusFilter) return false
       const modules = activeModules(company)
       if (moduleFilter !== 'ALL' && !modules.includes(moduleFilter)) return false
       if (!term) return true
@@ -428,12 +516,20 @@ export function CompaniesPage() {
         subtitle="Client companies in your bureau and the modules assigned to each."
         actions={
           canManageOrganizations ? (
-            <Link to="/companies/new">
-              <Button>
-                <Plus size={16} />
-                Add Organisation
-              </Button>
-            </Link>
+            <div className="flex flex-wrap gap-2">
+              <Link to="/companies/onboard">
+                <Button variant="secondary">
+                  <FileText size={16} />
+                  Onboard company
+                </Button>
+              </Link>
+              <Link to="/companies/new">
+                <Button>
+                  <Plus size={16} />
+                  Add Organisation
+                </Button>
+              </Link>
+            </div>
           ) : undefined
         }
       />
@@ -494,6 +590,11 @@ export function CompaniesPage() {
         />
       </div>
 
+      <OnboardingSection
+        companies={companies.filter(isOnboardingCompany)}
+        onOpen={(id) => navigate(`/companies/${id}/onboarding`)}
+      />
+
       <Card className="shadow-[0_8px_24px_rgba(23,55,94,0.04)]">
         <div className="flex items-center gap-3 overflow-x-auto border-b border-[#eceae6] px-4 py-3">
           <label className="relative min-w-[240px] flex-1">
@@ -519,6 +620,8 @@ export function CompaniesPage() {
             <option value="ALL">Status: All</option>
             <option value="ACTIVE">Active</option>
             <option value="INACTIVE">Inactive</option>
+            <option value="ONBOARDING">Onboarding</option>
+            <option value="PENDING_REVIEW">Pending review</option>
           </select>
           <select
             className={`${filterClass} w-[148px] shrink-0`}
@@ -594,7 +697,7 @@ export function CompaniesPage() {
                   <button
                     type="button"
                     className="w-full text-left"
-                    onClick={() => navigate(`/companies/${id}`)}
+                    onClick={() => navigate(companyPath(company))}
                   >
                     <div className="flex items-start justify-between gap-3 pr-8">
                       <div className="flex min-w-0 items-center gap-3">
@@ -653,7 +756,7 @@ export function CompaniesPage() {
                     <tr
                       key={id}
                       className="cursor-pointer border-b border-[#eceae6] last:border-b-0 hover:bg-cream/70"
-                      onClick={() => navigate(`/companies/${id}`)}
+                      onClick={() => navigate(companyPath(company))}
                     >
                       <td className="px-5 py-4">
                         <div className="flex items-center gap-3">
@@ -771,8 +874,17 @@ export function CompaniesPage() {
               closeMenu()
               navigate(`/companies/${id}`)
             }}
+            onReview={
+              isOnboardingCompany(menuCompany)
+                ? () => {
+                    const id = idOf(menuCompany)
+                    closeMenu()
+                    navigate(`/companies/${id}/onboarding`)
+                  }
+                : undefined
+            }
             onToggleStatus={
-              canManageOrganizations && !togglingStatus
+              canManageOrganizations && !togglingStatus && !isOnboardingCompany(menuCompany)
                 ? () => {
                     closeMenu()
                     setStatusError(null)

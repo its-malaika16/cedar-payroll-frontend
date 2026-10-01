@@ -8,6 +8,7 @@ import type {
   CompanyUserRole,
   Employee,
   EmployeePortalDashboard,
+  OnboardingCompany,
   PayrollRecord,
   PayrollRun,
   PayrollPension,
@@ -54,6 +55,34 @@ export const companiesApi = {
   ) => patch(`/companies/${companyId}/users/${userId}/role`, body),
   removeUser: (companyId: string, userId: string) =>
     del(`/companies/${companyId}/users/${userId}`),
+}
+
+export const onboardingApi = {
+  list: () => get<OnboardingCompany[]>('/onboarding/companies'),
+  get: (companyId: string) => get<OnboardingCompany>(`/onboarding/companies/${companyId}`),
+  start: (body: Record<string, unknown>) => post<OnboardingCompany>('/onboarding/companies', body),
+  mine: () => get<OnboardingCompany>('/onboarding/me'),
+  saveDetails: (body: Record<string, unknown>) => patch<OnboardingCompany>('/onboarding/me/details', body),
+  submit: () => post<OnboardingCompany>('/onboarding/me/submit'),
+  uploadContract: (companyId: string, form: FormData) =>
+    api<ApiSuccess<OnboardingCompany>>(`/onboarding/companies/${companyId}/contracts`, {
+      method: 'POST',
+      body: form,
+    }),
+  removeContract: (companyId: string, contractId: string) =>
+    del(`/onboarding/companies/${companyId}/contracts/${contractId}`),
+  uploadSigned: (contractId: string, form: FormData) =>
+    api<ApiSuccess<OnboardingCompany>>(`/onboarding/me/contracts/${contractId}/signed`, {
+      method: 'POST',
+      body: form,
+    }),
+  downloadMine: (contractId: string, kind: 'original' | 'signed', filename: string) =>
+    download(`/onboarding/me/contracts/${contractId}/file?kind=${kind}`, filename),
+  download: (companyId: string, contractId: string, kind: 'original' | 'signed', filename: string) =>
+    download(`/onboarding/companies/${companyId}/contracts/${contractId}/file?kind=${kind}`, filename),
+  approve: (companyId: string) => post<OnboardingCompany>(`/onboarding/companies/${companyId}/approve`),
+  returnToCompany: (companyId: string, note?: string) =>
+    post<OnboardingCompany>(`/onboarding/companies/${companyId}/return`, { note }),
 }
 
 export const rolesApi = {

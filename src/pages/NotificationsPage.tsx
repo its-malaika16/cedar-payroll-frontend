@@ -12,7 +12,7 @@ type AppNotification = {
   type: string
   is_read: boolean
   created_at: string
-  data?: { invoice_id?: string | null }
+  data?: { invoice_id?: string | null; company_id?: string | null }
 }
 
 function notificationPath(item: AppNotification) {
@@ -21,6 +21,9 @@ function notificationPath(item: AppNotification) {
     return `/payroll/invoices/${invoiceId}`
   }
   if (item.type === 'COMMUNICATION') return '/communication'
+  if (item.type === 'ONBOARDING') {
+    return item.data?.company_id ? `/companies/${item.data.company_id}/onboarding` : '/onboarding'
+  }
   return ''
 }
 

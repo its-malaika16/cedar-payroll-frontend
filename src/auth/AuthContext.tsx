@@ -45,6 +45,7 @@ type AuthContextValue = {
   isBureauAdmin: boolean
   isCompanyAdmin: boolean
   canManageOrganizations: boolean
+  needsOnboarding: boolean
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null)
@@ -53,10 +54,25 @@ function membershipsFrom(payload: Partial<AuthPayload> | null | undefined) {
   return payload?.memberships ?? payload?.company_access ?? []
 }
 
+function isOnboardingStatus(status?: string | null) {
+  const value = String(status ?? '').toUpperCase()
+  return value === 'ONBOARDING' || value === 'PENDING_REVIEW'
+}
+
 export function homePathFromAccess(payload: Partial<AuthPayload> | null | undefined) {
   const memberships = membershipsFrom(payload)
   const bureauAccess = payload?.bureau_access ?? []
   const employeeAccess = payload?.employee_access ?? []
+  const isBureau = bureauAccess.some((item) => isBureauScopedRole(item.role_name))
+  const pending = memberships.filter((item) => isOnboardingStatus(item.company_status))
+  if (
+    !payload?.user?.is_super_admin &&
+    !isBureau &&
+    pending.length > 0 &&
+    pending.length === memberships.length
+  ) {
+    return '/onboarding'
+  }
   const employeeOnly =
     !payload?.user?.is_super_admin &&
     memberships.length === 0 &&
@@ -256,6 +272,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const canUseAdminPortal =
     isSuperAdmin || memberships.length > 0 || bureauAccess.length > 0
   const isEmployeeOnly = canUseEmployeePortal && !canUseAdminPortal
+  const pendingMemberships = memberships.filter((item) => isOnboardingStatus(item.company_status))
+  const needsOnboarding =
+    !isSuperAdmin &&
+    !hasBureauScopedAccess &&
+    pendingMemberships.length > 0 &&
+    pendingMemberships.length === memberships.length
+  const homePath = needsOnboarding ? '/onboarding' : isEmployeeOnly ? '/portal' : '/'
 
   const value: AuthContextValue = {
     loading,
@@ -275,6 +298,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     isBureauAdmin,
     isCompanyAdmin,
     canManageOrganizations,
+    needsOnboarding,
     isEmployeeOnly,
     canUseEmployeePortal,
     canUseAdminPortal,
@@ -286,7 +310,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       isSuperAdmin || isBureauAdmin || permissions.includes(permission),
     hasModule: (module: string) =>
       isSuperAdmin || isBureauAdmin || modules.includes(module),
-    homePath: isEmployeeOnly ? '/portal' : '/',
+    homePath,
     login: async (email, password) => {
       const response = await authApi.login(email, password)
       applySession(response.data, response.data.access_token)
