@@ -205,9 +205,11 @@ export function OnboardingWorkspacePage() {
     setForm((current) => (current ? { ...current, ...next } : current))
   }
 
+  const companyId = company.id
+
   function goTo(target: WizardStep) {
     setStep(target)
-    persistStep(company.id, target)
+    persistStep(companyId, target)
   }
 
   function canOpen(target: WizardStep) {
