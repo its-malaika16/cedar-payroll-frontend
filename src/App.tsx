@@ -84,7 +84,6 @@ function isCompanyAdminPath(pathname: string) {
   if (pathname.startsWith('/hr')) return true
   if (pathname.startsWith('/timesheets')) return true
   if (pathname.startsWith('/notifications')) return true
-  if (pathname.startsWith('/communication')) return true
   if (pathname.startsWith('/help')) return true
   if (pathname.startsWith('/company-info')) return true
   if (pathname.startsWith('/payroll/reports')) return true

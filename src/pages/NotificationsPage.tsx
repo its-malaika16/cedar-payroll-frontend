@@ -20,7 +20,7 @@ function notificationPath(item: AppNotification) {
   if (item.type === 'INVOICE_APPROVED' && invoiceId) {
     return `/payroll/invoices/${invoiceId}`
   }
-  if (item.type === 'COMMUNICATION') return '/communication'
+  if (item.type === 'COMMUNICATION') return ''
   if (item.type === 'ONBOARDING') {
     return item.data?.company_id ? `/companies/${item.data.company_id}/onboarding` : '/onboarding'
   }

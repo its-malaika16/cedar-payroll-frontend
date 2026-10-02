@@ -579,7 +579,7 @@ export function DashboardPage() {
               ]
                 .filter(([, to]) => {
                   if (to === '/activities') return auth.isBureauAdmin
-                  if (to === '/communication') return auth.isBureauAdmin || auth.isCompanyAdmin
+                  if (to === '/communication') return auth.isBureauAdmin
                   if (to === '/companies/new') return auth.canManageOrganizations
                   return true
                 })

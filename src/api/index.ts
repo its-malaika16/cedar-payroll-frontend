@@ -21,6 +21,13 @@ import type {
 } from '../types'
 import { api, del, download, fetchBlob, get, post, patch, put } from './client'
 
+function onboardingTemplatePreviewPath(templateId: string, clientName?: string) {
+  const params = new URLSearchParams()
+  if (clientName?.trim()) params.set('clientName', clientName.trim())
+  const query = params.toString()
+  return `/onboarding/contract-templates/${encodeURIComponent(templateId)}${query ? `?${query}` : ''}`
+}
+
 export const authApi = {
   login: (email: string, password: string) =>
     post<AuthPayload>('/auth/login', { email, password }),
@@ -83,6 +90,10 @@ export const onboardingApi = {
   approve: (companyId: string) => post<OnboardingCompany>(`/onboarding/companies/${companyId}/approve`),
   returnToCompany: (companyId: string, note?: string) =>
     post<OnboardingCompany>(`/onboarding/companies/${companyId}/return`, { note }),
+  previewTemplate: (templateId: string, filename: string, clientName?: string) =>
+    download(onboardingTemplatePreviewPath(templateId, clientName), filename),
+  templatePreviewPath: (templateId: string, clientName?: string) =>
+    onboardingTemplatePreviewPath(templateId, clientName),
 }
 
 export const rolesApi = {
@@ -616,13 +627,19 @@ export const companyInvoicesApi = {
 }
 
 export const communicationApi = {
-  list: () => get('/communication'),
+  list: (companyId?: string) => {
+    const params = new URLSearchParams()
+    if (companyId) params.set('company_id', companyId)
+    const query = params.toString()
+    return get(`/communication${query ? `?${query}` : ''}`)
+  },
   preview: (body: {
     from: string
     audience: string
     all_companies?: boolean
     company_ids?: string[]
     employee_ids?: string[]
+    admin_ids?: string[]
   }) => {
     const params = new URLSearchParams({
       from: body.from,
@@ -631,6 +648,7 @@ export const communicationApi = {
     })
     if (body.company_ids?.length) params.set('company_ids', body.company_ids.join(','))
     if (body.employee_ids?.length) params.set('employee_ids', body.employee_ids.join(','))
+    if (body.admin_ids?.length) params.set('admin_ids', body.admin_ids.join(','))
     return get(`/communication/preview?${params.toString()}`)
   },
   send: (body: Record<string, unknown>) => post('/communication', body),

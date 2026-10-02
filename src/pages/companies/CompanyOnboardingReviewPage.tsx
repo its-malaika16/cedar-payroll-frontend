@@ -1,12 +1,20 @@
 import { useState } from 'react'
 import { Link, Navigate, useNavigate, useParams } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { Check, Download, FileUp, Trash2 } from 'lucide-react'
+import { Check, Download, Eye, FileUp, Trash2 } from 'lucide-react'
 import { onboardingApi } from '../../api'
 import { useAuth } from '../../auth/AuthContext'
+import { DocumentPreviewModal } from '../../components/DocumentPreviewModal'
 import { Alert, Button, Field, Input, Loading, PageHeader, Select } from '../../components/ui'
 import { fullName } from '../../lib/format'
 import type { OnboardingCompany } from '../../types'
+import {
+  ONBOARDING_CONTRACT_TEMPLATES,
+  appendOnboardingContract,
+  onboardingContractTemplate,
+  onboardingTemplatePreviewPath,
+  type OnboardingContractSource,
+} from './onboardingContracts'
 
 function moduleLabel(value: string) {
   if (value === 'HR') return 'HR'
@@ -29,9 +37,12 @@ export function CompanyOnboardingReviewPage() {
   const [error, setError] = useState<string | null>(null)
   const [message, setMessage] = useState<string | null>(null)
   const [note, setNote] = useState('')
+  const [source, setSource] = useState<OnboardingContractSource>('payroll_services_agreement')
   const [title, setTitle] = useState('')
-  const [module, setModule] = useState('GENERAL')
+  const [module, setModule] = useState('PAYROLL')
+  const [file, setFile] = useState<File | null>(null)
   const [busy, setBusy] = useState(false)
+  const [preview, setPreview] = useState<{ id: string; title: string; filename: string } | null>(null)
 
   const query = useQuery({
     queryKey: ['onboarding-company', companyId],
@@ -132,7 +143,7 @@ export function CompanyOnboardingReviewPage() {
               >
                 Approve company
               </Button>
-              <Field label="Send back with a note">
+              <Field label="Reject with a note">
                 <Input
                   variant="outline"
                   value={note}
@@ -150,16 +161,16 @@ export function CompanyOnboardingReviewPage() {
                   try {
                     await onboardingApi.returnToCompany(company.id, note)
                     await refresh()
-                    setMessage('Sent back to the company')
+                    setMessage('Company onboarding was rejected')
                     setNote('')
                   } catch (err) {
-                    setError(err instanceof Error ? err.message : 'Could not send this back')
+                    setError(err instanceof Error ? err.message : 'Could not reject this company')
                   } finally {
                     setBusy(false)
                   }
                 }}
               >
-                Send back
+                Reject
               </Button>
             </div>
           ) : (
@@ -233,52 +244,150 @@ export function CompanyOnboardingReviewPage() {
         </ul>
 
         {company.status !== 'ACTIVE' ? (
-          <div className="mt-5 grid gap-3 border-t border-[#eef1f5] pt-5 md:grid-cols-[1fr_160px_auto]">
-            <Field label="Add another contract">
-              <Input variant="outline" value={title} onChange={(event) => setTitle(event.target.value)} placeholder="Title" />
-            </Field>
-            <Field label="Module">
-              <Select variant="outline" value={module} onChange={(event) => setModule(event.target.value)}>
-                <option value="GENERAL">General</option>
-                <option value="PAYROLL">Payroll</option>
-                <option value="HR">HR</option>
-                <option value="INVOICE">Invoice</option>
-              </Select>
-            </Field>
-            <label className="mt-7 inline-flex cursor-pointer items-center justify-center gap-2 rounded-[8px] bg-navy px-4 py-2.5 text-sm font-medium text-white">
-              <FileUp size={15} />
-              Upload
-              <input
-                type="file"
-                accept=".pdf,.doc,.docx,.png,.jpg,.jpeg"
-                className="hidden"
-                onChange={async (event) => {
-                  const file = event.target.files?.[0]
-                  event.target.value = ''
-                  if (!file) return
-                  if (!title.trim()) {
-                    setError('Give the contract a title')
-                    return
-                  }
-                  setError(null)
-                  try {
-                    const data = new FormData()
-                    data.append('file', file)
-                    data.append('title', title.trim())
-                    data.append('module', module)
-                    await onboardingApi.uploadContract(company.id, data)
-                    setTitle('')
-                    await refresh()
-                    setMessage('Contract uploaded')
-                  } catch (err) {
-                    setError(err instanceof Error ? err.message : 'Could not upload the contract')
-                  }
-                }}
-              />
-            </label>
+          <div className="mt-5 space-y-3 border-t border-[#eef1f5] pt-5">
+            <div className="grid gap-3 md:grid-cols-[1fr_160px_auto]">
+              <Field label="Add another contract">
+                <Select
+                  variant="outline"
+                  value={source}
+                  onChange={(event) => {
+                    const next = event.target.value as OnboardingContractSource
+                    const template = onboardingContractTemplate(next)
+                    setSource(next)
+                    setTitle(template?.title || '')
+                    setModule(template?.module || 'GENERAL')
+                    setFile(null)
+                  }}
+                >
+                  {ONBOARDING_CONTRACT_TEMPLATES.map((item) => (
+                    <option key={item.id} value={item.id}>
+                      {item.title}
+                    </option>
+                  ))}
+                  <option value="upload">Upload contract from system</option>
+                </Select>
+              </Field>
+              <Field label="Module">
+                <Select
+                  variant="outline"
+                  value={module}
+                  disabled={source !== 'upload'}
+                  onChange={(event) => setModule(event.target.value)}
+                >
+                  <option value="GENERAL">General</option>
+                  <option value="PAYROLL">Payroll</option>
+                  <option value="HR">HR</option>
+                  <option value="INVOICE">Invoice</option>
+                </Select>
+              </Field>
+              {source === 'upload' ? (
+                <label className="mt-7 inline-flex cursor-pointer items-center justify-center gap-2 rounded-[8px] border border-[#d9d9d9] bg-white px-4 py-2.5 text-sm font-medium text-navy">
+                  <FileUp size={15} />
+                  {file?.name || 'Choose file'}
+                  <input
+                    type="file"
+                    accept=".pdf,.doc,.docx,.png,.jpg,.jpeg"
+                    className="hidden"
+                    onChange={(event) => setFile(event.target.files?.[0] ?? null)}
+                  />
+                </label>
+              ) : (
+                <div className="mt-7 flex flex-wrap gap-2">
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    onClick={() => {
+                      const template = onboardingContractTemplate(source)
+                      if (!template) return
+                      setPreview({
+                        id: template.id,
+                        title: template.title,
+                        filename: `${template.title}.pdf`,
+                      })
+                    }}
+                  >
+                    <Eye size={15} />
+                    Preview
+                  </Button>
+                  <Button
+                    type="button"
+                    disabled={busy}
+                    onClick={async () => {
+                      setBusy(true)
+                      setError(null)
+                      try {
+                        const data = new FormData()
+                        appendOnboardingContract(data, { source, title, module, file })
+                        await onboardingApi.uploadContract(company.id, data)
+                        await refresh()
+                        setMessage(`${onboardingContractTemplate(source)?.title || 'Contract'} sent`)
+                      } catch (err) {
+                        setError(err instanceof Error ? err.message : 'Could not add this contract')
+                      } finally {
+                        setBusy(false)
+                      }
+                    }}
+                  >
+                    Send template
+                  </Button>
+                </div>
+              )}
+            </div>
+            {source === 'upload' ? (
+              <div className="grid gap-3 md:grid-cols-[1fr_auto]">
+                <Field label="Title">
+                  <Input
+                    variant="outline"
+                    value={title}
+                    onChange={(event) => setTitle(event.target.value)}
+                    placeholder="Contract title"
+                  />
+                </Field>
+                <Button
+                  type="button"
+                  className="mt-7"
+                  disabled={busy}
+                  onClick={async () => {
+                    if (!title.trim() || !file) {
+                      setError('Give the contract a title and choose a file')
+                      return
+                    }
+                    setBusy(true)
+                    setError(null)
+                    try {
+                      const data = new FormData()
+                      appendOnboardingContract(data, { source, title, module, file })
+                      await onboardingApi.uploadContract(company.id, data)
+                      setTitle('')
+                      setFile(null)
+                      await refresh()
+                      setMessage('Contract uploaded')
+                    } catch (err) {
+                      setError(err instanceof Error ? err.message : 'Could not upload the contract')
+                    } finally {
+                      setBusy(false)
+                    }
+                  }}
+                >
+                  <FileUp size={15} />
+                  Upload
+                </Button>
+              </div>
+            ) : null}
           </div>
         ) : null}
       </section>
+      {preview ? (
+        <DocumentPreviewModal
+          title={preview.title}
+          fileName={preview.filename}
+          path={onboardingTemplatePreviewPath(preview.id, company.company_name)}
+          onClose={() => setPreview(null)}
+          onDownload={() =>
+            void onboardingApi.previewTemplate(preview.id, preview.filename, company.company_name)
+          }
+        />
+      ) : null}
     </div>
   )
 }

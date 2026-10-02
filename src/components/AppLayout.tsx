@@ -205,10 +205,7 @@ export function AppLayout() {
       if (item.to === '/company-invoices') return auth.isCompanyAdmin && auth.hasModule('INVOICE')
       if (item.to === '/hr' || item.to === '/hr/shifts') return auth.hasModule('HR')
       if (item.to === '/activities') return auth.isBureauAdmin
-      if (item.to === '/communication') {
-        if (auth.isBureauAdmin || auth.isSuperAdmin) return true
-        return auth.isCompanyAdmin && (auth.hasModule('PAYROLL') || auth.hasModule('HR'))
-      }
+      if (item.to === '/communication') return auth.isBureauAdmin
       if (item.to === '/companies') return auth.canManageOrganizations
       if (item.to === '/employees/payslips') {
         return auth.isCompanyAdmin && auth.hasModule('PAYROLL') && !auth.hasModule('INVOICE')
