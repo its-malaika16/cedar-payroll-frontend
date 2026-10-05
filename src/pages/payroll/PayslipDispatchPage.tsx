@@ -440,7 +440,7 @@ export function PayslipDispatchPage() {
                 >
                   Preview
                 </Button>
-                <Button type="button" disabled={busy || !locked || selected.length === 0} onClick={() => void sendEmails()}>
+                <Button type="button" disabled={busy || selected.length === 0} onClick={() => void sendEmails()}>
                   Send Email(s)
                 </Button>
               </div>
