@@ -2,23 +2,25 @@ import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import {
-  Building2,
+  ArrowLeftRight,
   CalendarDays,
   CircleUser,
   Clock3,
   FileText,
   GraduationCap,
+  Info,
   Landmark,
   Mail,
   MapPin,
   Shield,
   User,
+  Users,
 } from 'lucide-react'
 import { employeesApi } from '../../api'
 import { assetUrl } from '../../api/client'
 import { useAuth } from '../../auth/AuthContext'
 import { Alert, Button, Loading } from '../../components/ui'
-import { formatDate, formatLongDate, formatNiNumber, fullName, toDateInput } from '../../lib/format'
+import { formatDate, formatNiNumber, fullName, toDateInput } from '../../lib/format'
 import { isFormDirty } from '../../lib/formDirty'
 import type { Employee, EmployeePortalDashboard } from '../../types'
 import {
@@ -29,7 +31,6 @@ import {
   STARTER_DECLARATIONS,
   STUDENT_LOAN_PLANS,
   TITLE_OPTIONS,
-  WEEKDAYS,
 } from '../employees/employeeOptions'
 import { FREQUENCY_META, asPayFrequency } from '../payroll/scheduleWizard/payDateRules'
 
@@ -51,11 +52,10 @@ function str(value: unknown) {
   return value == null ? '' : String(value)
 }
 
+const DEFAULT_WORKING_DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday']
+
 function visibleWorksNumber(code?: string | null) {
-  const value = (code ?? '').trim()
-  if (!value) return ''
-  if (/^EMP-\d{8}-\d{4}$/.test(value) || /^EMP-\d+$/.test(value)) return ''
-  return value
+  return (code ?? '').trim()
 }
 
 function ageFromDob(dob: string) {
@@ -100,7 +100,7 @@ function Box({
   className?: string
 }) {
   return (
-    <section className={`rounded-[10px] border border-[#d9d9d9] bg-white p-5 ${className}`}>
+    <section className={`rounded-[16px] border border-[#e6e4df] bg-white p-5 ${className}`}>
       <div className="mb-4 flex items-center gap-2 text-navy">
         {icon}
         <h3 className="text-sm font-semibold">{title}</h3>
@@ -118,6 +118,7 @@ function TextField({
   readOnly,
   prefix,
   suffix,
+  hideLabel,
 }: {
   label: string
   value: string
@@ -126,20 +127,33 @@ function TextField({
   readOnly?: boolean
   prefix?: string
   suffix?: string
+  hideLabel?: boolean
 }) {
   return (
     <label className="block">
-      <span className="mb-1.5 block text-xs font-medium text-navy">{label}</span>
-      <span className="flex h-[35px] items-center rounded-[8px] border-[0.5px] border-[#d9d9d9] bg-white px-3">
+      {hideLabel ? null : <span className="mb-1.5 block text-xs font-medium text-navy">{label}</span>}
+      <span
+        className={`flex h-10 items-center rounded-[8px] border px-3 ${
+          readOnly ? 'border-[#e4e2dc] bg-[#f4f3ef]' : 'border-[#e4e2dc] bg-white'
+        }`}
+      >
         {prefix ? <span className="mr-1 text-xs text-muted">{prefix}</span> : null}
         <input
           type={type}
           value={value}
           readOnly={readOnly}
+          placeholder={type === 'date' && !value ? 'dd/mm/yyyy' : undefined}
           onChange={(event) => onChange?.(event.target.value)}
-          className={`h-full min-w-0 flex-1 bg-transparent text-xs text-navy outline-none ${readOnly ? 'text-muted' : ''}`}
+          className={`h-full min-w-0 flex-1 bg-transparent text-xs outline-none placeholder:text-[#b0b6be] ${
+            readOnly ? 'cursor-default text-[#5c6770]' : 'text-navy'
+          }`}
         />
-        {suffix ? <span className="ml-1 text-xs text-muted">{suffix}</span> : null}
+        {type === 'date' ? <CalendarDays size={14} className="ml-2 shrink-0 text-[#8a93a0]" /> : null}
+        {suffix ? (
+          <span className="ml-2 shrink-0 rounded-[6px] bg-[#f3f2ef] px-2 py-1 text-[11px] font-medium text-muted">
+            {suffix}
+          </span>
+        ) : null}
       </span>
     </label>
   )
@@ -165,7 +179,9 @@ function SelectField({
         value={value}
         disabled={readOnly}
         onChange={(event) => onChange?.(event.target.value)}
-        className="h-[35px] w-full rounded-[8px] border-[0.5px] border-[#d9d9d9] bg-white px-3 text-xs text-navy outline-none disabled:text-muted"
+        className={`h-10 w-full rounded-[8px] border border-[#e4e2dc] px-3 text-xs outline-none ${
+          readOnly ? 'cursor-default bg-[#f4f3ef] text-[#5c6770]' : 'bg-white text-navy'
+        }`}
       >
         <option value="">Select</option>
         {options.map((option) => (
@@ -180,19 +196,19 @@ function SelectField({
 
 function ContactAdmin() {
   return (
-    <div className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-[10px] border border-[#d9d9d9] bg-white px-5 py-4">
+    <div className="flex flex-wrap items-center justify-between gap-3 rounded-[16px] border border-[#d5e3f4] bg-[#f4f8fd] px-5 py-4">
       <div className="flex items-start gap-3 text-sm text-navy">
-        <span className="mt-0.5 flex size-6 items-center justify-center rounded-full border border-[#d9d9d9] text-xs">
-          i
+        <span className="mt-0.5 flex size-7 items-center justify-center rounded-full bg-[#e4eef9] text-navy">
+          <Info size={15} />
         </span>
         <div>
-          <p className="font-semibold">Need to update your details?</p>
-          <p className="text-muted">Contact the company admin to request changes to your details</p>
+          <p className="font-semibold">Need to update your details</p>
+          <p className="text-xs text-[#607080]">Contact the company admin to request changes to your details</p>
         </div>
       </div>
       <Link
         to="/portal/help/chat"
-        className="inline-flex h-10 items-center gap-2 rounded-full border border-[#d9d9d9] px-4 text-xs font-semibold text-navy"
+        className="inline-flex h-10 items-center gap-2 rounded-[8px] border border-[#d9d9d9] bg-white px-4 text-xs font-semibold text-navy"
       >
         <Mail size={14} />
         Contact Us
@@ -276,10 +292,17 @@ export function EmployeeInformationPage() {
   const personalEmail = employee
     ? pickContact(employee.email_type, employee.email, employee.extra_emails, 'Personal', 'address')
     : ''
-  const workingDays = str(employment.usual_working_days)
+  const storedWorkingDays = str(employment.usual_working_days)
     .split(',')
     .map((item) => item.trim())
     .filter(Boolean)
+  const workingDays = storedWorkingDays.length ? storedWorkingDays : DEFAULT_WORKING_DAYS
+  const leaveYearStarts = str(employment.leave_year_starts) || '6 April'
+  const leaveMethod =
+    str(employment.leave_calculation_method) || 'Set number of annual leave days'
+  const leaveDays = str(employment.annual_leave_entitlement) || '28'
+  const leaveWeeks = str(employment.leave_entitlement_weeks) || '5.6'
+  const minWageProfile = str(employment.min_wage_profile) || 'National Minimum/Living Wage'
   const scheduleName = str(employment.pay_schedule_name) || str(employment.pay_schedule_request)
   const payBasis = labelOf([...PAY_BASIS_OPTIONS], employment.pay_basis_type)
   const starterLabel = labelOf([...STARTER_DECLARATIONS], starter.starter_declaration)
@@ -346,46 +369,57 @@ export function EmployeeInformationPage() {
       </p>
       <h1 className="mt-2 text-[32px] font-semibold text-navy">My Profile</h1>
 
-      <div className="mt-6 grid items-start gap-5 xl:grid-cols-[260px_minmax(0,1fr)]">
-        <aside className="rounded-[10px] border border-[#d9d9d9] bg-white px-5 py-8 text-center">
+      <div className="mt-6 grid items-start gap-5 xl:grid-cols-[280px_minmax(0,1fr)]">
+        <aside className="rounded-[16px] border border-[#e6e4df] bg-white px-6 py-8 text-center">
           {employee.photo_url ? (
             <img
               src={assetUrl(employee.photo_url)}
               alt=""
-              className="mx-auto size-24 rounded-full object-cover"
+              className="mx-auto size-[92px] rounded-full object-cover"
             />
           ) : (
-            <span className="mx-auto flex size-24 items-center justify-center rounded-full bg-[#eef3fb] text-navy">
-              <User size={42} />
+            <span className="mx-auto flex size-[92px] items-center justify-center rounded-full bg-navy text-white">
+              <User size={46} strokeWidth={1.6} />
             </span>
           )}
-          <p className="mt-4 text-base font-semibold text-navy">{name}</p>
-          <p className="mt-2 inline-flex items-center gap-2 text-xs font-medium text-[#1b7d4f]">
-            <span className="size-2 rounded-full bg-[#22c55e]" />
+          <p className="mt-4 text-base font-semibold text-navy">{name === '—' ? 'Employee Name' : name}</p>
+          <p
+            className={`mt-3 inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold ${
+              isActive ? 'bg-[#e7f8ee] text-[#1b8a4a]' : 'bg-[#fdecee] text-brand'
+            }`}
+          >
+            <span className={`size-1.5 rounded-full ${isActive ? 'bg-[#22c55e]' : 'bg-brand'}`} />
             {isActive ? 'Active' : 'Leaver'}
           </p>
-          <dl className="mt-8 space-y-5 text-left text-xs text-navy">
-            <div className="flex items-start gap-3">
-              <CalendarDays size={16} className="mt-0.5 shrink-0" />
+          <div className="my-6 border-t border-[#eceae6]" />
+          <dl className="space-y-5 text-left text-xs text-navy">
+            <div className="flex items-center gap-3">
+              <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-[#eef3fb] text-navy">
+                <CalendarDays size={16} />
+              </span>
               <div>
                 <dt className="text-muted">Start Date</dt>
-                <dd className="mt-1 font-medium">
+                <dd className="mt-0.5 font-semibold">
                   {starter.start_date ? formatDate(String(starter.start_date)) : '—'}
                 </dd>
               </div>
             </div>
-            <div className="flex items-start gap-3">
-              <FileText size={16} className="mt-0.5 shrink-0" />
+            <div className="flex items-center gap-3">
+              <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-[#eef3fb] text-navy">
+                <FileText size={16} />
+              </span>
               <div>
                 <dt className="text-muted">Tax Code</dt>
-                <dd className="mt-1 font-medium">{str(tax.tax_code) || '—'}</dd>
+                <dd className="mt-0.5 font-semibold">{str(tax.tax_code) || '—'}</dd>
               </div>
             </div>
-            <div className="flex items-start gap-3">
-              <Landmark size={16} className="mt-0.5 shrink-0" />
+            <div className="flex items-center gap-3">
+              <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-[#eef3fb] text-navy">
+                <Landmark size={16} />
+              </span>
               <div>
                 <dt className="text-muted">NI number</dt>
-                <dd className="mt-1 font-medium">
+                <dd className="mt-0.5 font-semibold">
                   {formatNiNumber(tax.ni_number ? String(tax.ni_number) : null)}
                 </dd>
               </div>
@@ -394,7 +428,7 @@ export function EmployeeInformationPage() {
         </aside>
 
         <div>
-          <div className="flex gap-6 border-b border-[#eceae6] text-sm font-medium text-muted">
+          <div className="flex gap-6 overflow-x-auto rounded-[16px] border border-[#e6e4df] bg-white px-5 text-sm font-medium text-muted">
             {TABS.map((item) => (
               <button
                 key={item}
@@ -404,7 +438,7 @@ export function EmployeeInformationPage() {
                   setError(null)
                   setMessage(null)
                 }}
-                className={`-mb-px border-b-2 pb-3 ${
+                className={`shrink-0 border-b-2 py-4 ${
                   tab === item ? 'border-navy text-navy' : 'border-transparent hover:text-navy'
                 }`}
               >
@@ -521,7 +555,7 @@ export function EmployeeInformationPage() {
                 <Button
                   type="button"
                   variant="secondary"
-                  className="h-10 min-w-[105px] rounded-full text-xs"
+                  className="h-10 min-w-[105px] rounded-[8px] border-[#d9d9d9] text-xs"
                   onClick={() => {
                     setDraft(draftFromEmployee(employee))
                     setError(null)
@@ -532,7 +566,7 @@ export function EmployeeInformationPage() {
                 </Button>
                 <Button
                   type="button"
-                  className="h-10 min-w-[105px] rounded-full text-xs"
+                  className="h-10 min-w-[105px] rounded-[8px] text-xs"
                   disabled={saving || !personalReady || !isFormDirty(draft, draftFromEmployee(employee))}
                   onClick={() => void savePersonal()}
                 >
@@ -544,57 +578,77 @@ export function EmployeeInformationPage() {
 
           {tab === 'Employment' ? (
             <div className="mt-5 space-y-5">
-              <div className="grid gap-5 xl:grid-cols-2">
-                <Box title="Identification" icon={<CircleUser size={16} />}>
-                  <TextField label="Works Number" value={visibleWorksNumber(employee.employee_code)} readOnly />
-                </Box>
-                <Box title="Annual Leave" icon={<CalendarDays size={16} />}>
-                  <div className="grid gap-4">
-                    <TextField label="Leave year starts" value={str(employment.leave_year_starts)} readOnly />
-                    <TextField
-                      label="Annual leave calculation method"
-                      value={str(employment.leave_calculation_method)}
-                      readOnly
-                    />
-                    <div className="grid grid-cols-2 gap-3">
+              <div className="grid items-start gap-5 xl:grid-cols-2">
+                <div className="space-y-5">
+                  <Box title="Identification" icon={<CircleUser size={16} />}>
+                    <TextField label="Works Number" value={visibleWorksNumber(employee.employee_code)} readOnly />
+                  </Box>
+                  <Box title="Department(s)" icon={<Users size={16} />}>
+                    <TextField label="Department" value={str(employment.department)} readOnly />
+                  </Box>
+                  <Box title="Minimum Wage" icon={<span className="text-base font-semibold">£</span>}>
+                    <div className="grid gap-4">
+                      <TextField label="Minimum wage profile" value={minWageProfile} readOnly />
                       <TextField
-                        label="Annual leave entitlement"
-                        value={str(employment.annual_leave_entitlement)}
-                        suffix="days"
-                        readOnly
-                      />
-                      <TextField
-                        label=" "
-                        value={str(employment.leave_entitlement_weeks)}
-                        suffix="weeks"
+                        label="Typical hours worked per week"
+                        value={str(employment.typical_hours_per_week)}
                         readOnly
                       />
                     </div>
-                  </div>
-                </Box>
-                <Box title="Department(s)" icon={<Building2 size={16} />}>
-                  <TextField label="Department" value={str(employment.department)} readOnly />
-                </Box>
-                <Box title="Minimum Wage" icon={<Landmark size={16} />}>
-                  <div className="grid gap-4">
-                    <TextField label="Minimum wage profile" value={str(employment.min_wage_profile)} readOnly />
-                    <TextField
-                      label="Typical hours worked per week"
-                      value={str(employment.typical_hours_per_week)}
-                      readOnly
-                    />
-                  </div>
-                </Box>
-                <Box title="Usual Working days" icon={<Clock3 size={16} />} className="xl:col-span-2">
-                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                    {WEEKDAYS.map((day) => (
-                      <label key={day} className="flex items-center gap-2 text-xs text-navy">
-                        <input type="checkbox" checked={workingDays.includes(day)} readOnly disabled />
-                        {day}
-                      </label>
-                    ))}
-                  </div>
-                </Box>
+                  </Box>
+                </div>
+                <div className="space-y-5">
+                  <Box title="Annual Leave" icon={<CalendarDays size={16} />}>
+                    <div className="grid gap-4">
+                      <TextField label="Leave year starts" value={leaveYearStarts} readOnly />
+                      <TextField
+                        label="Annual Leave Calculation Method"
+                        value={leaveMethod}
+                        readOnly
+                      />
+                      <div>
+                        <span className="mb-1.5 block text-xs font-medium text-navy">Annual Leave Entitlement</span>
+                        <div className="flex items-center gap-2">
+                          <div className="min-w-0 flex-1">
+                            <TextField
+                              label="Days"
+                              hideLabel
+                              value={leaveDays}
+                              suffix="Days"
+                              readOnly
+                            />
+                          </div>
+                          <ArrowLeftRight size={16} className="shrink-0 text-muted" />
+                          <div className="min-w-0 flex-1">
+                            <TextField
+                              label="Weeks"
+                              hideLabel
+                              value={leaveWeeks}
+                              suffix="Weeks"
+                              readOnly
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </Box>
+                  <Box title="Usual Working Days" icon={<Clock3 size={16} />}>
+                    <div className="grid grid-cols-2 gap-y-3">
+                      {['Monday', 'Friday', 'Tuesday', 'Saturday', 'Wednesday', 'Sunday', 'Thursday'].map((day) => (
+                        <label key={day} className="flex items-center gap-2 text-xs text-navy">
+                          <input
+                            type="checkbox"
+                            className="size-3.5 accent-[#9aa3ad]"
+                            checked={workingDays.includes(day)}
+                            readOnly
+                            disabled
+                          />
+                          {day}
+                        </label>
+                      ))}
+                    </div>
+                  </Box>
+                </div>
               </div>
               <ContactAdmin />
             </div>
@@ -618,8 +672,8 @@ export function EmployeeInformationPage() {
                   <TextField label="How is pay worked out?" value={payBasis} readOnly />
                   <TextField label="Starter declaration" value={starterLabel} readOnly />
                   <label className="sm:col-span-2 flex items-center gap-2 text-xs text-navy">
-                    <input type="checkbox" checked={Boolean(starter.overseas_secondment)} readOnly disabled />
-                    Tick if employee continues to be employed by an overseas employer
+                    <input type="checkbox" className="size-3.5 accent-[#9aa3ad]" checked={Boolean(starter.overseas_secondment)} readOnly disabled />
+                    Tick if employee continues to be employed by an overseas employer (who has sent this individual to work for you)
                   </label>
                 </div>
                 <div className="mt-5">
@@ -643,7 +697,7 @@ export function EmployeeInformationPage() {
               <div className="grid gap-5 xl:grid-cols-2">
                 <Box title="TUPE" icon={<Shield size={16} />}>
                   <label className="flex items-center gap-2 text-xs text-navy">
-                    <input type="checkbox" checked={Boolean(starter.tupe_protected)} readOnly disabled />
+                    <input type="checkbox" className="size-3.5 accent-[#9aa3ad]" checked={Boolean(starter.tupe_protected)} readOnly disabled />
                     Employee is protected under the Transfer of Undertakings (Protection of Employment) Regulations
                   </label>
                   <div className="mt-4">
@@ -692,18 +746,27 @@ export function EmployeeInformationPage() {
                       readOnly
                     />
                   </div>
-                  <div className="rounded-[16px] bg-[#f4f7fb] px-5 py-6 text-center">
-                    <CalendarDays size={22} className="mx-auto text-navy" />
+                  <div className="rounded-[16px] border border-[#d5e3f4] bg-[#f7fafd] px-5 py-6 text-center">
+                    <span className="mx-auto flex size-12 items-center justify-center rounded-full bg-navy text-white">
+                      <CalendarDays size={20} />
+                    </span>
                     <p className="mt-3 text-xs text-muted">Next Pay Date</p>
                     <p className="mt-1 text-xl font-semibold text-navy">
-                      {nextPay?.pay_date ? formatLongDate(nextPay.pay_date) : 'Not set'}
+                      {nextPay?.pay_date
+                        ? new Date(nextPay.pay_date).toLocaleDateString('en-GB', {
+                            day: 'numeric',
+                            month: 'short',
+                            year: 'numeric',
+                            timeZone: 'UTC',
+                          })
+                        : 'Not set'}
                     </p>
-                    <p className="mt-2 text-xs text-muted">
+                    <p className="mt-2 text-xs text-[#607080]">
                       {frequency ? `${frequency} Schedule` : 'Schedule'}
                       {nextPay?.tax_week ? ` (Week ${nextPay.tax_week})` : ''}
                     </p>
-                    <p className="mt-3 inline-flex items-center gap-2 text-xs font-medium text-[#1b7d4f]">
-                      <span className="size-2 rounded-full bg-[#22c55e]" />
+                    <p className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-[#e7f8ee] px-3 py-1 text-xs font-semibold text-[#1b8a4a]">
+                      <span className="size-1.5 rounded-full bg-[#22c55e]" />
                       {nextPay ? 'Scheduled' : 'Not scheduled'}
                     </p>
                   </div>
@@ -736,7 +799,7 @@ export function EmployeeInformationPage() {
           {tab === 'Tax, NICs, RTI' ? (
             <div className="mt-5 space-y-5">
               <div className="grid gap-5 xl:grid-cols-2">
-                <Box title="TAX" icon={<FileText size={16} />}>
+                <Box title="Tax" icon={<FileText size={16} />}>
                   <TextField label="Tax Code" value={str(tax.tax_code)} readOnly />
                   <p className="mt-3 text-[11px] leading-4 text-[#607080]">
                     If this person already has finalised payslips this tax year, the new code applies from the next
@@ -744,7 +807,7 @@ export function EmployeeInformationPage() {
                     calculation.
                   </p>
                   <label className="mt-4 flex items-center gap-2 text-xs text-navy">
-                    <input type="checkbox" checked={Boolean(tax.week1month1)} readOnly disabled />
+                    <input type="checkbox" className="size-3.5 accent-[#9aa3ad]" checked={Boolean(tax.week1month1)} readOnly disabled />
                     Week 1 / Month 1 basis
                   </label>
                 </Box>
@@ -758,11 +821,11 @@ export function EmployeeInformationPage() {
                     <TextField label="Category" value={str(tax.ni_category)} readOnly />
                   </div>
                   <label className="mt-4 flex items-center gap-2 text-xs text-navy">
-                    <input type="checkbox" checked={Boolean(tax.is_director)} readOnly disabled />
+                    <input type="checkbox" className="size-3.5 accent-[#9aa3ad]" checked={Boolean(tax.is_director)} readOnly disabled />
                     Employee is/was a director during the tax year
                   </label>
                   <label className="mt-3 flex items-center gap-2 text-xs text-navy">
-                    <input type="checkbox" checked={Boolean(tax.secondary_nics_not_due)} readOnly disabled />
+                    <input type="checkbox" className="size-3.5 accent-[#9aa3ad]" checked={Boolean(tax.secondary_nics_not_due)} readOnly disabled />
                     Secondary Class 1 NICs are not due for this employee
                   </label>
                 </Box>

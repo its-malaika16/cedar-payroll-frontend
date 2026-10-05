@@ -911,7 +911,6 @@ export function EmployeeWorkspace() {
                 <Field label="Works Number" hint="generated automatically">
                   <Input
                     readOnly
-                    maxLength={5}
                     placeholder="CP101"
                     value={draft.works_number}
                     className="bg-[#f8f7f4]"
@@ -1783,10 +1782,7 @@ function niCategoryLabel(value: string) {
 }
 
 function visibleWorksNumber(code?: string | null) {
-  const value = (code ?? '').trim()
-  if (!value) return ''
-  if (/^EMP-\d{8}-\d{4}$/.test(value) || /^EMP-\d+$/.test(value)) return ''
-  return value
+  return (code ?? '').trim()
 }
 
 function workingDayCount(days: string[]) {

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import {
@@ -7,7 +7,7 @@ import {
   RefreshCw,
   SlidersHorizontal,
 } from 'lucide-react'
-import { payrollApi, payslipsApi } from '../../api'
+import { companiesApi, payrollApi, payslipsApi } from '../../api'
 import { useAuth } from '../../auth/AuthContext'
 import { Alert, Button, Loading } from '../../components/ui'
 import { formatLongDate, fullName, idOf, isEmployeeOnPayrollRun, sortByEmployeeName } from '../../lib/format'
@@ -17,6 +17,12 @@ import { CreateSendMenu, payslipList, toolbarBtn } from './CreateSendMenu'
 import { PayrollMoreMenu } from './PayrollMoreMenu'
 import { PayrollSchedulesMenu } from './PayrollSchedulesMenu'
 import { payrollListPathFromRun } from './payrollNavigation'
+import { PayslipCustomisePanel } from './PayslipCustomisePanel'
+import {
+  DEFAULT_PAYSLIP_DISPLAY_OPTIONS,
+  parsePayslipDisplayOptions,
+  type PayslipDisplayOptions,
+} from './payslipDisplayOptions'
 
 const DEFAULT_BODY = `Dear [First name] [Surname],
 
@@ -27,15 +33,45 @@ If you have any questions, please contact payroll.
 Kind regards,
 [employer-name]`
 
-function fillBody(
+const DEFAULT_SUBJECT = '[employee-name] - [schedule] - ending [period-end-date]'
+
+function scheduleWord(frequency?: string | null) {
+  switch (String(frequency ?? '').toUpperCase()) {
+    case 'WEEKLY':
+      return 'Weekly'
+    case 'MONTHLY':
+      return 'Monthly'
+    case 'FORTNIGHTLY':
+      return 'Fortnightly'
+    case 'FOUR_WEEKLY':
+      return '4-Weekly'
+    default:
+      return (
+        String(frequency ?? '')
+          .replace(/_/g, ' ')
+          .toLowerCase()
+          .replace(/\b\w/g, (letter) => letter.toUpperCase()) || 'Payroll'
+      )
+  }
+}
+
+function employeeDisplayName(employee: { first?: string | null; last?: string | null }) {
+  return [employee.first, employee.last].filter(Boolean).join(' ').trim() || 'Employee'
+}
+
+function fillEmail(
   template: string,
   employee: { first?: string | null; last?: string | null },
   periodEnd?: string | null,
   employer?: string,
+  schedule?: string,
 ) {
+  const name = employeeDisplayName(employee)
   return template
+    .replaceAll('[employee-name]', name)
     .replaceAll('[First name]', employee.first || 'Employee')
     .replaceAll('[Surname]', employee.last || '')
+    .replaceAll('[schedule]', schedule || '')
     .replaceAll('[period-end-date]', periodEnd ? formatLongDate(periodEnd) : '')
     .replaceAll('[employer-name]', employer || 'your employer')
 }
@@ -79,8 +115,19 @@ export function PayslipDispatchPage() {
   const [replyTo, setReplyTo] = useState(user?.email ?? '')
   const [cc, setCc] = useState('')
   const [securePdf, setSecurePdf] = useState(false)
+  const [subject, setSubject] = useState(DEFAULT_SUBJECT)
   const [body, setBody] = useState(DEFAULT_BODY)
   const [pack, setPack] = useState<'single' | 'zip'>('single')
+  const [displayOptions, setDisplayOptions] = useState<PayslipDisplayOptions>(
+    DEFAULT_PAYSLIP_DISPLAY_OPTIONS,
+  )
+  const saveTimer = useRef<number | null>(null)
+
+  const companyQuery = useQuery({
+    queryKey: ['company', companyId],
+    queryFn: () => companiesApi.get(companyId!),
+    enabled: Boolean(companyId),
+  })
 
   const runQuery = useQuery({
     queryKey: ['payroll-run', companyId, runId],
@@ -103,6 +150,26 @@ export function PayslipDispatchPage() {
     setSelected(records.map((record) => idOf(record)))
   }, [preselect, records.length])
 
+  useEffect(() => {
+    if (!companyQuery.data?.data) return
+    setDisplayOptions(parsePayslipDisplayOptions(companyQuery.data.data.payslip_display_options))
+  }, [companyQuery.dataUpdatedAt])
+
+  async function persistDisplayOptions(next: PayslipDisplayOptions) {
+    if (!companyId) return
+    await companiesApi.update(companyId, { payslip_display_options: next })
+  }
+
+  function changeDisplayOptions(next: PayslipDisplayOptions) {
+    setDisplayOptions(next)
+    if (saveTimer.current) window.clearTimeout(saveTimer.current)
+    saveTimer.current = window.setTimeout(() => {
+      void persistDisplayOptions(next).catch((err) => {
+        setError(err instanceof Error ? err.message : 'Could not save payslip options')
+      })
+    }, 400)
+  }
+
   const selectedRecords = useMemo(
     () => records.filter((record) => selected.includes(idOf(record))),
     [records, selected],
@@ -121,6 +188,11 @@ export function PayslipDispatchPage() {
   async function ensurePayslips() {
     if (!companyId) throw new Error('Select a company first')
     if (selected.length === 0) throw new Error('Select at least one employee')
+    if (saveTimer.current) {
+      window.clearTimeout(saveTimer.current)
+      saveTimer.current = null
+      await persistDisplayOptions(displayOptions)
+    }
     for (const recordId of selected) {
       await payslipsApi.generateRecord(companyId, runId, recordId)
     }
@@ -216,28 +288,37 @@ export function PayslipDispatchPage() {
     setError(null)
     setBusy(true)
     try {
-      const slips = await ensurePayslips()
-      const emails = selectedRecords
-        .map((record) => record.employees?.email)
-        .filter((email): email is string => Boolean(email))
+      if (!companyId) throw new Error('Select a company first')
+      if (saveTimer.current) {
+        window.clearTimeout(saveTimer.current)
+        saveTimer.current = null
+        await persistDisplayOptions(displayOptions)
+      }
       const sample = selectedRecords[0]
-      const filled = fillBody(
-        body,
+      const sampleName = employeeDisplayName({
+        first: sample?.employees?.first_name,
+        last: sample?.employees?.last_name,
+      })
+      const filledSubject = fillEmail(
+        subject,
         { first: sample?.employees?.first_name, last: sample?.employees?.last_name },
         run?.period_end_date,
         companyName,
+        scheduleWord(run?.pay_frequency),
       )
-      const subject = `Payslip — ${periodLabel} ${formatLongDate(run?.period_end_date)}`
-      const mailto = [
-        `mailto:${emails.join(',')}`,
-        `?subject=${encodeURIComponent(subject)}`,
-        `&body=${encodeURIComponent(filled)}`,
-        cc ? `&cc=${encodeURIComponent(cc)}` : '',
-      ].join('')
-      window.location.href = mailto
-      setMessage(
-        `${slips.length} payslip PDF${slips.length === 1 ? '' : 's'} generated. Your email client will open for ${emails.length || selected.length} recipient${emails.length === 1 ? '' : 's'}.`,
-      )
+      const subjectToSend =
+        sampleName && sampleName !== 'Employee' && filledSubject.includes(sampleName)
+          ? filledSubject.replaceAll(sampleName, '[employee-name]')
+          : subject
+
+      const result = await payslipsApi.send(companyId, runId, {
+        record_ids: selected,
+        subject: subjectToSend,
+        body,
+        reply_to: replyTo.trim() || undefined,
+        cc: cc.trim() || undefined,
+      })
+      setMessage(result.message || 'Payslip emails sent.')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not send payslips')
     } finally {
@@ -304,7 +385,7 @@ export function PayslipDispatchPage() {
         </div>
       ) : null}
 
-      <div className="mt-6 grid min-h-0 gap-4 xl:grid-cols-[minmax(280px,340px)_minmax(0,1fr)]">
+      <div className="mt-6 grid min-h-0 gap-4 xl:grid-cols-[minmax(260px,320px)_minmax(0,1fr)_minmax(280px,360px)]">
         <section className="flex min-h-[520px] flex-col overflow-hidden rounded-[10px] border border-[#d9d9d9] bg-white">
           <div className="border-b border-[#d9d9d9] px-5 py-4">
             <h2 className="text-base font-semibold text-navy">Email Payslip PDFs</h2>
@@ -385,6 +466,23 @@ export function PayslipDispatchPage() {
             <>
               <h2 className="text-base font-semibold text-navy">Email Content</h2>
               <label className="mt-5 block">
+                <span className="mb-1.5 block text-xs font-medium text-navy">Subject</span>
+                <input
+                  className="h-[35px] w-full rounded-[6px] border-[0.5px] border-[#d9d9d9] px-3 text-xs text-navy outline-none"
+                  value={fillEmail(
+                    subject,
+                    {
+                      first: selectedRecords[0]?.employees?.first_name,
+                      last: selectedRecords[0]?.employees?.last_name,
+                    },
+                    run.period_end_date,
+                    companyName,
+                    scheduleWord(run.pay_frequency),
+                  )}
+                  onChange={(event) => setSubject(event.target.value)}
+                />
+              </label>
+              <label className="mt-4 block">
                 <span className="mb-1.5 block text-xs font-medium text-navy">Reply to</span>
                 <input
                   className="h-[35px] w-full rounded-[6px] border-[0.5px] border-[#d9d9d9] px-3 text-xs text-navy outline-none"
@@ -427,12 +525,26 @@ export function PayslipDispatchPage() {
                   disabled={busy || selected.length === 0}
                   onClick={() => {
                     const sample = selectedRecords[0]
-                    setBody(
-                      fillBody(
-                        DEFAULT_BODY,
-                        { first: sample?.employees?.first_name, last: sample?.employees?.last_name },
+                    const sampleEmployee = {
+                      first: sample?.employees?.first_name,
+                      last: sample?.employees?.last_name,
+                    }
+                    setSubject(
+                      fillEmail(
+                        DEFAULT_SUBJECT,
+                        sampleEmployee,
                         run.period_end_date,
                         companyName,
+                        scheduleWord(run.pay_frequency),
+                      ),
+                    )
+                    setBody(
+                      fillEmail(
+                        DEFAULT_BODY,
+                        sampleEmployee,
+                        run.period_end_date,
+                        companyName,
+                        scheduleWord(run.pay_frequency),
                       ),
                     )
                     void previewFirst()
@@ -446,6 +558,15 @@ export function PayslipDispatchPage() {
               </div>
             </>
           )}
+        </section>
+
+        <section className="flex min-h-[520px] flex-col overflow-hidden rounded-[10px] border border-[#d9d9d9] bg-white">
+          <div className="border-b border-[#d9d9d9] px-5 py-3">
+            <h2 className="text-base font-semibold text-navy">Customise</h2>
+          </div>
+          <div className="min-h-0 flex-1 overflow-y-auto p-5">
+            <PayslipCustomisePanel options={displayOptions} onChange={changeDisplayOptions} />
+          </div>
         </section>
       </div>
     </div>

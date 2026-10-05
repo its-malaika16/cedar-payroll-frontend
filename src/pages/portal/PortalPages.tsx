@@ -8,25 +8,40 @@ import {
   EmptyState,
   Loading,
 } from '../../components/ui'
-import { formatDate, formatPayslipPeriod, idOf, money } from '../../lib/format'
+import { formatDate, fullName, idOf, money } from '../../lib/format'
 import { PayslipPreviewModal } from '../payroll/PayslipPreviewModal'
 
 export { PortalAttendancePage } from './EmployeeAttendancePage'
 export { PortalLeavePage } from './EmployeeLeavePage'
 export { PortalDocumentsPage } from './EmployeeDocumentsPage'
 
-function payslipName(item: Record<string, unknown>) {
-  const file = String(item.file_name ?? '').replace(/\.pdf$/i, '').trim()
-  if (file) return file
+function payPeriodWord(frequency?: string | null) {
+  switch (String(frequency ?? '').toUpperCase()) {
+    case 'MONTHLY':
+      return 'month'
+    case 'WEEKLY':
+      return 'week'
+    case 'FORTNIGHTLY':
+      return 'fortnight'
+    case 'FOUR_WEEKLY':
+      return '4-week'
+    default:
+      return 'period'
+  }
+}
+
+function payslipName(employeeName: string, item: Record<string, unknown>) {
   const run = item.payroll_runs as
-    | { period_start_date?: string; period_end_date?: string; pay_frequency?: string }
+    | { period_end_date?: string; pay_date?: string; pay_frequency?: string }
     | undefined
-  const period = formatPayslipPeriod(run?.period_start_date, run?.period_end_date, run?.pay_frequency)
-  return period === '—' ? 'Payslip' : period
+  const ending = formatDate(run?.period_end_date || run?.pay_date)
+  const name = employeeName.trim() && employeeName.trim() !== '—' ? employeeName.trim() : 'Employee'
+  if (ending === '—') return `${name} - Pay Slip`
+  return `${name} - Pay Slip for ${payPeriodWord(run?.pay_frequency)} ending ${ending}`
 }
 
 export function PortalPayslipsPage() {
-  const { companyId, currentEmployee } = useAuth()
+  const { companyId, currentEmployee, user } = useAuth()
   const employeeId = currentEmployee?.employee_id
   const [preview, setPreview] = useState<{ runId: string; recordId: string } | null>(null)
   const query = useQuery({
@@ -35,6 +50,10 @@ export function PortalPayslipsPage() {
     enabled: Boolean(companyId && employeeId),
   })
   const list = (query.data?.data as Record<string, unknown>[] | undefined) ?? []
+  const employeeName = fullName(
+    currentEmployee?.first_name ?? user?.first_name,
+    currentEmployee?.last_name ?? user?.last_name,
+  )
 
   return (
     <div>
@@ -74,10 +93,11 @@ export function PortalPayslipsPage() {
                   const record = item.payroll_records as { id?: unknown } | undefined
                   const runId = String(item.payroll_run_id ?? run?.id ?? '')
                   const recordId = String(item.payroll_record_id ?? record?.id ?? '')
-                  const fileName = String(item.file_name ?? 'payslip.pdf')
+                  const label = payslipName(employeeName, item)
+                  const fileName = `${label}.pdf`
                   return (
                     <tr key={idOf(item)} className="border-b border-[#f0eeea] last:border-b-0">
-                      <td className="px-6 py-5 font-medium text-navy">{payslipName(item)}</td>
+                      <td className="px-6 py-5 font-medium text-navy">{label}</td>
                       <td className="px-6 py-5 text-navy">{formatDate(run?.pay_date)}</td>
                       <td className="px-6 py-5 text-navy">{money(item.take_home_pay)}</td>
                       <td className="px-6 py-5">

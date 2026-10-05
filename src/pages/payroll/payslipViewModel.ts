@@ -1,4 +1,5 @@
 import {
+  formatLongDate,
   formatNiNumber,
   formatPayslipForLabel,
   formatPayslipPeriod,
@@ -6,6 +7,7 @@ import {
   fullName,
 } from '../../lib/format'
 import type { Company, Employee, PayrollPayLine, PayrollRecord, PayrollRun } from '../../types'
+import { parsePayslipDisplayOptions, type PayslipDisplayOptions } from './payslipDisplayOptions'
 
 export type PayslipLine = {
   description: string
@@ -42,9 +44,27 @@ export type PayslipViewModel = {
     taxPaid: number
     employeeNi: number
     employerNi: number
+    employerPension: number
     netPay: number
   }
   year: number
+  display: PayslipDisplayOptions
+  worksNumber: string
+  dateOfBirth: string
+  gender: string
+  director: string
+  niTable: string
+  studentLoanPlan: string
+  startDate: string
+  leaveDate: string
+  paymentDate: string
+  periodNumber: string
+  taxWeekNumber: string
+  taxMonthNumber: string
+  employerAddress: string
+  notes: string
+  statutoryPayYtd: number
+  employerPensionYtd: number
 }
 
 function amount(value: unknown) {
@@ -99,6 +119,13 @@ export function buildPayslipViewModel(
     company_name?: string | null
     trading_name?: string | null
     paye_reference?: string | null
+    address?: string | null
+    address_line_1?: string | null
+    address_line_2?: string | null
+    address_line_3?: string | null
+    address_line_4?: string | null
+    postcode?: string | null
+    payslip_display_options?: Record<string, boolean> | null
   } | Company | null,
 ): PayslipViewModel {
   const hourlyRate = amount(record.wage_per_hour)
@@ -122,8 +149,10 @@ export function buildPayslipViewModel(
     })
   }
 
+  const display = parsePayslipDisplayOptions(company?.payslip_display_options)
   pushEarning('Basic Salary', record.basic_pay, amount(record.total_hours), hourlyRate)
   for (const line of extraPay) {
+    if (!display.benefitDescriptions && line.kind === 'benefit') continue
     const n = payLineAmount(line)
     if (n === 0) continue
     earnings.push({
@@ -194,11 +223,31 @@ export function buildPayslipViewModel(
   const payDate = run?.pay_date ?? record.pay_date
   const companyName =
     String(company?.trading_name ?? '').trim() || String(company?.company_name ?? '').trim()
+  const starter = firstRecord(employee?.starters_leavers)
+  if (display.notionalPay) {
+    const notional = extraPay
+      .filter((line) => line.notional)
+      .reduce((sum, line) => sum + payLineAmount(line), 0)
+    if (notional > 0) earnings.push({ description: 'Notional pay', amount: notional })
+  }
+  const first = employee?.first_name ?? record.employees?.first_name
+  const last = employee?.last_name ?? record.employees?.last_name
+  const middle = display.employeeMiddleName ? employee?.middle_name : ''
+  const companyAddress = [
+    company?.address_line_1,
+    company?.address_line_2,
+    company?.address_line_3,
+    company?.address_line_4,
+    company?.postcode,
+  ]
+    .map((line) => String(line ?? '').trim())
+    .filter(Boolean)
+    .join(', ') || String(company?.address ?? '').trim()
 
   return {
     companyName,
     payeReference: String(company?.paye_reference ?? '').trim(),
-    employeeName: fullName(employee?.first_name ?? record.employees?.first_name, employee?.last_name ?? record.employees?.last_name),
+    employeeName: [first, middle, last].map((part) => String(part ?? '').trim()).filter(Boolean).join(' ') || fullName(first, last),
     department: String(employment.department ?? '').trim() || '—',
     address: formatAddress(employee) || '—',
     taxCode: formatTaxCodeWithBasis(
@@ -211,7 +260,7 @@ export function buildPayslipViewModel(
     payslipFor: formatPayslipForLabel(run?.period_end_date ?? run?.period_start_date, run?.pay_frequency),
     netPay,
     earnings,
-    totalEarnings,
+    totalEarnings: amount(earnings.reduce((sum, line) => sum + line.amount, 0)),
     deductions,
     totalDeductions,
     ytd: {
@@ -227,8 +276,26 @@ export function buildPayslipViewModel(
       taxPaid: amount(record.tax),
       employeeNi: amount(record.employee_nic),
       employerNi: amount(record.employer_nic),
+      employerPension: amount(record.employer_pension),
       netPay,
     },
     year: payDate ? new Date(payDate).getUTCFullYear() : new Date().getFullYear(),
+    display,
+    worksNumber: String(employee?.employee_code ?? '').trim(),
+    dateOfBirth: formatLongDate(employee?.dob),
+    gender: String(employee?.gender ?? '').replaceAll('_', ' '),
+    director: tax.is_director ? 'Yes' : 'No',
+    niTable: String(tax.ni_category ?? '').trim(),
+    studentLoanPlan: String(tax.student_loan_plan ?? '').trim(),
+    startDate: formatLongDate(starter.start_date as string | undefined),
+    leaveDate: formatLongDate(starter.leave_date as string | undefined),
+    paymentDate: formatLongDate(payDate),
+    periodNumber: run?.period_number != null ? String(run.period_number) : '',
+    taxWeekNumber: run?.tax_week != null ? String(run.tax_week) : '',
+    taxMonthNumber: run?.tax_month != null ? String(run.tax_month) : '',
+    employerAddress: companyAddress,
+    notes: String(record.employee_notes ?? '').trim(),
+    statutoryPayYtd: amount(thisEmployment?.total_statutory_pay ?? record.total_statutory_pay),
+    employerPensionYtd: amount(thisEmployment?.employer_pension),
   }
 }

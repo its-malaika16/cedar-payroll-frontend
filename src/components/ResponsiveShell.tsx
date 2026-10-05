@@ -6,12 +6,14 @@ export function ResponsiveShell({
   sidebar,
   headerLeft,
   headerRight,
+  headerClassName,
   footer,
   children,
 }: {
   sidebar: ReactNode
   headerLeft?: ReactNode
   headerRight?: ReactNode
+  headerClassName?: string
   footer?: ReactNode
   children: ReactNode
 }) {

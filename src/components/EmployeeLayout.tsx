@@ -1,46 +1,63 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
-import { Home, Search } from 'lucide-react'
+import {
+  Bell,
+  CalendarClock,
+  CircleHelp,
+  ClipboardList,
+  createLucideIcon,
+  FileText,
+  Home,
+  Search,
+  Settings,
+  User,
+  type LucideIcon,
+} from 'lucide-react'
 import { ResponsiveShell } from './ResponsiveShell'
 import { useAuth } from '../auth/AuthContext'
-import { BrandIcon } from './BrandIcon'
 import { fullName } from '../lib/format'
 import sidebarLogo from '../assets/brand/sidebar-logo.png'
-import iconEmployees from '../assets/brand/icon-employees.png'
-import iconPayroll from '../assets/brand/icon-payroll.png'
-import iconRota from '../assets/brand/icon-rota.png'
-import iconTimesheets from '../assets/brand/icon-timesheets.png'
-import iconForms from '../assets/brand/icon-forms.png'
-import iconActivityDoc from '../assets/brand/icon-activity-doc.png'
-import iconNotifications from '../assets/brand/icon-notifications.png'
-import iconHelp from '../assets/brand/icon-help.png'
-import iconSettings from '../assets/brand/icon-settings.png'
 import { useEffect, useRef, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { notificationsApi } from '../api'
 import { PortalSwitchButton } from './PortalSwitcher'
 
+const CalendarUser = createLucideIcon('calendar-user', [
+  ['path', { d: 'M8 2v4' }],
+  ['path', { d: 'M16 2v4' }],
+  ['rect', { width: '18', height: '18', x: '3', y: '4', rx: '2' }],
+  ['path', { d: 'M3 10h18' }],
+  ['circle', { cx: '12', cy: '15', r: '2' }],
+  ['path', { d: 'M8.5 20a3.5 3.5 0 0 1 7 0' }],
+])
+
+const LeaveIcon = createLucideIcon('leave', [
+  ['circle', { cx: '9', cy: '7', r: '4' }],
+  ['path', { d: 'M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2' }],
+  ['circle', { cx: '19', cy: '16', r: '3.5' }],
+  ['path', { d: 'm16.6 18.4 4.8-4.8' }],
+])
+
 type NavItem = {
   to: string
   label: string
-  icon?: string
-  home?: boolean
+  icon: LucideIcon
   end?: boolean
 }
 
 const mainNav: NavItem[] = [
-  { to: '/portal', label: 'Dashboard', home: true, end: true },
-  { to: '/portal/information', label: 'My Profile', icon: iconEmployees },
-  { to: '/portal/payslips', label: 'Payslip', icon: iconPayroll },
-  { to: '/portal/rota', label: 'Rota', icon: iconRota },
-  { to: '/portal/attendance', label: 'Attendance', icon: iconTimesheets },
-  { to: '/portal/leave', label: 'Leave', icon: iconForms },
-  { to: '/portal/documents', label: 'Documents', icon: iconActivityDoc },
+  { to: '/portal', label: 'Dashboard', icon: Home, end: true },
+  { to: '/portal/information', label: 'My Profile', icon: User },
+  { to: '/portal/payslips', label: 'Payslip', icon: ClipboardList },
+  { to: '/portal/rota', label: 'Rota', icon: CalendarClock },
+  { to: '/portal/attendance', label: 'Attendance', icon: CalendarUser },
+  { to: '/portal/leave', label: 'Leave', icon: LeaveIcon },
+  { to: '/portal/documents', label: 'Documents', icon: FileText },
 ]
 
 const footerNav: NavItem[] = [
-  { to: '/portal/notifications', label: 'Notifications', icon: iconNotifications },
-  { to: '/portal/help', label: 'Help', icon: iconHelp },
-  { to: '/portal/profile', label: 'Settings', icon: iconSettings },
+  { to: '/portal/notifications', label: 'Notifications', icon: Bell },
+  { to: '/portal/help', label: 'Help', icon: CircleHelp },
+  { to: '/portal/profile', label: 'Settings', icon: Settings },
 ]
 
 function initials(first?: string | null, last?: string | null) {
@@ -64,11 +81,7 @@ function SidebarLink({ item, unread = 0 }: { item: NavItem; unread?: number }) {
           {isActive ? (
             <span className="absolute top-0 left-0 h-full w-[6.5px] rounded-l-[9px] bg-brand" />
           ) : null}
-          {item.home ? (
-            <Home size={22} strokeWidth={2.2} className="shrink-0" />
-          ) : (
-            <BrandIcon src={item.icon!} alt="" className="size-[22px]" tone="navy" />
-          )}
+          <item.icon size={22} strokeWidth={1.8} className="shrink-0" />
           <span>{item.label}</span>
           {item.to === '/portal/notifications' && unread > 0 ? (
             <span

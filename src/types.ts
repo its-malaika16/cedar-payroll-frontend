@@ -66,6 +66,8 @@ export type EmployeePortalDashboard = {
     pay_frequency?: string | null
   } | null
   tax_year: number
+  pay_frequency?: string | null
+  pay_series?: Array<{ period: number; amount: number }>
   monthly_pay: Array<{ month: number; amount: number }>
   next_shift: {
     shift_date: string
@@ -175,6 +177,7 @@ export type Company = {
   small_employers_relief?: boolean | null
   expenses_benefits_method?: string | null
   employer_defaults?: EmployerDefaults | null
+  payslip_display_options?: Record<string, boolean> | null
   latitude?: string | number | null
   longitude?: string | number | null
   attendance_radius_meters?: number

@@ -47,9 +47,37 @@ function SummaryRow({
 }
 
 export function PayslipDocument({ model }: { model: PayslipViewModel }) {
+  const display = model.display
   const employerLine = [model.companyName, model.payeReference ? `Paye ref ${model.payeReference}` : '']
     .filter(Boolean)
     .join(' - ')
+  const periodLines = [
+    display.periodEndDate ? model.payslipFor : '',
+    display.periodNumber && model.periodNumber ? `Pay period ${model.periodNumber}` : '',
+    display.taxWeekEndDate ? model.payslipFor.replace('Payslip for ', 'Tax week ending ') : '',
+    display.taxWeekNumber && model.taxWeekNumber ? `Tax week ${model.taxWeekNumber}` : '',
+    display.taxMonthEndDate ? model.payslipFor.replace('Payslip for ', 'Tax month ending ') : '',
+    display.taxMonthNumber && model.taxMonthNumber ? `Tax month ${model.taxMonthNumber}` : '',
+    display.paymentDate && model.paymentDate ? `Payment date ${model.paymentDate}` : '',
+  ].filter(Boolean)
+  const infoFields = [
+    display.employeeAddress ? { label: 'ADDRESS', value: model.address } : null,
+    display.employeeDepartment ? { label: 'DEPARTMENT', value: model.department } : null,
+    { label: 'TAX CODE', value: model.taxCode },
+    { label: 'NI NUMBER', value: model.niNumber },
+    display.employeeWorksNumber && model.worksNumber
+      ? { label: 'WORKS NUMBER', value: model.worksNumber }
+      : null,
+    display.employeeDob && model.dateOfBirth ? { label: 'DATE OF BIRTH', value: model.dateOfBirth } : null,
+    display.employeeGender && model.gender ? { label: 'GENDER', value: model.gender } : null,
+    display.employeeDirector ? { label: 'DIRECTOR', value: model.director } : null,
+    display.employeeNiTable && model.niTable ? { label: 'NI TABLE', value: model.niTable } : null,
+    display.employeeStudentLoanPlan && model.studentLoanPlan
+      ? { label: 'STUDENT LOAN', value: model.studentLoanPlan }
+      : null,
+    display.employeeStartDate && model.startDate ? { label: 'START DATE', value: model.startDate } : null,
+    display.employeeLeaveDate && model.leaveDate ? { label: 'LEAVE DATE', value: model.leaveDate } : null,
+  ].filter((item): item is { label: string; value: string } => Boolean(item))
 
   return (
     <div className="bg-white" style={{ minHeight: '297mm' }}>
@@ -61,20 +89,22 @@ export function PayslipDocument({ model }: { model: PayslipViewModel }) {
                 ? model.employeeName
                 : 'Payslip'}
             </h2>
-            {model.employeeName && model.employeeName !== '—' ? (
-              <p className="mt-2 text-[15px] font-medium leading-snug" style={{ color: NAVY }}>
-                {model.payslipFor}
+            {periodLines.map((line) => (
+              <p key={line} className="mt-2 text-[15px] font-medium leading-snug" style={{ color: NAVY }}>
+                {line}
               </p>
-            ) : null}
+            ))}
           </div>
-          <div className="text-right">
-            <p className="text-[11px] font-semibold tracking-[0.08em]" style={{ color: NAVY }}>
-              NET PAY
-            </p>
-            <p className="mt-1 text-[28px] font-semibold leading-none" style={{ color: NAVY }}>
-              {money(model.netPay)}
-            </p>
-          </div>
+          {display.netPay ? (
+            <div className="text-right">
+              <p className="text-[11px] font-semibold tracking-[0.08em]" style={{ color: NAVY }}>
+                NET PAY
+              </p>
+              <p className="mt-1 text-[28px] font-semibold leading-none" style={{ color: NAVY }}>
+                {money(model.netPay)}
+              </p>
+            </div>
+          ) : null}
         </div>
 
         <section className="mt-8 overflow-hidden rounded-[8px] border border-[#e4e7ec]">
@@ -82,10 +112,9 @@ export function PayslipDocument({ model }: { model: PayslipViewModel }) {
             PERSONAL INFORMATION
           </div>
           <div className="grid gap-x-8 gap-y-5 px-4 py-4 sm:grid-cols-2">
-            <InfoField label="ADDRESS" value={model.address} />
-            <InfoField label="DEPARTMENT" value={model.department} />
-            <InfoField label="TAX CODE" value={model.taxCode} />
-            <InfoField label="NI NUMBER" value={model.niNumber} />
+            {infoFields.map((field) => (
+              <InfoField key={field.label} label={field.label} value={field.value} />
+            ))}
           </div>
         </section>
 
@@ -179,9 +208,13 @@ export function PayslipDocument({ model }: { model: PayslipViewModel }) {
             <SummaryRow label="Taxable Pay" value={model.ytd.taxablePay} />
             <SummaryRow label="Tax Paid" value={model.ytd.taxPaid} />
             <SummaryRow label="Employee NI" value={model.ytd.employeeNi} />
-            <SummaryRow label="Employer NI" value={model.ytd.employerNi} />
+            {display.employerNiYtd ? <SummaryRow label="Employer NI" value={model.ytd.employerNi} /> : null}
             <SummaryRow label="Student Loan" value={model.ytd.studentLoan} />
             <SummaryRow label="Pension Contributions" value={model.ytd.pension} />
+            {display.employerPensionYtd ? (
+              <SummaryRow label="Employer Pension" value={model.employerPensionYtd} />
+            ) : null}
+            {display.statutoryPayYtd ? <SummaryRow label="Statutory Pay" value={model.statutoryPayYtd} /> : null}
           </section>
           <section className="overflow-hidden rounded-[8px] border border-[#e4e7ec]">
             <div className="px-4 py-2.5 text-[11px] font-semibold tracking-[0.06em] text-white" style={{ backgroundColor: NAVY }}>
@@ -190,14 +223,28 @@ export function PayslipDocument({ model }: { model: PayslipViewModel }) {
             <SummaryRow label="Taxable Gross Pay" value={model.period.taxableGross} />
             <SummaryRow label="Tax Paid" value={model.period.taxPaid} />
             <SummaryRow label="Employee NI" value={model.period.employeeNi} />
-            <SummaryRow label="Employer NI" value={model.period.employerNi} />
-            <SummaryRow label="NET PAY" value={model.period.netPay} highlight />
+            {display.employerNi ? <SummaryRow label="Employer NI" value={model.period.employerNi} /> : null}
+            {display.employerPension ? (
+              <SummaryRow label="Employer Pension" value={model.period.employerPension} />
+            ) : null}
+            {display.netPay ? <SummaryRow label="NET PAY" value={model.period.netPay} highlight /> : null}
           </section>
         </div>
+
+        {display.notes && model.notes ? (
+          <p className="mt-5 text-sm" style={{ color: NAVY }}>
+            Notes: {model.notes}
+          </p>
+        ) : null}
 
         {employerLine ? (
           <p className="mt-8 text-center text-sm font-semibold" style={{ color: NAVY }}>
             {employerLine}
+          </p>
+        ) : null}
+        {display.employerAddress && model.employerAddress ? (
+          <p className="mt-2 text-center text-xs" style={{ color: NAVY }}>
+            {model.employerAddress}
           </p>
         ) : null}
       </div>

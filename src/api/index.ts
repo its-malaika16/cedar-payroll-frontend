@@ -330,6 +330,11 @@ export const payslipsApi = {
     download(`/companies/${companyId}/payroll/${payslipId}/download`, filename),
   fileBlob: (companyId: string, payslipId: string) =>
     fetchBlob(`/companies/${companyId}/payroll/${payslipId}/download`),
+  send: (
+    companyId: string,
+    runId: string,
+    body: { record_ids: string[]; subject?: string; body?: string; reply_to?: string; cc?: string },
+  ) => post(`/companies/${companyId}/payroll/${runId}/send-payslips`, body),
 }
 
 export const rtiApi = {

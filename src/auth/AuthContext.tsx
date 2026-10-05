@@ -59,7 +59,7 @@ function isOnboardingStatus(status?: string | null) {
   return value === 'ONBOARDING' || value === 'PENDING_REVIEW'
 }
 
-export function homePathFromAccess(payload: Partial<AuthPayload> | null | undefined) {
+function homePathFromAccess(payload: Partial<AuthPayload> | null | undefined) {
   const memberships = membershipsFrom(payload)
   const bureauAccess = payload?.bureau_access ?? []
   const employeeAccess = payload?.employee_access ?? []
