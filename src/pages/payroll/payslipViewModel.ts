@@ -218,7 +218,6 @@ export function buildPayslipViewModel(
   const ytd = record.year_to_date
   const thisEmployment = ytd?.this_employment ?? ytd
   const combined = ytd?.combined ?? thisEmployment
-  const totalEarnings = amount(earnings.reduce((sum, line) => sum + line.amount, 0))
   const totalDeductions = amount(deductions.reduce((sum, line) => sum + line.amount, 0))
   const payDate = run?.pay_date ?? record.pay_date
   const companyName =

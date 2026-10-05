@@ -68,7 +68,9 @@ export function ResponsiveShell({
       </aside>
 
       <div className="flex min-h-screen min-w-0 flex-col lg:min-h-0 lg:overflow-hidden">
-        <header className="flex min-h-16 flex-wrap items-center gap-3 bg-white px-4 py-3 print:hidden sm:px-6 lg:px-8 xl:px-10">
+        <header
+          className={`flex min-h-16 flex-wrap items-center gap-3 px-4 py-3 print:hidden sm:px-6 lg:px-8 xl:px-10 ${headerClassName ?? 'bg-white'}`}
+        >
           <button
             type="button"
             className="flex size-10 shrink-0 items-center justify-center rounded-[10px] border border-[#d9d9d9] text-navy lg:hidden"
