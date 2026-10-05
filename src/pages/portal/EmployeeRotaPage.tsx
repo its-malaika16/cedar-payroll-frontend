@@ -58,10 +58,6 @@ function formatRange(days: Date[]) {
   return `${startDay} - ${endDay}`
 }
 
-function formatDayTitle(date: Date) {
-  return date.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })
-}
-
 function leaveTitle(item: RotaLeave) {
   if (item.status === 'CALENDAR' || isCalendarLeaveType(item.leave_type)) {
     return calendarLeaveLabel(item.leave_type, item.custom_label)
@@ -107,21 +103,129 @@ function ScheduleRow({
   detail: string
   extra?: string
 }) {
-  const styles = {
-    shift: 'bg-[#eef4fb] text-navy',
-    leave: 'bg-[#fdecee] text-[#d32027]',
-    off: 'bg-[#f3f3f3] text-[#8a93a0]',
-  }[tone]
+  if (tone === 'off') {
+    return (
+      <div className="flex h-11 items-center gap-2 text-sm text-[#9aa3ad]">
+        <span className="size-1.5 rounded-full bg-[#d5d8de]" />
+        Day off
+      </div>
+    )
+  }
+  const leaveTone = tone === 'leave'
   return (
-    <div className={`flex min-h-[56px] items-center justify-between rounded-[10px] px-4 py-3 ${styles}`}>
+    <div
+      className={`flex min-h-[68px] items-center justify-between gap-3 rounded-[12px] border border-[#e7e4de] border-l-[3px] px-4 py-3 ${
+        leaveTone ? 'border-l-[#d32027] bg-[#fff7f7]' : 'border-l-navy bg-[#f5f8fc]'
+      }`}
+    >
       <div className="flex min-w-0 items-center gap-3">
-        <span className="shrink-0">{icon}</span>
+        <span
+          className={`flex size-9 shrink-0 items-center justify-center rounded-full ${
+            leaveTone ? 'bg-[#fdecee] text-[#d32027]' : 'bg-white text-navy shadow-sm'
+          }`}
+        >
+          {icon}
+        </span>
         <div className="min-w-0">
-          <p className="text-sm font-semibold">{title}</p>
-          {detail ? <p className="text-xs opacity-80">{detail}</p> : null}
+          <p className={`truncate text-sm font-semibold ${leaveTone ? 'text-[#b42318]' : 'text-navy'}`}>{title}</p>
+          {detail ? <p className="text-xs text-[#607080]">{detail}</p> : null}
         </div>
       </div>
-      {extra ? <p className="shrink-0 text-sm font-semibold">{extra}</p> : null}
+      {extra ? (
+        <span className="shrink-0 rounded-full bg-white px-3 py-1 text-xs font-semibold text-navy shadow-sm">
+          {extra}
+        </span>
+      ) : null}
+    </div>
+  )
+}
+
+const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+
+function MonthCalendar({
+  weeks,
+  month,
+  shifts,
+  leave,
+}: {
+  weeks: Date[][]
+  month: number
+  shifts: RotaShift[]
+  leave: RotaLeave[]
+}) {
+  const todayKey = dateKey(new Date())
+  return (
+    <div className="mt-4 overflow-x-auto rounded-[16px] border border-[#e6e4df] bg-white">
+      <div className="min-w-[860px]">
+        <div className="grid grid-cols-7 border-b border-[#eceae6]">
+          {WEEKDAYS.map((label, index) => (
+            <div
+              key={label}
+              className={`px-3 py-3 text-[11px] font-semibold tracking-[0.08em] uppercase ${
+                index >= 5 ? 'text-[#9aa3ad]' : 'text-navy'
+              }`}
+            >
+              {label}
+            </div>
+          ))}
+        </div>
+        {weeks.map((week) => (
+          <div key={dateKey(week[0])} className="grid grid-cols-7">
+            {week.map((day) => {
+              const inMonth = day.getMonth() === month
+              const key = dateKey(day)
+              const weekend = day.getDay() === 0 || day.getDay() === 6
+              const isToday = inMonth && key === todayKey
+              const dayShifts = inMonth ? shifts.filter((shift) => shiftDateKey(shift) === key) : []
+              const dayLeave = inMonth ? leave.find((item) => leaveCoversDate(item, key)) : undefined
+              return (
+                <div
+                  key={key}
+                  className={`min-h-[124px] border-r border-b border-[#f1efeb] p-2.5 ${
+                    !inMonth ? 'bg-[#f7f6f3]' : weekend ? 'bg-[#fcfbf8]' : 'bg-white'
+                  }`}
+                >
+                  <span
+                    className={`inline-flex size-7 items-center justify-center rounded-full text-xs font-semibold ${
+                      isToday ? 'bg-navy text-white' : inMonth ? 'text-navy' : 'text-[#c5c9d0]'
+                    }`}
+                  >
+                    {day.getDate()}
+                  </span>
+                  {inMonth && (dayLeave || dayShifts.length > 0) ? (
+                    <div className="mt-2 space-y-1.5">
+                      {dayLeave ? (
+                        <div className="rounded-[8px] border-l-[3px] border-[#d32027] bg-[#fdecee] px-2 py-1.5">
+                          <p className="truncate text-[11px] font-semibold leading-4 text-[#b42318]">
+                            {leaveTitle(dayLeave)}
+                          </p>
+                          <p className="text-[10px] leading-4 text-[#d32027]">All day</p>
+                        </div>
+                      ) : (
+                        dayShifts.map((shift) => {
+                          const meta = decodeShiftNotes(shift.notes)
+                          const hours = hoursBetween(shift.start_time, shift.end_time, meta.breakMinutes)
+                          return (
+                            <div
+                              key={shift.id}
+                              className="rounded-[8px] border-l-[3px] border-navy bg-[#eef3fb] px-2 py-1.5"
+                            >
+                              <p className="truncate text-[11px] font-semibold leading-4 text-navy">
+                                {formatTimeRange(shift.start_time, shift.end_time)}
+                              </p>
+                              <p className="text-[10px] leading-4 text-[#5c6e82]">{hoursLabel(hours)}</p>
+                            </div>
+                          )
+                        })
+                      )}
+                    </div>
+                  ) : null}
+                </div>
+              )
+            })}
+          </div>
+        ))}
+      </div>
     </div>
   )
 }
@@ -143,13 +247,13 @@ export function EmployeeRotaPage() {
   const openShifts = payload?.open_shifts ?? []
   const leave = (payload?.leave ?? []).filter(isApprovedLeave)
 
+  const monthWeeks = useMemo(() => (view === 'month' ? weeksInMonth(anchor) : []), [anchor, view])
   const days = useMemo(() => {
     if (view === 'week') return daysInPeriod(anchor, addDays(anchor, 6))
-    const weeks = weeksInMonth(anchor)
-    const first = weeks[0]?.[0]
-    const last = weeks[weeks.length - 1]?.[6]
-    if (!first || !last) return daysInPeriod(new Date(anchor.getFullYear(), anchor.getMonth(), 1), new Date(anchor.getFullYear(), anchor.getMonth() + 1, 0))
-    return daysInPeriod(first, last).filter((day) => day.getMonth() === anchor.getMonth())
+    return daysInPeriod(
+      new Date(anchor.getFullYear(), anchor.getMonth(), 1),
+      new Date(anchor.getFullYear(), anchor.getMonth() + 1, 0),
+    )
   }, [anchor, view])
 
   const periodLabel = view === 'week' ? formatRange(days) : formatMonthLabel(anchor)
@@ -191,9 +295,9 @@ export function EmployeeRotaPage() {
           Home
         </Link>
         {' > '}
-        ROTTA
+        ROTA
       </p>
-      <h1 className="mt-2 text-[32px] font-semibold text-navy">ROTTA</h1>
+      <h1 className="mt-2 text-[32px] font-semibold text-navy">ROTA</h1>
       <p className="mt-1 text-sm text-muted">View your scheduled shifts and time</p>
 
       <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -224,14 +328,14 @@ export function EmployeeRotaPage() {
       </div>
 
       <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
-        <div className="flex gap-6 text-sm font-semibold text-muted">
+        <div className="flex items-center gap-2 text-sm font-semibold">
           {(['week', 'month'] as const).map((item) => (
             <button
               key={item}
               type="button"
               onClick={() => changeView(item)}
-              className={`-mb-px border-b-2 pb-2 ${
-                view === item ? 'border-navy text-navy' : 'border-transparent hover:text-navy'
+              className={`rounded-full px-4 py-2 ${
+                view === item ? 'bg-navy text-white' : 'text-muted hover:text-navy'
               }`}
             >
               {item === 'week' ? 'Week Overview' : 'Month Overview'}
@@ -252,32 +356,54 @@ export function EmployeeRotaPage() {
         </div>
       </div>
 
-      <div className="mt-4 overflow-hidden rounded-[12px] border border-[#eceae6] bg-white">
-        <div className="grid grid-cols-1 gap-1 border-b border-[#eceae6] bg-[#fafafa] px-4 py-3 text-sm font-semibold text-navy sm:grid-cols-[180px_minmax(0,1fr)] sm:gap-0 sm:px-5">
-          <div>Date</div>
-          <div>My Schedule</div>
+      {query.isLoading ? (
+        <div className="mt-4 rounded-[12px] border border-[#eceae6] bg-white px-5 py-8">
+          <Loading />
         </div>
-        {query.isLoading ? (
-          <div className="px-5 py-8">
-            <Loading />
-          </div>
-        ) : (
-          days.map((day) => {
+      ) : view === 'month' ? (
+        <MonthCalendar
+          weeks={monthWeeks}
+          month={anchor.getMonth()}
+          shifts={shifts}
+          leave={leave}
+        />
+      ) : (
+      <div className="mt-4 overflow-hidden rounded-[16px] border border-[#e6e4df] bg-white">
+        <div className="grid grid-cols-1 border-b border-[#eceae6] text-[11px] font-semibold tracking-[0.08em] text-[#8a93a0] uppercase sm:grid-cols-[220px_minmax(0,1fr)]">
+          <div className="border-[#eceae6] px-5 py-3 sm:border-r">Date</div>
+          <div className="px-5 py-3">My Schedule</div>
+        </div>
+        {days.map((day) => {
             const key = dateKey(day)
             const dayShifts = shifts.filter((shift) => shiftDateKey(shift) === key)
             const dayLeave = leave.find((item) => leaveCoversDate(item, key))
+            const isToday = key === dateKey(new Date())
+            const weekend = day.getDay() === 0 || day.getDay() === 6
             return (
               <div
                 key={key}
-                className="grid grid-cols-1 items-start gap-2 border-b border-[#eceae6] px-4 py-3 last:border-b-0 sm:grid-cols-[180px_minmax(0,1fr)] sm:items-center sm:gap-4 sm:px-5"
+                className={`grid grid-cols-1 items-stretch border-b border-[#f1efeb] last:border-b-0 sm:grid-cols-[220px_minmax(0,1fr)] ${
+                  weekend && !dayLeave && dayShifts.length === 0 ? 'bg-[#fcfbf8]' : 'bg-white'
+                }`}
               >
-                <div>
-                  <p className="text-sm font-semibold text-navy">{formatDayTitle(day)}</p>
-                  <p className="text-xs text-muted">
-                    {day.toLocaleDateString('en-GB', { weekday: 'long' })}
-                  </p>
+                <div className="flex items-center gap-3 border-[#eceae6] px-5 py-3 sm:border-r">
+                  <span
+                    className={`flex size-11 shrink-0 flex-col items-center justify-center rounded-[12px] ${
+                      isToday ? 'bg-navy text-white' : 'bg-[#f4f3ef] text-navy'
+                    }`}
+                  >
+                    <span className="text-sm font-semibold leading-none">{day.getDate()}</span>
+                  </span>
+                  <div>
+                    <p className="text-sm font-semibold text-navy">
+                      {day.toLocaleDateString('en-GB', { weekday: 'long' })}
+                    </p>
+                    <p className="text-xs text-muted">
+                      {day.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })}
+                    </p>
+                  </div>
                 </div>
-                <div className="space-y-2">
+                <div className="space-y-2 px-5 py-3">
                   {dayLeave ? (
                     <ScheduleRow
                       tone="leave"
@@ -306,9 +432,9 @@ export function EmployeeRotaPage() {
                 </div>
               </div>
             )
-          })
-        )}
+          })}
       </div>
+      )}
 
       <div className="mt-4 flex flex-wrap items-center gap-5 text-xs font-medium text-navy">
         <span className="inline-flex items-center gap-2">

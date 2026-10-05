@@ -15,6 +15,16 @@ export { PortalAttendancePage } from './EmployeeAttendancePage'
 export { PortalLeavePage } from './EmployeeLeavePage'
 export { PortalDocumentsPage } from './EmployeeDocumentsPage'
 
+type PayslipRun = {
+  id?: unknown
+  pay_date?: string
+  period_end_date?: string
+  pay_frequency?: string
+  period_number?: number | null
+  tax_week?: number | null
+  tax_month?: number | null
+}
+
 function payPeriodWord(frequency?: string | null) {
   switch (String(frequency ?? '').toUpperCase()) {
     case 'MONTHLY':
@@ -31,9 +41,7 @@ function payPeriodWord(frequency?: string | null) {
 }
 
 function payslipName(employeeName: string, item: Record<string, unknown>) {
-  const run = item.payroll_runs as
-    | { period_end_date?: string; pay_date?: string; pay_frequency?: string }
-    | undefined
+  const run = item.payroll_runs as PayslipRun | undefined
   const ending = formatDate(run?.period_end_date || run?.pay_date)
   const name = employeeName.trim() && employeeName.trim() !== '—' ? employeeName.trim() : 'Employee'
   if (ending === '—') return `${name} - Pay Slip`
@@ -79,18 +87,16 @@ export function PortalPayslipsPage() {
             <table className="w-full min-w-[720px] text-left text-sm">
               <thead>
                 <tr className="border-b border-[#eceae6] text-sm font-medium text-muted">
-                  <th className="px-6 py-4 font-medium">Payslip name</th>
-                  <th className="px-6 py-4 font-medium">Pay Date</th>
+                  <th className="px-6 py-4 font-medium">Payslip</th>
+                  <th className="px-6 py-4 font-medium">Total Earnings</th>
                   <th className="px-6 py-4 font-medium">Take-home Pay</th>
                   <th className="px-6 py-4 font-medium">Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {list.map((item) => {
-                  const run = item.payroll_runs as
-                    | { id?: unknown; pay_date?: string }
-                    | undefined
-                  const record = item.payroll_records as { id?: unknown } | undefined
+                  const run = item.payroll_runs as PayslipRun | undefined
+                  const record = item.payroll_records as { id?: unknown; gross_pay?: unknown } | undefined
                   const runId = String(item.payroll_run_id ?? run?.id ?? '')
                   const recordId = String(item.payroll_record_id ?? record?.id ?? '')
                   const label = payslipName(employeeName, item)
@@ -98,7 +104,7 @@ export function PortalPayslipsPage() {
                   return (
                     <tr key={idOf(item)} className="border-b border-[#f0eeea] last:border-b-0">
                       <td className="px-6 py-5 font-medium text-navy">{label}</td>
-                      <td className="px-6 py-5 text-navy">{formatDate(run?.pay_date)}</td>
+                      <td className="px-6 py-5 text-navy">{money(item.gross_pay ?? record?.gross_pay)}</td>
                       <td className="px-6 py-5 text-navy">{money(item.take_home_pay)}</td>
                       <td className="px-6 py-5">
                         <div className="flex flex-wrap items-center gap-2">
