@@ -172,6 +172,27 @@ export function PayrollRunsPage() {
     records.filter((record) => isEmployeeOnPayrollRun(record.employees, selectedRun)),
   )
 
+  const waitingEmployees = selectedRun?.waiting_employees ?? []
+  const laterStarter = waitingEmployees.find(
+    (person) => person.reason !== 'ALREADY_LEFT' && person.start_date,
+  )
+
+  function periodForStart(startDate: string) {
+    const key = startDate.slice(0, 10)
+    return schedulePeriods.find((period) => dateKey(period.start) <= key && key <= dateKey(period.end))
+  }
+
+  async function openStarterPeriod(startDate: string) {
+    const period = periodForStart(startDate)
+    if (!period || !selectedScheduleId) {
+      setError('This schedule has no pay period that includes that start date')
+      return
+    }
+    setPeriodKey(String(period.number))
+    const existing = findRunForPeriod(runList, selectedScheduleId, String(period.number), period.start)
+    if (!existing) await startPayroll(period)
+  }
+
   const locked = isCompleted(selectedRun?.status)
   const allFinalised =
     visibleRecords.length > 0 &&
@@ -200,13 +221,13 @@ export function PayrollRunsPage() {
     setPeriodKey(defaultPeriodKey(periods, runList, nextId))
   }
 
-  async function startPayroll() {
-    if (!companyId || !selectedSchedule || !selectedSchedulePeriod) {
+  async function startPayroll(period = selectedSchedulePeriod) {
+    if (!companyId || !selectedSchedule || !period) {
       setError('Select a schedule and period first')
       return
     }
     const frequency = asPayFrequency(selectedSchedule.pay_frequency)
-    const payDate = selectedSchedulePeriod.payDate
+    const payDate = period.payDate
     const taxPeriod = hmrcPeriodFromPayDate(payDate, frequency)
     setSaving(true)
     setError(null)
@@ -215,9 +236,9 @@ export function PayrollRunsPage() {
         schedule_id: idOf(selectedSchedule),
         tax_year_start: taxPeriod.taxYear,
         tax_year_end: taxPeriod.taxYear + 1,
-        period_number: selectedSchedulePeriod.number,
-        period_start_date: dateKey(selectedSchedulePeriod.start),
-        period_end_date: dateKey(selectedSchedulePeriod.end),
+        period_number: period.number,
+        period_start_date: dateKey(period.start),
+        period_end_date: dateKey(period.end),
         pay_date: dateKey(payDate),
         tax_week: taxPeriod.taxWeek ?? undefined,
         tax_month: taxPeriod.taxMonth ?? undefined,
@@ -406,12 +427,32 @@ export function PayrollRunsPage() {
               <Loading />
             ) : visibleRecords.length === 0 ? (
               <div className="px-6 py-12 text-center">
-                <p className="text-sm font-medium text-muted">
-                  {selectedId
-                    ? 'No employees in this pay run yet.'
-                    : `No pay run for this period in tax year ${taxYearLabel(currentTaxYear)}. Start payroll to open one for the selected schedule and period.`}
-                </p>
-                {selectedId ? (
+                {waitingEmployees.length > 0 ? (
+                  <div className="mx-auto max-w-[520px] space-y-2 text-sm font-medium text-muted">
+                    {waitingEmployees.map((person) => {
+                      const name = fullName(person.first_name, person.last_name)
+                      if (person.reason === 'ALREADY_LEFT') {
+                        return <p key={person.employee_id}>{name} left before this pay period.</p>
+                      }
+                      return (
+                        <p key={person.employee_id}>
+                          {name} starts on {formatLongDate(person.start_date)}, so they are not included in this pay period.
+                        </p>
+                      )
+                    })}
+                  </div>
+                ) : (
+                  <p className="text-sm font-medium text-muted">
+                    {selectedId
+                      ? 'No employees in this pay run yet.'
+                      : `No pay run for this period in tax year ${taxYearLabel(currentTaxYear)}. Start payroll to open one for the selected schedule and period.`}
+                  </p>
+                )}
+                {laterStarter?.start_date ? (
+                  <Button className="mt-4" disabled={saving} onClick={() => void openStarterPeriod(laterStarter.start_date!)}>
+                    {saving ? 'Opening…' : `Open ${formatLongDate(laterStarter.start_date)} pay period`}
+                  </Button>
+                ) : selectedId ? (
                   <Button
                     className="mt-4"
                     disabled={locked}

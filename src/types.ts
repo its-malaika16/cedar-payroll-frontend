@@ -318,6 +318,13 @@ export type PayrollRun = {
   payroll_schedules?: PayrollSchedule
   payroll_records?: PayrollRecord[]
   _count?: { payroll_records?: number }
+  waiting_employees?: {
+    employee_id: string
+    first_name?: string | null
+    last_name?: string | null
+    start_date?: string | null
+    reason?: 'STARTS_LATER' | 'ALREADY_LEFT'
+  }[]
 }
 
 export type PayrollPensionEmployee = {

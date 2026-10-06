@@ -10,8 +10,8 @@ import {
   ChevronLeft,
   ChevronRight,
   Clock3,
+  CloudUpload,
   Plane,
-  Upload,
   User,
   X,
   XCircle,
@@ -24,7 +24,6 @@ import {
   addDays,
   dateKey,
   daysInPeriod,
-  formatMonthLabel,
   startOfWeek,
   weeksInMonth,
 } from '../hr/rota/rotaDates'
@@ -41,6 +40,7 @@ import {
   weeksLabel,
   type LeaveBalance,
   type LeaveItem,
+  type LeaveStatus,
 } from './employeeLeave'
 
 type LeaveListResponse = {
@@ -58,12 +58,115 @@ function StatusPill({ status }: { status?: string }) {
   )
 }
 
+function leaveBlockTone(status: LeaveStatus) {
+  return {
+    PENDING: { bar: 'border-l-[#e2a334]', surface: 'bg-[#fffaf3]', ink: 'text-[#9a6420]' },
+    APPROVED: { bar: 'border-l-[#1b7d4f]', surface: 'bg-[#f3faf6]', ink: 'text-[#1b7d4f]' },
+    REJECTED: { bar: 'border-l-[#d32027]', surface: 'bg-[#fff6f6]', ink: 'text-[#d32027]' },
+    CANCELLED: { bar: 'border-l-[#c5c5c5]', surface: 'bg-[#f7f6f3]', ink: 'text-muted' },
+  }[status]
+}
+
+function BalanceCard({
+  label,
+  icon: Icon,
+  remaining,
+  entitled,
+}: {
+  label: string
+  icon: typeof Plane
+  remaining?: number
+  entitled?: number
+}) {
+  const entitledWeeks = Number(entitled ?? 0)
+  const remainingWeeks = Number(remaining ?? 0)
+  const ratio = entitledWeeks > 0 ? Math.min(1, Math.max(0, remainingWeeks / entitledWeeks)) : 0
+  return (
+    <section className="rounded-[16px] border border-[#e4e2dd] bg-white px-5 py-4">
+      <div className="flex items-start gap-3">
+        <span className="flex size-10 shrink-0 items-center justify-center rounded-[12px] bg-[#eef2f6] text-navy">
+          <Icon size={18} />
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="text-xs font-medium text-muted">{label}</p>
+          <p className="mt-1 text-[22px] font-semibold leading-none text-navy">{weeksLabel(remaining)}</p>
+          <p className="mt-1.5 text-xs text-muted">out of {weeksLabel(entitled)}</p>
+          <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-[#eceae6]">
+            <div className="h-full rounded-full bg-navy" style={{ width: `${Math.round(ratio * 100)}%` }} />
+          </div>
+        </div>
+      </div>
+    </section>
+  )
+}
+
+function LeaveBlock({ item, compact = false }: { item: LeaveItem; compact?: boolean }) {
+  const status = leaveStatus(item.status)
+  const tone = leaveBlockTone(status)
+  return (
+    <div className={`rounded-[10px] border border-[#eceae6] border-l-[3px] ${tone.bar} ${tone.surface} ${compact ? 'px-1.5 py-1' : 'px-2.5 py-2'}`}>
+      <p className={`truncate font-semibold text-navy ${compact ? 'text-[11px] leading-4' : 'text-xs'}`}>
+        {item.leave_type || 'Leave'}
+      </p>
+      <p className={`font-medium ${tone.ink} ${compact ? 'text-[10px] leading-4' : 'mt-0.5 text-[11px]'}`}>
+        {statusMeta(status).label}
+      </p>
+    </div>
+  )
+}
+
+function LeaveLegend() {
+  return (
+    <div className="flex flex-wrap items-center gap-5 border-t border-[#f1efeb] px-5 py-3 text-xs font-medium text-[#5c6770]">
+      <span className="inline-flex items-center gap-2">
+        <span className="size-2 rounded-full bg-[#22c55e]" />
+        Approved
+      </span>
+      <span className="inline-flex items-center gap-2">
+        <span className="size-2 rounded-full bg-[#e2a334]" />
+        Pending
+      </span>
+      <span className="inline-flex items-center gap-2">
+        <span className="size-2 rounded-full bg-[#d32027]" />
+        Rejected
+      </span>
+    </div>
+  )
+}
+
+const requestFieldClass =
+  'h-11 w-full rounded-[8px] border border-[#d5d8de] bg-white px-3 text-sm text-navy outline-none focus:border-navy'
+
 function FieldShell({ label, children }: { label: string; children: ReactNode }) {
   return (
     <label className="block">
       <span className="mb-2 block text-sm font-medium text-navy">{label}</span>
       {children}
     </label>
+  )
+}
+
+function DurationChoice({
+  checked,
+  title,
+  hint,
+  onSelect,
+}: {
+  checked: boolean
+  title: string
+  hint: string
+  onSelect: () => void
+}) {
+  return (
+    <button type="button" onClick={onSelect} className="flex items-center gap-3 text-left">
+      <span
+        className={`size-5 shrink-0 rounded-full ${checked ? 'bg-navy' : 'border-2 border-[#d5d8de] bg-white'}`}
+      />
+      <span>
+        <span className="block text-sm font-semibold text-navy">{title}</span>
+        <span className="block text-xs text-muted">{hint}</span>
+      </span>
+    </button>
   )
 }
 
@@ -91,22 +194,25 @@ function LeaveRequestModal({
   const days = weekdayCount(form.start_date, form.end_date, form.duration_kind === 'PARTIAL_DAY')
 
   return (
-    <div className="fixed inset-0 z-40 flex items-center justify-center bg-navy/40 p-4">
-      <div className="w-full max-w-[720px] rounded-[20px] bg-white p-8 shadow-xl">
-        <div className="flex flex-col items-center text-center">
-          <span className="flex size-16 items-center justify-center rounded-full bg-[#eef2f6] text-navy">
-            <User size={28} />
+    <div className="fixed inset-0 z-40 flex items-center justify-center bg-navy/30 p-4">
+      <div className="w-full max-w-[760px] overflow-hidden rounded-[12px] border border-[#e4e2dd] bg-white shadow-[0_16px_40px_rgba(23,55,94,0.12)]">
+        <div className="flex items-center gap-4 border-b border-[#eceae6] px-6 py-5">
+          <span className="relative flex size-12 shrink-0 items-center justify-center rounded-full bg-[#e8eef5] text-navy">
+            <User size={22} />
+            <span className="absolute right-1.5 bottom-1.5 size-2.5 rounded-full bg-navy ring-2 ring-[#e8eef5]" />
           </span>
-          <h2 className="mt-4 text-xl font-semibold text-navy">Leave Request Details</h2>
-          <p className="mt-1 text-sm text-muted">Verify the details before submitting the request</p>
+          <div>
+            <h2 className="text-lg font-semibold text-navy">Leave Request Details</h2>
+            <p className="text-sm text-muted">Verify the details before submitting request</p>
+          </div>
         </div>
         {error ? (
-          <div className="mt-4">
+          <div className="px-6 pt-5">
             <Alert>{error}</Alert>
           </div>
         ) : null}
         <form
-          className="mt-8 grid gap-5 sm:grid-cols-2"
+          className="px-6 py-6"
           onSubmit={async (event) => {
             event.preventDefault()
             setBusy(true)
@@ -125,83 +231,88 @@ function LeaveRequestModal({
             }
           }}
         >
-          <FieldShell label="Leave Type">
-            <select
-              className="h-12 w-full rounded-full border border-[#eceae6] bg-[#f7f6f3] px-4 text-sm text-navy outline-none"
-              value={form.leave_type}
-              onChange={(event) => setForm({ ...form, leave_type: event.target.value })}
-            >
-              {EMPLOYEE_LEAVE_TYPES.map((type) => (
-                <option key={type}>{type}</option>
-              ))}
-            </select>
-          </FieldShell>
-          <FieldShell label="Total Days">
-            <input
-              readOnly
-              className="h-12 w-full rounded-full border border-[#eceae6] bg-[#f7f6f3] px-4 text-sm text-navy outline-none"
-              value={days || ''}
-            />
-          </FieldShell>
-          <FieldShell label="Start Date">
-            <input
-              type="date"
-              required
-              className="h-12 w-full rounded-full border border-[#eceae6] bg-[#f7f6f3] px-4 text-sm text-navy outline-none"
-              value={form.start_date}
-              onChange={(event) =>
-                setForm({
-                  ...form,
-                  start_date: event.target.value,
-                  end_date: form.end_date && form.end_date < event.target.value ? event.target.value : form.end_date,
-                })
-              }
-            />
-          </FieldShell>
-          <FieldShell label="End Date">
-            <input
-              type="date"
-              required
-              className="h-12 w-full rounded-full border border-[#eceae6] bg-[#f7f6f3] px-4 text-sm text-navy outline-none"
-              value={form.end_date}
-              onChange={(event) => setForm({ ...form, end_date: event.target.value })}
-            />
-          </FieldShell>
-          <div className="sm:col-span-2">
-            <p className="mb-2 text-sm font-medium text-navy">Leave Duration</p>
-            <div className="flex flex-wrap gap-6 text-sm text-navy">
-              <label className="inline-flex items-center gap-2">
-                <input
-                  type="radio"
-                  checked={form.duration_kind === 'FULL_DAY'}
-                  onChange={() => setForm({ ...form, duration_kind: 'FULL_DAY' })}
-                />
-                <span>
-                  Full day
-                  <span className="ml-1 text-muted">whole working day</span>
-                </span>
-              </label>
-              <label className="inline-flex items-center gap-2">
-                <input
-                  type="radio"
-                  checked={form.duration_kind === 'PARTIAL_DAY'}
-                  onChange={() => setForm({ ...form, duration_kind: 'PARTIAL_DAY' })}
-                />
-                <span>
-                  Partial day
-                  <span className="ml-1 text-muted">morning / day</span>
-                </span>
-              </label>
+          <div className="grid gap-5 sm:grid-cols-2">
+            <FieldShell label="Leave Type">
+              <select
+                className={requestFieldClass}
+                value={form.leave_type}
+                onChange={(event) => setForm({ ...form, leave_type: event.target.value })}
+              >
+                {EMPLOYEE_LEAVE_TYPES.map((type) => (
+                  <option key={type}>{type}</option>
+                ))}
+              </select>
+            </FieldShell>
+            <FieldShell label="Total Days">
+              <input readOnly className={requestFieldClass} value={days || ''} />
+            </FieldShell>
+            <FieldShell label="Start Date">
+              <input
+                type="date"
+                required
+                className={requestFieldClass}
+                value={form.start_date}
+                onChange={(event) =>
+                  setForm({
+                    ...form,
+                    start_date: event.target.value,
+                    end_date: form.end_date && form.end_date < event.target.value ? event.target.value : form.end_date,
+                  })
+                }
+              />
+            </FieldShell>
+            <FieldShell label="End Date">
+              <input
+                type="date"
+                required
+                className={requestFieldClass}
+                value={form.end_date}
+                onChange={(event) => setForm({ ...form, end_date: event.target.value })}
+              />
+            </FieldShell>
+          </div>
+
+          <div className="mt-5">
+            <p className="mb-3 text-sm font-medium text-navy">Leave Duration</p>
+            <div className="flex flex-wrap gap-10">
+              <DurationChoice
+                checked={form.duration_kind === 'FULL_DAY'}
+                title="Full Day"
+                hint="whole working day"
+                onSelect={() => setForm({ ...form, duration_kind: 'FULL_DAY' })}
+              />
+              <DurationChoice
+                checked={form.duration_kind === 'PARTIAL_DAY'}
+                title="Partial Day"
+                hint="Morning / Day"
+                onSelect={() => setForm({ ...form, duration_kind: 'PARTIAL_DAY' })}
+              />
             </div>
           </div>
-          <div className="sm:col-span-2">
+
+          <div className="mt-5">
             <p className="mb-2 text-sm font-medium text-navy">Attachment</p>
-            <label className="flex min-h-[88px] cursor-pointer items-center justify-between gap-3 rounded-[14px] border border-dashed border-[#d9d9d9] px-4 py-4">
-              <span className="inline-flex items-center gap-3 text-sm text-muted">
-                <Upload size={20} className="text-navy" />
-                {form.attachment_name || 'Drag and drop a file here, or click to browse'}
+            <label
+              className="flex cursor-pointer items-center justify-between gap-4 rounded-[8px] border border-dashed border-[#c5c9d0] px-4 py-3.5"
+              onDragOver={(event) => event.preventDefault()}
+              onDrop={(event) => {
+                event.preventDefault()
+                const file = event.dataTransfer.files?.[0]
+                if (file) setForm({ ...form, attachment_name: file.name })
+              }}
+            >
+              <span className="inline-flex min-w-0 items-center gap-3">
+                <CloudUpload size={28} className="shrink-0 text-navy" />
+                <span className="min-w-0">
+                  <span className="block truncate text-sm font-semibold text-navy">
+                    {form.attachment_name || 'Drag and drop file here, or click to browse'}
+                  </span>
+                  <span className="block text-xs text-muted">Supported formats: PDF, JPG, PNG, DOC, DOCX</span>
+                </span>
               </span>
-              <span className="rounded-full bg-navy px-4 py-2 text-xs font-semibold text-white">Browse Files</span>
+              <span className="shrink-0 rounded-[8px] bg-navy px-4 py-2.5 text-sm font-semibold text-white">
+                Browse Files
+              </span>
               <input
                 type="file"
                 className="hidden"
@@ -211,28 +322,20 @@ function LeaveRequestModal({
                 }
               />
             </label>
-            <p className="mt-2 text-xs text-muted">Supported formats: PDF, JPG, PNG, DOC, DOCX</p>
           </div>
-          <FieldShell label="Reason">
-            <input
-              className="h-12 w-full rounded-full border border-[#eceae6] bg-[#f7f6f3] px-4 text-sm text-navy outline-none"
-              value={form.reason}
-              onChange={(event) => setForm({ ...form, reason: event.target.value })}
-              placeholder="Optional"
-            />
-          </FieldShell>
-          <div className="flex items-end justify-end gap-3 sm:col-span-1">
+
+          <div className="mt-6 flex justify-end gap-3">
             <button
               type="button"
               onClick={onClose}
-              className="h-11 rounded-full border border-[#d9d9d9] px-6 text-sm font-semibold text-navy"
+              className="h-11 min-w-[112px] rounded-[8px] border border-[#d5d8de] bg-white px-5 text-sm font-semibold text-navy"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={busy || !form.start_date || !form.end_date}
-              className="h-11 rounded-full bg-navy px-6 text-sm font-semibold text-white disabled:opacity-40"
+              className="h-11 min-w-[148px] rounded-[8px] bg-navy px-5 text-sm font-semibold text-white disabled:opacity-40"
             >
               Submit Request
             </button>
@@ -352,170 +455,177 @@ export function EmployeeLeavePage() {
       ) : null}
 
       <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        {cards.map((card) => {
-          const Icon = card.icon
-          return (
-            <section key={card.label} className="rounded-[16px] border border-[#eceae6] bg-white px-5 py-4">
-              <div className="flex items-start gap-3">
-                <span className="flex size-9 items-center justify-center rounded-[10px] bg-[#eef2f6] text-navy">
-                  <Icon size={18} />
-                </span>
-                <div>
-                  <p className="text-xs text-muted">{card.label}</p>
-                  <p className="mt-1 text-xl font-semibold text-navy">{weeksLabel(card.value?.remaining_weeks)}</p>
-                  <p className="text-xs text-muted">out of {weeksLabel(card.value?.entitled_weeks)}</p>
-                </div>
-              </div>
-            </section>
-          )
-        })}
+        {cards.map((card) => (
+          <BalanceCard
+            key={card.label}
+            label={card.label}
+            icon={card.icon}
+            remaining={card.value?.remaining_weeks}
+            entitled={card.value?.entitled_weeks}
+          />
+        ))}
       </div>
 
-      <div className="mt-5 flex flex-wrap items-center gap-3">
-        <div className="inline-flex rounded-full bg-[#eceae6] p-1 text-sm font-semibold">
+      <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
+        <div className="inline-flex rounded-full bg-white p-1 text-sm font-semibold shadow-[0_1px_2px_rgba(23,55,94,0.06)]">
           <button
             type="button"
             onClick={() => setView('week')}
-            className={`rounded-full px-4 py-2 ${view === 'week' ? 'bg-navy text-white' : 'text-navy'}`}
+            className={`rounded-full px-4 py-2 ${view === 'week' ? 'bg-navy text-white' : 'text-muted hover:text-navy'}`}
           >
             Week Overview
           </button>
           <button
             type="button"
             onClick={() => setView('month')}
-            className={`rounded-full px-4 py-2 ${view === 'month' ? 'bg-navy text-white' : 'text-navy'}`}
+            className={`rounded-full px-4 py-2 ${view === 'month' ? 'bg-navy text-white' : 'text-muted hover:text-navy'}`}
           >
             Month Overview
           </button>
         </div>
-        <div className="inline-flex items-center gap-2 rounded-full bg-white px-2 py-1 text-sm font-semibold text-navy">
-          <button type="button" className="rounded-full p-1 hover:bg-[#f6f5f2]" onClick={() => shiftPeriod(-1)}>
+        <div className="inline-flex items-center gap-1 rounded-full bg-white px-2 py-1 text-sm font-semibold text-navy shadow-[0_1px_2px_rgba(23,55,94,0.06)]">
+          <button type="button" className="rounded-full p-1.5 hover:bg-[#f6f5f2]" onClick={() => shiftPeriod(-1)} aria-label="Previous">
             <ChevronLeft size={18} />
           </button>
-          <span className="inline-flex items-center gap-2 px-2">
+          <span className="inline-flex min-w-[210px] items-center justify-center gap-2 px-1">
             <CalendarDays size={15} />
             {periodLabel}
           </span>
-          <button type="button" className="rounded-full p-1 hover:bg-[#f6f5f2]" onClick={() => shiftPeriod(1)}>
+          <button type="button" className="rounded-full p-1.5 hover:bg-[#f6f5f2]" onClick={() => shiftPeriod(1)} aria-label="Next">
             <ChevronRight size={18} />
           </button>
         </div>
       </div>
 
-      <div className="mt-5 grid gap-5 xl:grid-cols-[minmax(0,1fr)_280px]">
-        <section className="rounded-[16px] border border-[#eceae6] bg-white p-5">
-          <div className="mb-4 flex items-center justify-between text-navy">
-            <button type="button" className="rounded-full p-1 hover:bg-[#f6f5f2]" onClick={() => shiftPeriod(-1)}>
-              <ChevronLeft size={18} />
-            </button>
-            <p className="text-sm font-semibold">{formatMonthLabel(anchor)}</p>
-            <button type="button" className="rounded-full p-1 hover:bg-[#f6f5f2]" onClick={() => shiftPeriod(1)}>
-              <ChevronRight size={18} />
-            </button>
-          </div>
+      <div className="mt-4 grid items-start gap-5 xl:grid-cols-[minmax(0,1fr)_300px]">
+        <section className="overflow-hidden rounded-[16px] border border-[#e4e2dd] bg-white">
           {query.isLoading ? (
-            <Loading />
+            <div className="px-5 py-10">
+              <Loading />
+            </div>
           ) : view === 'month' ? (
-            <>
-              <div className="grid grid-cols-7 gap-2 text-center text-xs font-semibold text-muted">
-                {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((day) => (
-                  <div key={day}>{day}</div>
+            <div className="overflow-x-auto">
+              <div className="min-w-[760px]">
+                <div className="grid grid-cols-7 border-b border-[#f1efeb] text-center text-[11px] font-semibold tracking-[0.08em] text-[#8a93a0] uppercase">
+                  {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((day) => (
+                    <div key={day} className="px-2 py-3">
+                      {day}
+                    </div>
+                  ))}
+                </div>
+                {monthWeeks.map((week) => (
+                  <div key={dateKey(week[0])} className="grid grid-cols-7">
+                    {week.map((day) => {
+                      const key = dateKey(day)
+                      const outside = day.getMonth() !== anchor.getMonth()
+                      const weekend = day.getDay() === 0 || day.getDay() === 6
+                      const match = requests.find((item) => coversDate(item, key))
+                      const today = key === todayKey
+                      return (
+                        <button
+                          key={key}
+                          type="button"
+                          onClick={() => openDay(day)}
+                          className={`flex min-h-[112px] flex-col border-r border-b border-[#f1efeb] p-2.5 text-left last:border-r-0 ${
+                            outside ? 'bg-[#f7f6f3]' : weekend ? 'bg-[#fcfbf8] hover:bg-[#f7f6f3]' : 'bg-white hover:bg-[#faf9f7]'
+                          }`}
+                        >
+                          <span
+                            className={`inline-flex size-7 items-center justify-center rounded-full text-xs font-semibold ${
+                              today ? 'bg-navy text-white' : outside ? 'text-[#c5c9d0]' : 'text-navy'
+                            }`}
+                          >
+                            {day.getDate()}
+                          </span>
+                          {match && !outside ? (
+                            <div className="mt-2">
+                              <LeaveBlock item={match} compact />
+                            </div>
+                          ) : null}
+                        </button>
+                      )
+                    })}
+                  </div>
                 ))}
               </div>
-              <div className="mt-3 grid grid-cols-7 gap-2">
-                {monthWeeks.flat().map((day) => {
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <div className="grid min-w-[860px] grid-cols-7">
+                {weekDays.map((day) => {
                   const key = dateKey(day)
-                  const outside = day.getMonth() !== anchor.getMonth()
                   const match = requests.find((item) => coversDate(item, key))
-                  const status = match ? leaveStatus(match.status) : null
                   const today = key === todayKey
+                  const weekend = day.getDay() === 0 || day.getDay() === 6
                   return (
                     <button
                       key={key}
                       type="button"
                       onClick={() => openDay(day)}
-                      className={`min-h-[64px] rounded-[10px] px-2 py-2 text-left ${
-                        outside ? 'text-muted/40' : 'text-navy hover:bg-[#f7f6f3]'
-                      }`}
+                      className={`group flex min-h-[320px] flex-col border-r border-[#f1efeb] p-4 text-left last:border-r-0 ${
+                        weekend && !match ? 'bg-[#fcfbf8]' : 'bg-white'
+                      } hover:bg-[#faf9f7]`}
                     >
+                      <p className="text-[11px] font-semibold tracking-[0.08em] text-[#8a93a0] uppercase">
+                        {day.toLocaleDateString('en-GB', { weekday: 'short' })}
+                      </p>
                       <span
-                        className={`inline-flex size-7 items-center justify-center rounded-full text-sm font-semibold ${
-                          today ? 'bg-navy text-white' : ''
+                        className={`mt-3 flex size-10 items-center justify-center rounded-[12px] text-sm font-semibold ${
+                          today ? 'bg-navy text-white' : 'bg-[#f4f3ef] text-navy'
                         }`}
                       >
                         {day.getDate()}
                       </span>
-                      {match && status ? (
-                        <span className={`mt-2 block size-2 rounded-full ${statusMeta(status).dot}`} />
-                      ) : null}
+                      <div className="mt-4">
+                        {match ? <LeaveBlock item={match} /> : null}
+                      </div>
+                      {match ? null : (
+                        <p className="mt-auto text-[11px] font-medium text-[#b7bdc6] opacity-0 transition-opacity group-hover:opacity-100">
+                          Request leave
+                        </p>
+                      )}
                     </button>
                   )
                 })}
               </div>
-            </>
-          ) : (
-            <div className="grid gap-3 md:grid-cols-7">
-              {weekDays.map((day) => {
-                const key = dateKey(day)
-                const match = requests.find((item) => coversDate(item, key))
-                return (
-                  <button
-                    key={key}
-                    type="button"
-                    onClick={() => openDay(day)}
-                    className="min-h-[120px] rounded-[12px] border border-[#eceae6] p-3 text-left hover:bg-[#f7f6f3]"
-                  >
-                    <p className="text-xs text-muted">{day.toLocaleDateString('en-GB', { weekday: 'short' })}</p>
-                    <p className="mt-1 text-lg font-semibold text-navy">{day.getDate()}</p>
-                    {match ? <div className="mt-3"><StatusPill status={match.status} /></div> : null}
-                  </button>
-                )
-              })}
             </div>
           )}
-          <div className="mt-5 flex flex-wrap gap-4 text-xs text-muted">
-            <span className="inline-flex items-center gap-2">
-              <span className="size-2 rounded-full bg-[#22c55e]" />
-              Approved
-            </span>
-            <span className="inline-flex items-center gap-2">
-              <span className="size-2 rounded-full bg-[#e2a334]" />
-              Pending
-            </span>
-            <span className="inline-flex items-center gap-2">
-              <span className="size-2 rounded-full bg-[#d32027]" />
-              Rejected
-            </span>
-          </div>
+          <LeaveLegend />
         </section>
 
-        <div className="space-y-5">
-          <aside className="rounded-[16px] border border-[#eceae6] bg-white p-5">
-            <div className="flex items-center justify-between">
+        <div className="space-y-4">
+          <aside className="rounded-[16px] border border-[#e4e2dd] bg-white p-5">
+            <div className="flex items-center justify-between gap-3">
               <p className="inline-flex items-center gap-2 text-sm font-semibold text-navy">
-                <span className="flex size-8 items-center justify-center rounded-[8px] bg-[#eef2f6]">
+                <span className="flex size-8 items-center justify-center rounded-[10px] bg-[#eef2f6]">
                   <User size={15} />
                 </span>
                 My Leave Requests
               </p>
-              <Link to="/portal/leave/requests" className="text-xs font-semibold text-navy">
-                View All +
+              <Link to="/portal/leave/requests" className="text-xs font-semibold text-navy hover:underline">
+                View all
               </Link>
             </div>
-            <div className="mt-4 space-y-3">
+            <div className="mt-4 space-y-2">
               {recent.length === 0 ? (
-                <p className="text-sm text-muted">No leave requests yet. Click a day to request leave.</p>
+                <div className="rounded-[12px] bg-[#f8f7f4] px-4 py-6 text-center">
+                  <span className="mx-auto flex size-10 items-center justify-center rounded-full bg-white text-navy">
+                    <CalendarDays size={16} />
+                  </span>
+                  <p className="mt-3 text-sm font-semibold text-navy">No requests yet</p>
+                  <p className="mt-1 text-xs text-muted">Choose a day to request leave.</p>
+                </div>
               ) : (
                 recent.map((item) => (
                   <button
                     key={idOfLeave(item)}
                     type="button"
                     onClick={() => navigate(`/portal/leave/requests?id=${idOfLeave(item)}`)}
-                    className="flex w-full items-start justify-between gap-3 text-left"
+                    className="flex w-full items-center justify-between gap-3 rounded-[12px] border border-[#f1efeb] px-3 py-3 text-left hover:bg-[#faf9f7]"
                   >
-                    <div>
-                      <p className="text-sm font-semibold text-navy">{item.leave_type}</p>
-                      <p className="text-xs text-muted">{formatLeaveRangeShort(item.start_date, item.end_date)}</p>
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-semibold text-navy">{item.leave_type}</p>
+                      <p className="mt-0.5 text-xs text-muted">{formatLeaveRangeShort(item.start_date, item.end_date)}</p>
                     </div>
                     <StatusPill status={item.status} />
                   </button>
@@ -524,9 +634,9 @@ export function EmployeeLeavePage() {
             </div>
           </aside>
 
-          <aside className="rounded-[16px] border border-[#eceae6] bg-white p-5">
+          <aside className="rounded-[16px] border border-[#e4e2dd] bg-white p-5">
             <p className="inline-flex items-center gap-2 text-sm font-semibold text-navy">
-              <span className="flex size-8 items-center justify-center rounded-[8px] bg-[#eef2f6]">
+              <span className="flex size-8 items-center justify-center rounded-[10px] bg-[#eef2f6]">
                 <Clock3 size={15} />
               </span>
               Approval Timeline
@@ -608,18 +718,19 @@ function ApprovalTimeline({ item }: { item?: LeaveItem }) {
   ] as const
 
   return (
-    <ol className="mt-5 space-y-5">
+    <ol className="relative mt-5 space-y-0">
+      <span className="absolute top-3 bottom-3 left-[11px] w-px bg-[#eceae6]" />
       {steps.map((step) => (
-        <li key={step.title} className="flex gap-3">
+        <li key={step.title} className="relative flex gap-3 pb-5 last:pb-0">
           <span
-            className={`mt-0.5 flex size-6 items-center justify-center rounded-full ${
+            className={`relative z-[1] mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full ${
               step.state === 'done'
                 ? 'bg-[#e7f6ec] text-[#1b7d4f]'
                 : step.state === 'current'
                   ? 'bg-[#fff4e5] text-[#c2782a]'
                   : step.state === 'rejected'
                     ? 'bg-[#fdecee] text-[#d32027]'
-                    : 'bg-[#eceae6] text-muted'
+                    : 'bg-[#f4f3ef] text-muted'
             }`}
           >
             {step.state === 'done' ? (
@@ -632,7 +743,7 @@ function ApprovalTimeline({ item }: { item?: LeaveItem }) {
           </span>
           <div>
             <p className="text-sm font-semibold text-navy">{step.title}</p>
-            <p className="mt-1 whitespace-pre-line text-xs text-muted">{step.body}</p>
+            <p className="mt-1 whitespace-pre-line text-xs leading-5 text-muted">{step.body}</p>
           </div>
         </li>
       ))}

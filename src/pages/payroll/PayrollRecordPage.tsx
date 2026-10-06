@@ -1140,6 +1140,29 @@ export function PayrollRecordPage() {
     setRatePrompt(null)
   }
 
+  function rememberRate(kind: 'hourly' | 'daily', value: string) {
+    const entered = Number(value)
+    if (!companyId || !employeeId || !value.trim() || Number.isNaN(entered) || entered <= 0) return
+    const rateValue = entered.toFixed(2)
+    const basic = kind === 'hourly' ? employment.basic_rate_per_hour : employment.daily_rate
+    const extras = kind === 'hourly' ? employment.extra_hourly_rates : employment.extra_daily_rates
+    if (uniqueRates(basic, extras).includes(rateValue)) return
+    const savedExtras = uniqueRates(extras).map(Number)
+    const payload = firstPositiveRate(basic)
+      ? kind === 'hourly'
+        ? { extra_hourly_rates: [...savedExtras, entered] }
+        : { extra_daily_rates: [...savedExtras, entered] }
+      : kind === 'hourly'
+        ? { basic_rate_per_hour: entered }
+        : { daily_rate: entered }
+    void employeesApi
+      .updateEmployment(companyId, employeeId, payload)
+      .then(() => queryClient.invalidateQueries({ queryKey: ['employee', companyId, employeeId] }))
+      .catch((err) =>
+        setError(err instanceof Error ? err.message : 'Could not save this rate to payment information'),
+      )
+  }
+
   function removeVisibleAddition(label: string) {
     if (locked) return
     const nextVisible = visibleAdditions.filter((item) => item !== label)
@@ -1570,7 +1593,9 @@ export function PayrollRecordPage() {
                   }}
                   onRateChange={(value) => {
                     setRate(value)
+                    latestRef.current = { ...latestRef.current, rate: value }
                     queueCalculate()
+                    rememberRate('hourly', value)
                   }}
                 />
               ) : null}
@@ -1626,10 +1651,15 @@ export function PayrollRecordPage() {
                     void persistAndCalculate()
                   }}
                   onRateChange={(value) => {
-                    setExtraPay((current) =>
-                      current.map((item) => (item.id === line.id ? { ...item, rate: value } : item)),
-                    )
+                    setExtraPay((current) => {
+                      const next = current.map((item) =>
+                        item.id === line.id ? { ...item, rate: value } : item,
+                      )
+                      latestRef.current = { ...latestRef.current, extraPay: next }
+                      return next
+                    })
                     queueCalculate()
+                    if (line.kind === 'daily') rememberRate('daily', value)
                   }}
                   onTotalChange={(value) => {
                     setExtraPay((current) =>
@@ -2324,6 +2354,22 @@ function PayRow({
   onTotalBlur?: () => void
   onRemove?: () => void
 }) {
+  const [customRate, setCustomRate] = useState<string | null>(null)
+  const cancelCustom = useRef(false)
+  const selected = rate === '' ? '' : Number(rate || 0).toFixed(2)
+
+  function commitCustomRate() {
+    if (cancelCustom.current) {
+      cancelCustom.current = false
+      return
+    }
+    const entered = Number(customRate)
+    if (customRate != null && customRate.trim() && !Number.isNaN(entered) && entered > 0) {
+      onRateChange?.(entered.toFixed(2))
+    }
+    setCustomRate(null)
+  }
+
   return (
     <div className="flex items-center gap-2">
       <button
@@ -2354,11 +2400,47 @@ function PayRow({
       {hideRate ? null : (
         <>
           <span className="text-xs text-navy">at</span>
+          {customRate != null ? (
+            <div className="flex min-w-[210px]">
+              <span className="flex h-[35px] items-center rounded-l-[6px] border-[0.5px] border-r-0 border-[#d9d9d9] bg-white px-2 text-xs text-navy">
+                £
+              </span>
+              <input
+                autoFocus
+                className={`${inputClass} w-[72px] rounded-none px-2`}
+                value={customRate}
+                placeholder="0.00"
+                inputMode="decimal"
+                aria-label={`Change ${rateUnit} rate`}
+                onChange={(event) => setCustomRate(event.target.value)}
+                onBlur={commitCustomRate}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter') {
+                    event.preventDefault()
+                    event.currentTarget.blur()
+                  }
+                  if (event.key === 'Escape') {
+                    cancelCustom.current = true
+                    setCustomRate(null)
+                  }
+                }}
+              />
+              <span className="flex h-[35px] items-center rounded-r-[6px] border-[0.5px] border-l-0 border-[#d9d9d9] bg-[#f8f7f4] px-2 text-xs text-navy">
+                {rateUnit}
+              </span>
+            </div>
+          ) : (
           <select
             className={`${inputClass} min-w-[150px] text-[#718daa] underline`}
-            value={rate === '' ? '' : Number(rate || 0).toFixed(2)}
+            value={selected}
             disabled={locked}
-            onChange={(event) => onRateChange?.(event.target.value)}
+            onChange={(event) => {
+              if (event.target.value === '__change__') {
+                setCustomRate(selected)
+                return
+              }
+              onRateChange?.(event.target.value)
+            }}
           >
             <option value="">Select rate</option>
             {rateOptions.map((option) => (
@@ -2366,7 +2448,9 @@ function PayRow({
                 {formatRate(Number(option), rateUnit)}
               </option>
             ))}
+            {!locked && onRateChange ? <option value="__change__">Change rate…</option> : null}
           </select>
+          )}
         </>
       )}
       <div className="ml-auto flex w-[138px]">
