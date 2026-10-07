@@ -328,7 +328,7 @@ export function EmployeeRotaPage() {
       </div>
 
       <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-2 text-sm font-semibold">
+        <div className="inline-flex items-center rounded-[10px] border border-[#d9d9d9] bg-white p-1 text-sm font-semibold">
           {(['week', 'month'] as const).map((item) => (
             <button
               key={item}

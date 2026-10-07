@@ -418,11 +418,11 @@ export function EmployeeWorkspace() {
       const extraEmails = draft.emails.slice(1).filter((row) => row.value.trim())
       const primaryPhone = draft.phones[0]
       const extraPhones = draft.phones.slice(1).filter((row) => row.value.trim())
-      if (!draft.first_name.trim() || !draft.last_name.trim() || !draft.dob || !primaryEmail?.value.trim()) {
-        throw new Error('First name, last name, date of birth and email are required')
+      if (!draft.first_name.trim() || !draft.last_name.trim() || !draft.dob) {
+        throw new Error('First name, last name and date of birth are required')
       }
       const invalidEmail = draft.emails.find(
-        (row, index) => (index === 0 || row.value.trim()) && !isValidEmail(row.value),
+        (row) => row.value.trim() && !isValidEmail(row.value),
       )
       if (invalidEmail) {
         throw new Error('Enter a valid email address')
@@ -446,7 +446,7 @@ export function EmployeeWorkspace() {
         last_name: draft.last_name,
         gender: draft.gender,
         dob: draft.dob,
-        email: primaryEmail?.value ?? '',
+        email: primaryEmail?.value.trim() || null,
         email_type: primaryEmail?.type ?? 'Work',
         extra_emails: extraEmails.map((row) => ({ type: row.type, address: row.value })),
         phone: primaryPhone?.value || undefined,

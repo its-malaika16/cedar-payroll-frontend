@@ -466,39 +466,38 @@ export function EmployeeLeavePage() {
         ))}
       </div>
 
-      <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
-        <div className="inline-flex rounded-full bg-white p-1 text-sm font-semibold shadow-[0_1px_2px_rgba(23,55,94,0.06)]">
-          <button
-            type="button"
-            onClick={() => setView('week')}
-            className={`rounded-full px-4 py-2 ${view === 'week' ? 'bg-navy text-white' : 'text-muted hover:text-navy'}`}
-          >
-            Week Overview
-          </button>
-          <button
-            type="button"
-            onClick={() => setView('month')}
-            className={`rounded-full px-4 py-2 ${view === 'month' ? 'bg-navy text-white' : 'text-muted hover:text-navy'}`}
-          >
-            Month Overview
-          </button>
-        </div>
-        <div className="inline-flex items-center gap-1 rounded-full bg-white px-2 py-1 text-sm font-semibold text-navy shadow-[0_1px_2px_rgba(23,55,94,0.06)]">
-          <button type="button" className="rounded-full p-1.5 hover:bg-[#f6f5f2]" onClick={() => shiftPeriod(-1)} aria-label="Previous">
-            <ChevronLeft size={18} />
-          </button>
-          <span className="inline-flex min-w-[210px] items-center justify-center gap-2 px-1">
-            <CalendarDays size={15} />
-            {periodLabel}
-          </span>
-          <button type="button" className="rounded-full p-1.5 hover:bg-[#f6f5f2]" onClick={() => shiftPeriod(1)} aria-label="Next">
-            <ChevronRight size={18} />
-          </button>
-        </div>
-      </div>
-
-      <div className="mt-4 grid items-start gap-5 xl:grid-cols-[minmax(0,1fr)_300px]">
+      <div className="mt-6 grid items-start gap-5 xl:grid-cols-[minmax(0,1fr)_300px]">
         <section className="overflow-hidden rounded-[16px] border border-[#e4e2dd] bg-white">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#f1efeb] px-4 py-3">
+            <div className="inline-flex rounded-[10px] border border-[#e4e2dd] bg-[#f8f7f4] p-1 text-sm font-semibold">
+              <button
+                type="button"
+                onClick={() => setView('week')}
+                className={`rounded-[8px] px-3.5 py-1.5 ${view === 'week' ? 'bg-navy text-white' : 'text-muted hover:text-navy'}`}
+              >
+                Week
+              </button>
+              <button
+                type="button"
+                onClick={() => setView('month')}
+                className={`rounded-[8px] px-3.5 py-1.5 ${view === 'month' ? 'bg-navy text-white' : 'text-muted hover:text-navy'}`}
+              >
+                Month
+              </button>
+            </div>
+            <div className="inline-flex items-center gap-1 rounded-[10px] border border-[#e4e2dd] bg-white px-1.5 py-1 text-sm font-semibold text-navy">
+              <button type="button" className="rounded-[8px] p-1.5 hover:bg-[#f6f5f2]" onClick={() => shiftPeriod(-1)} aria-label="Previous">
+                <ChevronLeft size={18} />
+              </button>
+              <span className="inline-flex min-w-[190px] items-center justify-center gap-2 px-1">
+                <CalendarDays size={15} />
+                {periodLabel}
+              </span>
+              <button type="button" className="rounded-[8px] p-1.5 hover:bg-[#f6f5f2]" onClick={() => shiftPeriod(1)} aria-label="Next">
+                <ChevronRight size={18} />
+              </button>
+            </div>
+          </div>
           {query.isLoading ? (
             <div className="px-5 py-10">
               <Loading />
@@ -551,7 +550,7 @@ export function EmployeeLeavePage() {
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <div className="grid min-w-[860px] grid-cols-7">
+              <div className="grid min-w-[720px] grid-cols-7">
                 {weekDays.map((day) => {
                   const key = dateKey(day)
                   const match = requests.find((item) => coversDate(item, key))
@@ -562,7 +561,7 @@ export function EmployeeLeavePage() {
                       key={key}
                       type="button"
                       onClick={() => openDay(day)}
-                      className={`group flex min-h-[320px] flex-col border-r border-[#f1efeb] p-4 text-left last:border-r-0 ${
+                      className={`group flex min-h-[168px] flex-col border-r border-[#f1efeb] p-3 text-left last:border-r-0 ${
                         weekend && !match ? 'bg-[#fcfbf8]' : 'bg-white'
                       } hover:bg-[#faf9f7]`}
                     >
@@ -570,20 +569,22 @@ export function EmployeeLeavePage() {
                         {day.toLocaleDateString('en-GB', { weekday: 'short' })}
                       </p>
                       <span
-                        className={`mt-3 flex size-10 items-center justify-center rounded-[12px] text-sm font-semibold ${
-                          today ? 'bg-navy text-white' : 'bg-[#f4f3ef] text-navy'
+                        className={`mt-2 flex size-8 items-center justify-center rounded-full text-sm font-semibold ${
+                          today ? 'bg-navy text-white' : 'text-navy'
                         }`}
                       >
                         {day.getDate()}
                       </span>
-                      <div className="mt-4">
-                        {match ? <LeaveBlock item={match} /> : null}
+                      <div className="mt-3">
+                        {match ? (
+                          <LeaveBlock item={match} />
+                        ) : (
+                          <p className="text-[11px] font-medium text-[#b7bdc6] group-hover:text-navy">
+                            <span className="group-hover:hidden">No leave</span>
+                            <span className="hidden group-hover:inline">Request leave</span>
+                          </p>
+                        )}
                       </div>
-                      {match ? null : (
-                        <p className="mt-auto text-[11px] font-medium text-[#b7bdc6] opacity-0 transition-opacity group-hover:opacity-100">
-                          Request leave
-                        </p>
-                      )}
                     </button>
                   )
                 })}

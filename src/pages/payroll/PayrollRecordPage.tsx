@@ -555,9 +555,9 @@ export function PayrollRecordPage() {
     [
       ['Annual leave', leaveSummary.annual, leaveAmounts.annual, 'Paid — already in basic pay'],
       ['Unpaid leave', leaveSummary.unpaid, leaveAmounts.unpaid, 'Deducted from basic pay'],
-      ['Sick leave (SSP)', leaveSummary.sick, leaveAmounts.sick ?? leaveSummary.sick_pay, 'Replaces contractual pay · statutory sick pay'],
-      ['Maternity leave (SMP)', leaveSummary.maternity, leaveAmounts.maternity ?? leaveSummary.maternity_pay, 'Replaces contractual pay · statutory maternity pay'],
-      ['Paternity leave (SPP)', leaveSummary.paternity, leaveAmounts.paternity ?? leaveSummary.paternity_pay, 'Replaces contractual pay · statutory paternity pay'],
+      ['Sick leave (SSP)', leaveSummary.sick, leaveAmounts.sick ?? leaveSummary.sick_pay, leaveSummary.offsets_contractual_pay === false ? 'Statutory sick pay' : 'Replaces contractual pay · statutory sick pay'],
+      ['Maternity leave (SMP)', leaveSummary.maternity, leaveAmounts.maternity ?? leaveSummary.maternity_pay, leaveSummary.offsets_contractual_pay === false ? 'Statutory maternity pay' : 'Replaces contractual pay · statutory maternity pay'],
+      ['Paternity leave (SPP)', leaveSummary.paternity, leaveAmounts.paternity ?? leaveSummary.paternity_pay, leaveSummary.offsets_contractual_pay === false ? 'Statutory paternity pay' : 'Replaces contractual pay · statutory paternity pay'],
       ['Absent', leaveSummary.absent, leaveAmounts.absent, 'Deducted from basic pay'],
       ['On strike', leaveSummary.on_strike, leaveAmounts.on_strike, 'Deducted from basic pay'],
       ['Parenting leave', leaveSummary.parenting, leaveAmounts.parenting, 'Paid — already in basic pay'],
@@ -1370,6 +1370,10 @@ export function PayrollRecordPage() {
   }
 
   if (runQuery.isLoading || recordQuery.isLoading) return <Loading />
+  if (recordQuery.isError) {
+    const message = recordQuery.error instanceof Error ? recordQuery.error.message : 'Payslip not found'
+    return <Alert>{message}</Alert>
+  }
   if (!record) return <Alert>Payslip not found</Alert>
 
   const displayName = name === '—' ? 'Employee Name' : name
@@ -1710,10 +1714,11 @@ export function PayrollRecordPage() {
             )}
             {Number(leaveSummary.awe ?? 0) > 0 ? (
               <p className="mt-3 text-[11px] leading-relaxed text-[#607080]">
-                Calculated from HMRC {String(leaveSummary.tax_year ?? '2026/27')} rates using average weekly
-                earnings of {money(leaveSummary.awe)}. SSP is the lower of 80% of AWE and the weekly flat
-                rate. SMP is 90% of AWE for 6 weeks, then the lower of the HMRC standard rate and 90% of
-                AWE. SPP is the lower of the HMRC standard rate and 90% of AWE.
+                {Number(leaveSummary.sick_pay ?? 0) > 0
+                  ? `Average weekly earnings of ${money(leaveSummary.awe)} are the Class 1 earnings paid before the first sick day. Weekly SSP is ${money(leaveSummary.ssp_weekly)}, the lower of 80% of those earnings and the flat rate. ${leaveSummary.ssp_days_paid} of ${leaveSummary.ssp_qualifying_days} qualifying days is ${money(leaveSummary.sick_pay)}. `
+                  : `Calculated from HMRC ${String(leaveSummary.tax_year ?? '2026/27')} rates using average weekly earnings of ${money(leaveSummary.awe)}. SSP is the lower of 80% of AWE and the weekly flat rate. `}
+                SMP is 90% of AWE for 6 weeks, then the lower of the HMRC standard rate and 90% of AWE.
+                SPP is the lower of the HMRC standard rate and 90% of AWE.
               </p>
             ) : null}
           </section>
@@ -1741,40 +1746,6 @@ export function PayrollRecordPage() {
                     <span className="tabular-nums font-semibold">{money(amount)}</span>
                   </div>
                 ))}
-                <div className="mt-3 flex items-center justify-between gap-3 border-t border-[#d9d9d9] pt-3">
-                  <span className="font-semibold">
-                    Leave deduction
-                    {leaveSummary.manual ? (
-                      <span className="ml-2 text-[11px] font-medium text-[#607080]">(edited)</span>
-                    ) : null}
-                  </span>
-                  <input
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    disabled={locked}
-                    className={`${inputClass} w-[110px] text-right tabular-nums`}
-                    value={leaveAmount}
-                    onChange={(event) => {
-                      setLeaveAmount(event.target.value)
-                      queueCalculate()
-                    }}
-                    onBlur={() => {
-                      const next = Number(leaveAmount)
-                      if (Number.isNaN(next) || next < 0) {
-                        setLeaveAmount(moneyInput(record?.unpaid_leave_deduction))
-                        return
-                      }
-                      window.clearTimeout(calcTimer.current)
-                      void persistAndCalculate()
-                    }}
-                  />
-                </div>
-                {Number(leaveSummary.daily_rate ?? 0) > 0 ? (
-                  <p className="text-[11px] text-[#607080]">
-                    Daily rate used: {money(leaveSummary.daily_rate)}
-                  </p>
-                ) : null}
               </div>
             )}
           </section>
