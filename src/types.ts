@@ -97,6 +97,7 @@ export type BureauTeamMember = {
   first_name?: string | null
   last_name?: string | null
   email: string
+  role_name?: string | null
   is_active?: boolean
   last_login?: string | null
   created_at?: string | null

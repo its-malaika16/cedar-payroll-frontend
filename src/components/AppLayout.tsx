@@ -93,6 +93,7 @@ const adminNav: NavItem[] = [
   },
   { to: '/activities', label: 'Activities', icon: iconActivityCheck },
   { to: '/communication', label: 'Communication', icon: iconNotifications },
+  { to: '/bureau-personal', label: 'Bureau Personal', icon: iconEmployees },
 ]
 
 const footerNav: NavItem[] = [
@@ -206,6 +207,7 @@ export function AppLayout() {
       if (item.to === '/hr' || item.to === '/hr/shifts') return auth.hasModule('HR')
       if (item.to === '/activities') return auth.isBureauAdmin
       if (item.to === '/communication') return auth.isBureauAdmin
+      if (item.to === '/bureau-personal') return auth.isBureauHrManager
       if (item.to === '/companies') return auth.canManageOrganizations
       if (item.to === '/employees/payslips') {
         return auth.isCompanyAdmin && auth.hasModule('PAYROLL') && !auth.hasModule('INVOICE')

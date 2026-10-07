@@ -685,8 +685,18 @@ export const bureauApi = {
   uploadLogo: (form: FormData) =>
     api<ApiSuccess<BureauDetails>>('/bureau/logo', { method: 'POST', body: form }),
   team: () => get<BureauTeamMember[]>('/bureau/team'),
-  addAdmin: (body: { name: string; email: string; password: string }) =>
-    post<BureauTeamMember>('/bureau/team', body),
+  roles: () =>
+    get<{ id: string; role_name: string; description?: string | null }[]>('/bureau/team/roles'),
+  addAdmin: (body: {
+    name: string
+    email: string
+    password: string
+    role?: string
+  }) => post<BureauTeamMember>('/bureau/team', body),
+  updateAdmin: (
+    memberId: string,
+    body: { name: string; email: string; role: string; password?: string },
+  ) => patch<BureauTeamMember>(`/bureau/team/${memberId}`, body),
   removeAdmin: (memberId: string) => del(`/bureau/team/${memberId}`),
 }
 

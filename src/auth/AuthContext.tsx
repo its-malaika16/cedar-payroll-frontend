@@ -43,6 +43,7 @@ type AuthContextValue = {
   logout: () => void
   refresh: () => Promise<void>
   isBureauAdmin: boolean
+  isBureauHrManager: boolean
   isCompanyAdmin: boolean
   canManageOrganizations: boolean
   needsOnboarding: boolean
@@ -79,6 +80,11 @@ function homePathFromAccess(payload: Partial<AuthPayload> | null | undefined) {
     bureauAccess.length === 0 &&
     employeeAccess.length > 0
   return employeeOnly ? '/portal' : '/'
+}
+
+function isBureauAdminRole(roleName?: string | null) {
+  const value = String(roleName ?? '').toUpperCase()
+  return value === 'BUREAU_ADMIN' || value === 'BUREAU_HR_MANAGER'
 }
 
 function isBureauScopedRole(roleName?: string | null) {
@@ -246,8 +252,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const currentEmployee =
     employeeAccess.find((item) => item.company_id === companyId) ?? null
   const isSuperAdmin = Boolean(user?.is_super_admin)
-  const isBureauAdmin = bureauAccess.some(
-    (bureau) => bureau.role_name === 'BUREAU_ADMIN',
+  const isBureauAdmin = bureauAccess.some((bureau) =>
+    isBureauAdminRole(bureau.role_name),
+  )
+  const isBureauHrManager = bureauAccess.some(
+    (bureau) => bureau.role_name === 'BUREAU_HR_MANAGER',
   )
   const hasBureauScopedAccess = bureauAccess.some((bureau) =>
     isBureauScopedRole(bureau.role_name),
@@ -296,6 +305,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     adminCompanies,
     isSuperAdmin,
     isBureauAdmin,
+    isBureauHrManager,
     isCompanyAdmin,
     canManageOrganizations,
     needsOnboarding,

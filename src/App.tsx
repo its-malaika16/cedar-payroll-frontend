@@ -52,6 +52,7 @@ import { CompliancePage } from './pages/hr/CompliancePage'
 import { FinancialReportPage } from './pages/hr/FinancialReportPage'
 import { HrDashboardPage, RequireHr } from './pages/hr/HrDashboardPage'
 import { ActivitiesPage } from './pages/ActivitiesPage'
+import { BureauPersonalPage } from './pages/bureau/BureauPersonalPage'
 import {
   HelpPage,
   RequireCompanyOfficial,
@@ -210,6 +211,7 @@ export default function App() {
         />
         <Route path="/help/company-info" element={<Navigate to="/company-info" replace />} />
         <Route path="/communication" element={<CommunicationPage />} />
+        <Route path="/bureau-personal" element={<BureauPersonalPage />} />
         <Route path="/settings" element={<SettingsPage />} />
         <Route path="/payroll/schedules" element={<SchedulesPage />} />
         <Route path="/payroll/runs" element={<PayrollRunsPage />} />
