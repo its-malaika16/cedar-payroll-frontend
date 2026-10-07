@@ -94,19 +94,19 @@ export function EmployeeCsvImport({
       const dob = parseCsvDate(value('dob'))
       const gender = parseCsvGender(value('gender'))
       const name = [firstName, lastName].filter(Boolean).join(' ') || `Row ${index + 2}`
-      if (!firstName || !lastName || !email || !dob || !gender) {
-        failed.push({ row: index + 2, name, reason: 'First name, last name, email, date of birth and gender are required' })
+      if (!firstName || !lastName || !dob || !gender) {
+        failed.push({ row: index + 2, name, reason: 'First name, last name, date of birth and gender are required' })
         continue
       }
-      if (!isValidEmail(email)) {
+      if (email && !isValidEmail(email)) {
         failed.push({ row: index + 2, name, reason: 'Email is not valid' })
         continue
       }
-      if (seenEmails.has(email)) {
+      if (email && seenEmails.has(email)) {
         failed.push({ row: index + 2, name, reason: 'Duplicate email in this CSV' })
         continue
       }
-      seenEmails.add(email)
+      if (email) seenEmails.add(email)
       try {
         const rawTitle = value('title')
         const rawJobTitle = value('job_title')
@@ -120,7 +120,7 @@ export function EmployeeCsvImport({
           last_name: lastName,
           dob,
           gender,
-          email,
+          ...(email ? { email } : {}),
           phone: value('phone') || undefined,
           ...(worksNumber ? { employee_code: worksNumber } : {}),
         })

@@ -11,7 +11,7 @@ export type CsvField = {
 export const EMPLOYEE_CSV_FIELDS: CsvField[] = [
   { id: 'first_name', label: 'First name', required: true, group: 'Personal', aliases: ['first name', 'firstname', 'first_name', 'forename', 'given name'] },
   { id: 'last_name', label: 'Last name', required: true, group: 'Personal', aliases: ['last name', 'lastname', 'last_name', 'surname', 'family name'] },
-  { id: 'email', label: 'Email', required: true, group: 'Personal', aliases: ['email', 'email address', 'work email', 'e-mail'] },
+  { id: 'email', label: 'Email', group: 'Personal', aliases: ['email', 'email address', 'work email', 'e-mail'] },
   { id: 'dob', label: 'Date of birth', required: true, group: 'Personal', aliases: ['dob', 'date of birth', 'birth date', 'birthday', 'dateofbirth'] },
   { id: 'gender', label: 'Gender', required: true, group: 'Personal', aliases: ['gender', 'sex'] },
   { id: 'title', label: 'Title', group: 'Personal', aliases: ['title', 'honorific', 'salutation'] },
