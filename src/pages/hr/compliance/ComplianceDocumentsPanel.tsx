@@ -1,7 +1,7 @@
 import { useMemo, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Download, Eye, EyeOff, FileText, Trash2, X } from 'lucide-react'
+import { Download, Eye, FileText, Trash2, X } from 'lucide-react'
 import { hrApi } from '../../../api'
 import { download, fetchBlob } from '../../../api/client'
 import { DocumentPreviewModal } from '../../../components/DocumentPreviewModal'
@@ -76,17 +76,18 @@ export function ComplianceDocumentsPanel({
   role,
   documents,
   loading,
+  compact = false,
 }: {
   companyId: string
   employeeId: string
   role: 'employee' | 'employer'
   documents: ComplianceFile[]
   loading?: boolean
+  compact?: boolean
 }) {
   const queryClient = useQueryClient()
   const [documentType, setDocumentType] = useState('')
   const [expiryDate, setExpiryDate] = useState('')
-  const [visibleToEmployee, setVisibleToEmployee] = useState(false)
   const [file, setFile] = useState<File | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [message, setMessage] = useState<string | null>(null)
@@ -132,9 +133,6 @@ export function ComplianceDocumentsPanel({
       form.append('file', file)
       form.append('document_type', selected.key)
       if (expiryDate) form.append('expiry_date', expiryDate)
-      if (role === 'employer' && selected.employerOnly) {
-        form.append('visible_to_employee', visibleToEmployee ? 'true' : 'false')
-      }
       return hrApi.uploadCompliance(companyId, employeeId, form)
     },
     onSuccess: async () => {
@@ -142,7 +140,6 @@ export function ComplianceDocumentsPanel({
       setMessage('Document uploaded')
       setFile(null)
       setExpiryDate('')
-      setVisibleToEmployee(false)
       await queryClient.invalidateQueries({ queryKey: ['compliance-employees', companyId] })
       await queryClient.invalidateQueries({ queryKey: ['compliance', companyId] })
       await queryClient.invalidateQueries({ queryKey: ['my-compliance', companyId, employeeId] })
@@ -151,16 +148,6 @@ export function ComplianceDocumentsPanel({
       setMessage(null)
       setError(err instanceof Error ? err.message : 'Upload failed')
     },
-  })
-
-  const visibility = useMutation({
-    mutationFn: (input: { id: string; visible: boolean }) =>
-      hrApi.updateComplianceVisibility(companyId, input.id, input.visible),
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ['compliance-employees', companyId] })
-      await queryClient.invalidateQueries({ queryKey: ['my-compliance', companyId, employeeId] })
-    },
-    onError: (err) => setError(err instanceof Error ? err.message : 'Could not update visibility'),
   })
 
   const remove = useMutation({
@@ -246,7 +233,7 @@ export function ComplianceDocumentsPanel({
   }
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col">
+    <div className={compact ? 'min-w-0' : 'flex min-h-0 flex-1 flex-col'}>
       {error ? (
         <div className="mb-4 px-5 pt-5">
           <Alert>{error}</Alert>
@@ -258,7 +245,7 @@ export function ComplianceDocumentsPanel({
         </div>
       ) : null}
 
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#eceae6] px-5 py-4">
+      <div className={`flex flex-wrap items-center justify-between gap-3 border-b border-[#eceae6] ${compact ? 'px-4 py-3' : 'px-5 py-4'}`}>
         <p className="text-sm text-muted">
           {hasStarterForm
             ? 'A starter form is already on file. Delete it if you need to create a new one.'
@@ -274,7 +261,11 @@ export function ComplianceDocumentsPanel({
       </div>
 
       <form
-        className="grid gap-4 border-b border-[#eceae6] px-5 py-5 md:grid-cols-2 xl:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)_minmax(0,1fr)_auto]"
+        className={
+          compact
+            ? 'grid gap-3 border-b border-[#eceae6] px-4 py-4'
+            : 'grid gap-4 border-b border-[#eceae6] px-5 py-5 md:grid-cols-2 xl:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)_minmax(0,1fr)_auto]'
+        }
         onSubmit={(event) => {
           event.preventDefault()
           upload.mutate()
@@ -287,7 +278,6 @@ export function ComplianceDocumentsPanel({
             onChange={(event) => {
               setDocumentType(event.target.value)
               setExpiryDate('')
-              setVisibleToEmployee(false)
             }}
           >
             {typeOptions.map((item) => (
@@ -326,17 +316,6 @@ export function ComplianceDocumentsPanel({
           />
         </Field>
         <div className="flex flex-col justify-end gap-3">
-          {role === 'employer' && selected?.employerOnly ? (
-            <label className="flex items-center gap-2 text-sm font-medium text-navy">
-              <input
-                type="checkbox"
-                className="size-4 accent-navy"
-                checked={visibleToEmployee}
-                onChange={(event) => setVisibleToEmployee(event.target.checked)}
-              />
-              Visible to employee
-            </label>
-          ) : null}
           <Button type="submit" disabled={upload.isPending || !file || (isStarterType && hasStarterForm)}>
             Upload
           </Button>
@@ -352,7 +331,11 @@ export function ComplianceDocumentsPanel({
         {loading ? (
           <Loading />
         ) : documents.length === 0 ? (
-          <EmptyState title="No documents yet" />
+          compact ? (
+            <p className="px-4 py-4 text-sm text-muted">No documents yet</p>
+          ) : (
+            <EmptyState title="No documents yet" />
+          )
         ) : (
           <div className="divide-y divide-[#eee]">
             {documents.map((doc) => (
@@ -387,18 +370,6 @@ export function ComplianceDocumentsPanel({
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
                   {expiryBadge(doc)}
-                  {doc.can_change_visibility ? (
-                    <button
-                      type="button"
-                      className="inline-flex items-center gap-1 text-sm font-semibold text-navy hover:underline"
-                      onClick={() =>
-                        visibility.mutate({ id: doc.id, visible: !doc.visible_to_employee })
-                      }
-                    >
-                      {doc.visible_to_employee ? <Eye size={14} /> : <EyeOff size={14} />}
-                      {doc.visible_to_employee ? 'Visible to employee' : 'Hidden from employee'}
-                    </button>
-                  ) : null}
                   <IconButton label="View" onClick={() => setViewer(doc)}>
                     <Eye size={16} />
                   </IconButton>

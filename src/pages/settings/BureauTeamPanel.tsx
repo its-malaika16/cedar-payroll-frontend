@@ -50,6 +50,9 @@ export function BureauTeamPanel() {
   const [showEditPassword, setShowEditPassword] = useState(false)
   const [editError, setEditError] = useState<string | null>(null)
   const [editSaving, setEditSaving] = useState(false)
+  const [pendingDelete, setPendingDelete] = useState<{ id: string; name: string; email: string } | null>(null)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
+  const [deleting, setDeleting] = useState(false)
 
   const query = useQuery({
     queryKey: ['bureau-team'],
@@ -84,6 +87,11 @@ export function BureauTeamPanel() {
         role: body.role,
         password: body.password,
       }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['bureau-team'] }),
+  })
+
+  const removeAdmin = useMutation({
+    mutationFn: (memberId: string) => bureauApi.removeAdmin(memberId),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['bureau-team'] }),
   })
 
@@ -299,9 +307,25 @@ export function BureauTeamPanel() {
                       <span className="text-xs text-muted">{roleLabel(member.role_name)}</span>
                       <span className="text-xs text-muted">Last login {formatDate(member.last_login)}</span>
                     </div>
-                    <Button type="button" variant="secondary" onClick={() => startEdit(member)}>
-                      Edit
-                    </Button>
+                    <div className="flex shrink-0 gap-2">
+                      <Button type="button" variant="secondary" onClick={() => startEdit(member)}>
+                        Edit
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="danger"
+                        onClick={() => {
+                          setDeleteError(null)
+                          setPendingDelete({
+                            id: member.id,
+                            name: member.name || member.email,
+                            email: member.email,
+                          })
+                        }}
+                      >
+                        Delete
+                      </Button>
+                    </div>
                   </div>
                 )}
               </li>
@@ -309,6 +333,75 @@ export function BureauTeamPanel() {
           </ul>
         )}
       </section>
+
+      {pendingDelete ? (
+        <div
+          className="fixed inset-0 z-[80] flex items-center justify-center bg-navy/40 px-4"
+          role="presentation"
+          onClick={() => {
+            if (!deleting) {
+              setPendingDelete(null)
+              setDeleteError(null)
+            }
+          }}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="delete-bureau-member-title"
+            className="w-full max-w-[420px] rounded-[16px] bg-white p-6 shadow-xl"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <h3 id="delete-bureau-member-title" className="text-lg font-semibold text-navy">
+              Delete {pendingDelete.name}?
+            </h3>
+            <p className="mt-2 text-sm text-muted">
+              {pendingDelete.email} will no longer be able to sign in as a bureau team member.
+            </p>
+            {deleteError ? <Alert className="mt-4">{deleteError}</Alert> : null}
+            <div className="mt-6 flex justify-end gap-3">
+              <Button
+                variant="secondary"
+                type="button"
+                disabled={deleting}
+                onClick={() => {
+                  setPendingDelete(null)
+                  setDeleteError(null)
+                }}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="danger"
+                type="button"
+                disabled={deleting}
+                onClick={() => {
+                  const member = pendingDelete
+                  setDeleting(true)
+                  setDeleteError(null)
+                  void removeAdmin
+                    .mutateAsync(member.id)
+                    .then(() => {
+                      if (editingId === member.id) {
+                        setEditingId(null)
+                        setEditError(null)
+                      }
+                      setPendingDelete(null)
+                      setMessage(`${member.name} was removed from the bureau team.`)
+                      setError(null)
+                    })
+                    .catch((err: unknown) => {
+                      setDeleteError(err instanceof Error ? err.message : 'Could not delete this team member')
+                    })
+                    .finally(() => setDeleting(false))
+                }}
+              >
+                {deleting ? 'Deleting…' : 'Delete'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   )
 }
