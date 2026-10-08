@@ -656,7 +656,7 @@ export const communicationApi = {
     if (body.admin_ids?.length) params.set('admin_ids', body.admin_ids.join(','))
     return get(`/communication/preview?${params.toString()}`)
   },
-  send: (body: Record<string, unknown>) => post('/communication', body),
+  send: (body: FormData) => api('/communication', { method: 'POST', body }),
 }
 
 export const notificationsApi = {

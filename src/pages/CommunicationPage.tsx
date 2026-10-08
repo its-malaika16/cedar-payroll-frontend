@@ -2,8 +2,9 @@ import { useEffect, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Navigate } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowLeft, History, Mail, Search, Send, X } from 'lucide-react'
+import { ArrowLeft, History, Image, Mail, Paperclip, Search, Send, X } from 'lucide-react'
 import { communicationApi, companiesApi, employeesApi } from '../api'
+import { download, fetchBlob } from '../api/client'
 import { useAuth } from '../auth/AuthContext'
 import { Alert, Button, EmptyState, Loading, PageHeader } from '../components/ui'
 import { fullName, idOf } from '../lib/format'
@@ -23,6 +24,16 @@ function isCompanyAdminRole(roleName?: string | null, isOwner?: boolean) {
   return value === 'COMPANY_ADMIN' || value === 'COMPANY_ADMINISTRATOR'
 }
 
+const MAX_SIGNATURE_BYTES = 2 * 1024 * 1024
+const MAX_FILE_BYTES = 5 * 1024 * 1024
+const MAX_TOTAL_BYTES = 8 * 1024 * 1024
+const SIGNATURE_TYPES = new Set(['image/png', 'image/jpeg', 'image/gif', 'image/webp'])
+
+function fileSize(bytes: number) {
+  if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+}
+
 const FROM_OPTIONS = [
   {
     value: 'support' as const,
@@ -36,6 +47,14 @@ const FROM_OPTIONS = [
   },
 ]
 
+type SentAttachment = {
+  id: string
+  kind: string
+  name: string
+  content_type?: string
+  size?: number
+}
+
 type SentEmail = {
   id: string
   subject: string
@@ -48,6 +67,85 @@ type SentEmail = {
   sender_name: string
   company_name?: string | null
   recipients?: Array<{ email: string; name?: string | null; status?: string }>
+  attachments?: SentAttachment[]
+}
+
+function attachmentPath(messageId: string, attachmentId: string) {
+  return `/communication/messages/${messageId}/attachments/${attachmentId}`
+}
+
+function SentAttachments({ email }: { email: SentEmail }) {
+  const signature = email.attachments?.find((item) => item.kind === 'signature')
+  const files = (email.attachments ?? []).filter((item) => item.kind !== 'signature')
+  const [preview, setPreview] = useState<string | null>(null)
+  const [previewError, setPreviewError] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!signature) {
+      setPreview(null)
+      return
+    }
+    let url = ''
+    let cancelled = false
+    setPreviewError(null)
+    void fetchBlob(attachmentPath(email.id, signature.id))
+      .then((blob) => {
+        if (cancelled) return
+        url = URL.createObjectURL(blob)
+        setPreview(url)
+      })
+      .catch(() => {
+        if (!cancelled) setPreviewError('Could not load the signature')
+      })
+    return () => {
+      cancelled = true
+      if (url) URL.revokeObjectURL(url)
+    }
+  }, [email.id, signature?.id])
+
+  if (!signature && files.length === 0) return null
+
+  return (
+    <div className="mt-5 space-y-4">
+      {signature ? (
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-wide text-muted">Signature</p>
+          {preview ? (
+            <img src={preview} alt="Signature" className="mt-2 max-h-40 max-w-full rounded-[8px] border border-[#e4e8ee] bg-white object-contain" />
+          ) : (
+            <p className="mt-2 text-sm text-muted">{previewError || 'Loading signature…'}</p>
+          )}
+        </div>
+      ) : null}
+      {files.length > 0 ? (
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-wide text-muted">Attachments</p>
+          <ul className="mt-2 divide-y divide-[#eef1f5] overflow-hidden rounded-[12px] border border-[#e4e8ee]">
+            {files.map((file) => (
+              <li key={file.id} className="flex items-center justify-between gap-3 px-3 py-2">
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium text-navy">{file.name}</p>
+                  {file.size ? <p className="text-xs text-muted">{fileSize(file.size)}</p> : null}
+                </div>
+                <button
+                  type="button"
+                  className="shrink-0 text-sm font-semibold text-navy hover:underline"
+                  onClick={() =>
+                    void download(attachmentPath(email.id, file.id), file.name).catch(() => {
+                      setPreviewError('Could not download this file')
+                    })
+                  }
+                >
+                  Download
+                </button>
+              </li>
+            ))}
+          </ul>
+          {previewError && !signature ? <p className="mt-2 text-sm text-brand">{previewError}</p> : null}
+        </div>
+      ) : null}
+    </div>
+  )
 }
 
 function audienceLabel(value: string) {
@@ -233,6 +331,9 @@ export function CommunicationPage() {
   const [adminSearch, setAdminSearch] = useState('')
   const [subject, setSubject] = useState('')
   const [body, setBody] = useState('')
+  const [signature, setSignature] = useState<File | null>(null)
+  const [files, setFiles] = useState<File[]>([])
+  const [attachmentKey, setAttachmentKey] = useState(0)
   const [error, setError] = useState<string | null>(null)
   const [message, setMessage] = useState<string | null>(null)
   const [historyOpen, setHistoryOpen] = useState(false)
@@ -333,9 +434,30 @@ export function CommunicationPage() {
       (payload.audience !== 'SPECIFIC_ADMINS' || payload.admin_ids.length > 0),
   })
   const previewCount = Number((previewQuery.data?.data as { count?: number } | undefined)?.count ?? 0)
+  const signaturePreview = useMemo(
+    () => (signature ? URL.createObjectURL(signature) : ''),
+    [signature],
+  )
+  useEffect(() => {
+    if (!signaturePreview) return
+    return () => URL.revokeObjectURL(signaturePreview)
+  }, [signaturePreview])
 
   const send = useMutation({
-    mutationFn: () => communicationApi.send(payload),
+    mutationFn: () => {
+      const form = new FormData()
+      form.append('from', payload.from)
+      form.append('audience', payload.audience)
+      form.append('all_companies', payload.all_companies ? 'true' : 'false')
+      form.append('company_ids', payload.company_ids.join(','))
+      form.append('employee_ids', payload.employee_ids.join(','))
+      form.append('admin_ids', payload.admin_ids.join(','))
+      form.append('subject', payload.subject)
+      form.append('body', payload.body)
+      if (signature) form.append('signature', signature)
+      for (const file of files) form.append('files', file)
+      return communicationApi.send(form)
+    },
     onSuccess: async (result) => {
       const data = result.data as { sent_count?: number; failed_count?: number }
       setMessage(
@@ -346,6 +468,9 @@ export function CommunicationPage() {
       setError(null)
       setSubject('')
       setBody('')
+      setSignature(null)
+      setFiles([])
+      setAttachmentKey((value) => value + 1)
       setEmployeeIds([])
       setAdminIds([])
       setEmployeeSearch('')
@@ -509,6 +634,162 @@ export function CommunicationPage() {
               </div>
             </div>
           </div>
+
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="rounded-[14px] border border-[#e4e8ee] bg-white p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="flex items-center gap-2 text-sm font-semibold text-navy">
+                    <Image size={16} />
+                    Signature
+                  </p>
+                  <p className="mt-1 text-xs text-muted">
+                    Add an image. It appears at the end of the email.
+                  </p>
+                </div>
+                <label className="inline-flex h-9 cursor-pointer items-center rounded-[8px] border border-navy px-3 text-xs font-semibold text-navy hover:bg-cream">
+                  {signature ? 'Change' : 'Add signature'}
+                  <input
+                    key={`signature-${attachmentKey}`}
+                    type="file"
+                    accept="image/png,image/jpeg,image/gif,image/webp,.png,.jpg,.jpeg,.gif,.webp"
+                    className="sr-only"
+                    onChange={(event) => {
+                      const file = event.target.files?.[0]
+                      event.target.value = ''
+                      if (!file) return
+                      const allowed =
+                        SIGNATURE_TYPES.has(file.type) ||
+                        /\.(png|jpe?g|gif|webp)$/i.test(file.name)
+                      if (!allowed) {
+                        setMessage(null)
+                        setError('The signature must be a PNG, JPG, GIF or WebP image')
+                        return
+                      }
+                      if (file.size > MAX_SIGNATURE_BYTES) {
+                        setMessage(null)
+                        setError('The signature image must be 2 MB or smaller')
+                        return
+                      }
+                      const others = files.reduce((sum, item) => sum + item.size, 0)
+                      if (file.size + others > MAX_TOTAL_BYTES) {
+                        setMessage(null)
+                        setError('Attachments must be 8 MB or smaller in total')
+                        return
+                      }
+                      setError(null)
+                      setSignature(file)
+                    }}
+                  />
+                </label>
+              </div>
+              {signature ? (
+                <div className="mt-3 flex items-center gap-3 rounded-[10px] border border-[#e4e8ee] bg-[#f7f9fc] p-2">
+                  {signaturePreview ? (
+                    <img
+                      src={signaturePreview}
+                      alt=""
+                      className="h-12 max-w-24 rounded-[6px] object-contain"
+                    />
+                  ) : null}
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium text-navy">{signature.name}</p>
+                    <p className="text-xs text-muted">{fileSize(signature.size)}</p>
+                  </div>
+                  <button
+                    type="button"
+                    className="rounded-[6px] p-1.5 text-muted hover:bg-white hover:text-navy"
+                    aria-label="Remove signature"
+                    onClick={() => setSignature(null)}
+                  >
+                    <X size={16} />
+                  </button>
+                </div>
+              ) : null}
+            </div>
+
+            <div className="rounded-[14px] border border-[#e4e8ee] bg-white p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="flex items-center gap-2 text-sm font-semibold text-navy">
+                    <Paperclip size={16} />
+                    Files
+                  </p>
+                  <p className="mt-1 text-xs text-muted">
+                    Attach any files. Up to 5 files, 8 MB altogether.
+                  </p>
+                </div>
+                <label className="inline-flex h-9 cursor-pointer items-center rounded-[8px] border border-navy px-3 text-xs font-semibold text-navy hover:bg-cream">
+                  Add files
+                  <input
+                    key={`files-${attachmentKey}`}
+                    type="file"
+                    multiple
+                    className="sr-only"
+                    onChange={(event) => {
+                      const picked = [...(event.target.files ?? [])]
+                      event.target.value = ''
+                      if (picked.length === 0) return
+                      const next = [...files]
+                      let rejected = false
+                      for (const file of picked) {
+                        if (next.some((item) => item.name === file.name && item.size === file.size)) continue
+                        if (next.length >= 5) {
+                          setMessage(null)
+                          setError('You can attach up to 5 files')
+                          rejected = true
+                          break
+                        }
+                        if (file.size > MAX_FILE_BYTES) {
+                          setMessage(null)
+                          setError(`${file.name} must be 5 MB or smaller`)
+                          rejected = true
+                          continue
+                        }
+                        const total =
+                          (signature?.size ?? 0) +
+                          next.reduce((sum, item) => sum + item.size, 0) +
+                          file.size
+                        if (total > MAX_TOTAL_BYTES) {
+                          setMessage(null)
+                          setError('Attachments must be 8 MB or smaller in total')
+                          rejected = true
+                          break
+                        }
+                        next.push(file)
+                      }
+                      setFiles(next)
+                      if (!rejected) setError(null)
+                    }}
+                  />
+                </label>
+              </div>
+              {files.length > 0 ? (
+                <ul className="mt-3 divide-y divide-[#eef1f5] rounded-[10px] border border-[#e4e8ee]">
+                  {files.map((file) => (
+                    <li key={`${file.name}-${file.size}`} className="flex items-center gap-3 px-3 py-2">
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-medium text-navy">{file.name}</p>
+                        <p className="text-xs text-muted">{fileSize(file.size)}</p>
+                      </div>
+                      <button
+                        type="button"
+                        className="rounded-[6px] p-1.5 text-muted hover:bg-[#f7f9fc] hover:text-navy"
+                        aria-label={`Remove ${file.name}`}
+                        onClick={() =>
+                          setFiles((current) =>
+                            current.filter((item) => !(item.name === file.name && item.size === file.size)),
+                          )
+                        }
+                      >
+                        <X size={16} />
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+            </div>
+          </div>
         </div>
 
         <div className="mt-6 flex flex-wrap items-center justify-between gap-3 border-t border-[#eef1f5] pt-5">
@@ -617,6 +898,7 @@ export function CommunicationPage() {
                         {openedEmail.body?.trim() || 'No message was saved.'}
                       </div>
                     </div>
+                    <SentAttachments email={openedEmail} />
                   </div>
                 ) : !companyId ? (
                   <p className="px-6 py-10 text-center text-sm text-muted">
