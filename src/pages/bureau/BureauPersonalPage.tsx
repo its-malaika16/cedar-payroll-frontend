@@ -1,11 +1,15 @@
-import { useState } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
+import { createPortal } from 'react-dom'
 import { Link, Navigate } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { LayoutList, Search, Table2, User, Users } from 'lucide-react'
+import { Download, Eye, LayoutList, Search, Table2, Trash2, User, Users } from 'lucide-react'
 import { employeesApi, hrApi } from '../../api'
+import { download, fetchBlob } from '../../api/client'
 import { useAuth } from '../../auth/AuthContext'
+import { DocumentPreviewModal } from '../../components/DocumentPreviewModal'
 import { Alert, Button, Card, EmptyState, Field, Loading } from '../../components/ui'
-import { fullName } from '../../lib/format'
+import { downloadBlobFile } from '../employees/formPdf'
+import { compareEmployeeNames, employeeLeaveDate, formatDate, fullName } from '../../lib/format'
 import type { Employee } from '../../types'
 import { ComplianceDocumentsPanel } from '../hr/compliance/ComplianceDocumentsPanel'
 import {
@@ -13,6 +17,7 @@ import {
   type ComplianceDocumentType,
   type ComplianceFile,
 } from '../hr/compliance/documentTypes'
+import { starterFormDownloadBlob, starterFormPdfFilename } from '../hr/compliance/starterFormPdf'
 
 function phoneLines(employee: Employee) {
   const lines: string[] = []
@@ -46,6 +51,52 @@ function primaryPhone(employee: Employee) {
   return employee.phone?.trim() || employee.extra_phones?.find((item) => item.number?.trim())?.number?.trim() || ''
 }
 
+function IconButton({
+  label,
+  onClick,
+  tone = 'navy',
+  children,
+}: {
+  label: string
+  onClick: () => void
+  tone?: 'navy' | 'danger'
+  children: ReactNode
+}) {
+  return (
+    <button
+      type="button"
+      title={label}
+      aria-label={label}
+      onClick={onClick}
+      className={`flex size-8 shrink-0 items-center justify-center rounded-[6px] border bg-white ${
+        tone === 'danger'
+          ? 'border-[#d32027] text-[#d32027] hover:bg-[#fdecee]'
+          : 'border-[#17375e] text-navy hover:bg-cream'
+      }`}
+    >
+      {children}
+    </button>
+  )
+}
+
+async function downloadComplianceFile(doc: ComplianceFile) {
+  if (doc.document_type !== 'STARTER_FORM') {
+    await download(doc.download_path, doc.file_name)
+    return
+  }
+  const blob = await fetchBlob(doc.download_path)
+  const pdf = await starterFormDownloadBlob(blob)
+  downloadBlobFile(pdf, starterFormPdfFilename(doc.file_name))
+}
+
+function hasLeftCompany(employee: Employee) {
+  const leave = employeeLeaveDate(employee)
+  if (!leave) return false
+  const now = new Date()
+  const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
+  return leave <= today
+}
+
 const fieldClass =
   'h-11 w-full rounded-[8px] border border-[#c5d4e4] bg-white px-3 text-sm text-navy outline-none'
 
@@ -66,6 +117,16 @@ function BureauComplianceForm({
   const [file, setFile] = useState<File | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [message, setMessage] = useState<string | null>(null)
+  const [viewer, setViewer] = useState<ComplianceFile | null>(null)
+  const [confirmDelete, setConfirmDelete] = useState<ComplianceFile | null>(null)
+
+  useEffect(() => {
+    setViewer(null)
+    setConfirmDelete(null)
+    setError(null)
+    setMessage(null)
+    setFile(null)
+  }, [employee?.id])
 
   const typesQuery = useQuery({
     queryKey: ['compliance-types', companyId, 'employer'],
@@ -105,6 +166,22 @@ function BureauComplianceForm({
     onError: (err) => {
       setMessage(null)
       setError(err instanceof Error ? err.message : 'Upload failed')
+    },
+  })
+
+  const remove = useMutation({
+    mutationFn: (id: string) => hrApi.deleteCompliance(companyId, id),
+    onSuccess: async () => {
+      setConfirmDelete(null)
+      setViewer(null)
+      setError(null)
+      setMessage('Document deleted')
+      await queryClient.invalidateQueries({ queryKey: ['my-compliance', companyId, employee?.id] })
+      await queryClient.invalidateQueries({ queryKey: ['compliance-employees', companyId] })
+    },
+    onError: (err) => {
+      setMessage(null)
+      setError(err instanceof Error ? err.message : 'Could not delete this document')
     },
   })
 
@@ -164,19 +241,116 @@ function BureauComplianceForm({
           </Button>
         </div>
       </form>
-      {loading ? (
-        <div className="mt-4">
-          <Loading />
-        </div>
-      ) : documents.length > 0 ? (
-        <ul className="mt-5 divide-y divide-[#e6eef5] border-t border-[#e6eef5]">
-          {documents.map((doc) => (
-            <li key={doc.id} className="py-2 text-sm text-navy">
-              {doc.title || doc.file_name}
-            </li>
-          ))}
-        </ul>
+      <div className="mt-5 border-t border-[#e6eef5] pt-4">
+        <h3 className="text-sm font-semibold text-navy">Uploaded documents</h3>
+        {loading ? (
+          <div className="mt-3">
+            <Loading />
+          </div>
+        ) : documents.length === 0 ? (
+          <p className="mt-3 text-sm text-muted">No documents yet</p>
+        ) : (
+          <ul className="mt-3 divide-y divide-[#e6eef5]">
+            {documents.map((doc) => (
+              <li key={doc.id} className="flex items-start justify-between gap-2 py-3">
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium text-navy">{doc.title || doc.file_name}</p>
+                  <p className="truncate text-xs text-muted">
+                    {doc.document_type === 'STARTER_FORM' ? starterFormPdfFilename(doc.file_name) : doc.file_name}
+                    {doc.uploaded_at ? ` · ${formatDate(doc.uploaded_at)}` : ''}
+                  </p>
+                </div>
+                <div className="flex shrink-0 gap-1">
+                  <IconButton label="View" onClick={() => setViewer(doc)}>
+                    <Eye size={15} />
+                  </IconButton>
+                  <IconButton
+                    label="Download"
+                    onClick={() =>
+                      void downloadComplianceFile(doc).catch((err) => {
+                        setMessage(null)
+                        setError(err instanceof Error ? err.message : 'Could not download this document')
+                      })
+                    }
+                  >
+                    <Download size={15} />
+                  </IconButton>
+                  {doc.can_delete !== false ? (
+                    <IconButton
+                      label="Delete"
+                      tone="danger"
+                      onClick={() => {
+                        setError(null)
+                        setMessage(null)
+                        setConfirmDelete(doc)
+                      }}
+                    >
+                      <Trash2 size={15} />
+                    </IconButton>
+                  ) : null}
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+      {viewer ? (
+        <DocumentPreviewModal
+          title={viewer.title || viewer.file_name}
+          fileName={viewer.file_name}
+          path={viewer.download_path}
+          onClose={() => setViewer(null)}
+          onDownload={() =>
+            void downloadComplianceFile(viewer).catch((err) => {
+              setMessage(null)
+              setError(err instanceof Error ? err.message : 'Could not download this document')
+            })
+          }
+        />
       ) : null}
+      {confirmDelete
+        ? createPortal(
+            <div
+              className="fixed inset-0 z-[80] flex items-center justify-center bg-navy/40 px-4"
+              role="presentation"
+              onClick={() => {
+                if (!remove.isPending) setConfirmDelete(null)
+              }}
+            >
+              <div
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="delete-bureau-document-title"
+                className="w-full max-w-[420px] rounded-[16px] bg-white p-6 shadow-xl"
+                onClick={(event) => event.stopPropagation()}
+              >
+                <h3 id="delete-bureau-document-title" className="text-lg font-semibold text-navy">
+                  Delete {confirmDelete.title || confirmDelete.file_name}?
+                </h3>
+                <p className="mt-2 text-sm text-muted">This cannot be undone.</p>
+                <div className="mt-6 flex justify-end gap-3">
+                  <Button
+                    variant="secondary"
+                    type="button"
+                    disabled={remove.isPending}
+                    onClick={() => setConfirmDelete(null)}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    variant="danger"
+                    type="button"
+                    disabled={remove.isPending}
+                    onClick={() => remove.mutate(confirmDelete.id)}
+                  >
+                    {remove.isPending ? 'Deleting…' : 'Delete'}
+                  </Button>
+                </div>
+              </div>
+            </div>,
+            document.body,
+          )
+        : null}
     </section>
   )
 }
@@ -213,7 +387,7 @@ export function BureauPersonalPage() {
     enabled: Boolean(companyId && isBureauHrManager),
   })
   const employees = (employeesQuery.data?.data ?? []) as Employee[]
-  const filtered = employees.filter((employee) => {
+  const filtered = employees.filter((employee) => !hasLeftCompany(employee)).filter((employee) => {
     const haystack = [
       fullName(employee.first_name, employee.last_name),
       employee.email,
@@ -225,7 +399,7 @@ export function BureauPersonalPage() {
       .join(' ')
       .toLowerCase()
     return haystack.includes(search.trim().toLowerCase())
-  })
+  }).sort((left, right) => compareEmployeeNames(left, right))
   const selected =
     filtered.find((employee) => employee.id === employeeId) ?? filtered[0]
 
