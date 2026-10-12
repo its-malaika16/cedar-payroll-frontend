@@ -37,7 +37,7 @@ export function CompanyFormPage() {
   }, [roles])
 
   if (!auth.canManageOrganizations) {
-    return <Navigate to="/" replace />
+    return <Navigate to="/app" replace />
   }
 
   if (rolesQuery.isLoading) return <Loading />

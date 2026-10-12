@@ -1,4 +1,5 @@
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
+import { APP_HOME } from './appHome'
 import { useAuth } from './auth/AuthContext'
 import { OnboardingWorkspacePage } from './pages/onboarding/OnboardingWorkspacePage'
 import { AppLayout } from './components/AppLayout'
@@ -78,9 +79,19 @@ import {
   PortalPayslipsPage,
   PortalRotaPage,
 } from './pages/portal/PortalPages'
+import { WebsiteShell } from './pages/website/WebsiteShell'
+import HomePage from '@site/pages/home.jsx'
+import FeaturesPage from '@site/pages/features.jsx'
+import AboutPage from '@site/pages/about.jsx'
+import ContactPage from '@site/pages/contact.jsx'
+import TermsPage from '@site/pages/TermsPage.jsx'
+import PrivacyPage from '@site/pages/PrivacyPage.jsx'
+import SupportPage from '@site/pages/support.jsx'
+import WhoWeServePage from '@site/pages/whoweserve.jsx'
+import CookiePage from '@site/pages/CookiePage.jsx'
 
 function isCompanyAdminPath(pathname: string) {
-  if (pathname === '/') return true
+  if (pathname === APP_HOME) return true
   if (pathname.startsWith('/employees')) return true
   if (pathname.startsWith('/hr')) return true
   if (pathname.startsWith('/timesheets')) return true
@@ -102,7 +113,7 @@ function AdminLayout() {
   if (auth.needsOnboarding) return <Navigate to="/onboarding" replace />
   if (auth.isEmployeeOnly) return <Navigate to="/portal" replace />
   if (auth.isCompanyAdmin && !isCompanyAdminPath(location.pathname)) {
-    return <Navigate to="/" replace />
+    return <Navigate to={APP_HOME} replace />
   }
   return <AppLayout />
 }
@@ -111,14 +122,14 @@ function EmployeePortalLayout() {
   const auth = useAuth()
   if (auth.loading) return <Loading />
   if (!auth.token) return <Navigate to="/login" replace />
-  if (!auth.canUseEmployeePortal) return <Navigate to="/" replace />
+  if (!auth.canUseEmployeePortal) return <Navigate to={APP_HOME} replace />
   return <EmployeeLayout />
 }
 
 function HomeRedirect() {
   const auth = useAuth()
   if (auth.loading) return <Loading />
-  if (!auth.token) return <Navigate to="/login" replace />
+  if (!auth.token) return <Navigate to="/" replace />
   return <Navigate to={auth.homePath} replace />
 }
 
@@ -127,11 +138,22 @@ export default function App() {
     <Routes>
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
+      <Route element={<WebsiteShell />}>
+        <Route path="/" element={<HomePage />} />
+        <Route path="/contact" element={<ContactPage />} />
+        <Route path="/about" element={<AboutPage />} />
+        <Route path="/services" element={<FeaturesPage />} />
+        <Route path="/terms" element={<TermsPage />} />
+        <Route path="/privacy" element={<PrivacyPage />} />
+        <Route path="/support" element={<SupportPage />} />
+        <Route path="/whoweserve" element={<WhoWeServePage />} />
+        <Route path="/cookie" element={<CookiePage />} />
+      </Route>
       <Route element={<OnboardingLayout />}>
         <Route path="/onboarding" element={<OnboardingWorkspacePage />} />
       </Route>
       <Route element={<AdminLayout />}>
-        <Route path="/" element={<DashboardPage />} />
+        <Route path={APP_HOME} element={<DashboardPage />} />
         <Route path="/requested-invoices" element={<RequestedInvoicesPage />} />
         <Route path="/company-invoices/new" element={<CompanyInvoiceFormPage />} />
         <Route path="/company-invoices/:invoiceId" element={<CompanyInvoiceFormPage />} />

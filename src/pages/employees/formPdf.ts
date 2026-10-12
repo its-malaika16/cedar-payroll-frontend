@@ -2,6 +2,7 @@ import formLogo from '../../assets/brand/logo-forms.png'
 import type { FormPreview } from './formPreview'
 import type { FormType } from './formsOptions'
 import { P11_CSS, p11BodyHtml } from './p11Template'
+import { P45_CSS, p45BodyHtml } from './p45Template'
 import { P60_CSS, p60BodyHtml } from './p60Template'
 import { P11D_CSS, p11dBodyHtml } from './p11dTemplate'
 import { PBIK_CSS, pbikBodyHtml } from './pbikTemplate'
@@ -15,6 +16,12 @@ type SheetTemplate = {
 }
 
 const TEMPLATES: Partial<Record<FormType, SheetTemplate>> = {
+  p45: {
+    label: 'P45',
+    css: P45_CSS,
+    body: p45BodyHtml,
+    subtitle: (data) => `Details of employee leaving work ${data.tax_year?.name ?? ''}`.trim(),
+  },
   p11: {
     label: 'P11',
     css: P11_CSS,
@@ -68,7 +75,11 @@ export function sheetFilename(type: FormType, data: FormPreview) {
 }
 
 export function sheetDocument(type: FormType, bodies: string[], title: string) {
-  const pages = bodies.map((body) => `<section class="sheet-page">${body}</section>`).join('')
+  const pages = bodies
+    .map((body) =>
+      body.includes('class="sheet-page"') ? body : `<section class="sheet-page">${body}</section>`,
+    )
+    .join('')
   return `<!doctype html>
 <html>
   <head>
@@ -103,14 +114,25 @@ export async function sheetLogoDataUrl() {
   return logoPromise
 }
 
-export function sheetBodyHtml(type: FormType, data: FormPreview, logoSrc: string) {
-  return template(type).body(data, logoSrc)
+export function sheetBodyHtml(
+  type: FormType,
+  data: FormPreview,
+  logoSrc: string,
+  options?: { p45Parts?: string[] },
+) {
+  const payload = options?.p45Parts ? { ...data, p45_parts: options.p45Parts } : data
+  return template(type).body(payload, logoSrc)
 }
 
-export async function sheetsFromPreviews(type: FormType, items: FormPreview[]) {
+export async function sheetsFromPreviews(
+  type: FormType,
+  items: FormPreview[],
+  options?: { p45Parts?: string[] },
+) {
   const logo = await sheetLogoDataUrl()
   return items.map((data) => {
-    const body = template(type).body(data, logo)
+    const payload = options?.p45Parts ? { ...data, p45_parts: options.p45Parts } : data
+    const body = template(type).body(payload, logo)
     const title = sheetTitle(type, data)
     return {
       data,

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import formLogo from '../../assets/brand/logo-forms.png'
-import { formatDate, money } from '../../lib/format'
+import { formatDate } from '../../lib/format'
 import type { FormPreview } from './formPreview'
 import type { FormType } from './formsOptions'
 import {
@@ -22,12 +22,19 @@ export function FormDocument({
   data: FormPreview
   p45Parts?: string[]
 }) {
-  if (hasSheetTemplate(type)) return <SheetDocument type={type} data={data} />
-  if (type === 'p45') return <P45Document data={data} parts={p45Parts ?? ['1', '1A', '2', '3']} />
+  if (hasSheetTemplate(type)) return <SheetDocument type={type} data={data} p45Parts={p45Parts} />
   return <BenefitsDocument type={type} data={data} />
 }
 
-function SheetDocument({ type, data }: { type: FormType; data: FormPreview }) {
+function SheetDocument({
+  type,
+  data,
+  p45Parts,
+}: {
+  type: FormType
+  data: FormPreview
+  p45Parts?: string[]
+}) {
   const [logoSrc, setLogoSrc] = useState(formLogo)
 
   useEffect(() => {
@@ -36,16 +43,16 @@ function SheetDocument({ type, data }: { type: FormType; data: FormPreview }) {
 
   const title = sheetTitle(type, data)
   const html = useMemo(
-    () => sheetDocument(type, [sheetBodyHtml(type, data, logoSrc)], title),
-    [type, data, logoSrc, title],
+    () => sheetDocument(type, [sheetBodyHtml(type, data, logoSrc, { p45Parts })], title),
+    [type, data, logoSrc, title, p45Parts],
   )
 
   return (
     <iframe
       title={title}
-      className="w-full rounded-[10px] border border-[#d9d9d9] bg-white"
+      className="w-full rounded-[10px] border border-[#d9d9d9] bg-[#e8ebe9]"
       srcDoc={html}
-      style={{ minHeight: 1200 }}
+      style={{ minHeight: type === 'p45' ? 1680 : 1200 }}
       onLoad={(event) => {
         const frame = event.currentTarget
         const height = frame.contentDocument?.documentElement.scrollHeight
@@ -98,87 +105,6 @@ function InfoGrid({ data }: { data: FormPreview }) {
         <p>Leave date: {formatDate(data.employee?.leave_date)}</p>
         <p>Director: {data.employee?.is_director ? 'Yes' : 'No'}</p>
       </div>
-    </div>
-  )
-}
-
-function P45Row({ n, label, value }: { n: number; label: string; value: string }) {
-  return (
-    <div className="flex items-start justify-between gap-4 border-b border-[#ececec] py-2.5 text-sm">
-      <p className="text-navy">
-        <span className="mr-2 font-semibold">{n}.</span>
-        {label}
-      </p>
-      <p className="text-right font-medium text-navy">{value || '—'}</p>
-    </div>
-  )
-}
-
-function P45Part({
-  title,
-  subtitle,
-  data,
-}: {
-  title: string
-  subtitle: string
-  data: FormPreview
-}) {
-  const p45 = data.p45 ?? {}
-  return (
-    <article className="mb-6 overflow-hidden rounded-[10px] border border-[#d9d9d9] bg-white">
-      <div className="flex items-center justify-between bg-navy px-5 py-3 text-white">
-        <div>
-          <p className="text-lg font-semibold">P45</p>
-          <p className="text-xs">{title}</p>
-        </div>
-        <p className="text-xs">{subtitle}</p>
-      </div>
-      <div className="p-5">
-        <P45Row n={1} label="Employer PAYE reference" value={data.employer?.paye_reference || ''} />
-        <P45Row n={2} label="Employee's National Insurance number" value={data.employee?.ni_number || ''} />
-        <P45Row n={3} label="Title" value={data.employee?.title || ''} />
-        <P45Row n={3} label="First or given name(s)" value={data.employee?.first_name || ''} />
-        <P45Row n={3} label="Surname or family name" value={data.employee?.last_name || ''} />
-        <P45Row
-          n={4}
-          label="Leaving date"
-          value={formatDate(
-            typeof p45.leaving_date === 'string'
-              ? p45.leaving_date
-              : data.employee?.leave_date,
-          )}
-        />
-        <P45Row n={5} label="Student Loan deductions" value={p45.student_loan ? 'Yes' : 'No'} />
-        <P45Row n={6} label="Tax code at leaving date" value={String(p45.tax_code ?? '—')} />
-        <P45Row n={7} label="Last week number on P11" value={p45.last_week_number != null ? String(p45.last_week_number) : '—'} />
-        <P45Row n={7} label="Total pay to date" value={money(p45.total_pay_to_date)} />
-        <P45Row n={7} label="Total tax to date" value={money(p45.total_tax_to_date)} />
-        <P45Row n={9} label="Works/payroll number" value={data.employee?.payroll_id || data.employee?.works_number || ''} />
-        <P45Row n={9} label="Department" value={data.employee?.department || ''} />
-        <P45Row n={10} label="Gender" value={data.employee?.gender || ''} />
-        <P45Row n={11} label="Date of birth" value={formatDate(data.employee?.dob)} />
-        <P45Row n={12} label="Employee's private address" value={data.employee?.address || ''} />
-        <P45Row n={13} label="Employer name" value={data.employer?.name || ''} />
-        <P45Row n={13} label="Employer address" value={[data.employer?.address, data.employer?.postcode].filter(Boolean).join(', ')} />
-        <P45Row n={14} label="Employee is deceased" value={p45.deceased ? 'Yes' : 'No'} />
-      </div>
-    </article>
-  )
-}
-
-function P45Document({ data, parts }: { data: FormPreview; parts: string[] }) {
-  const copy: Record<string, [string, string]> = {
-    '1': ['Details of employee leaving work', 'Part 1 (Copy for HMRC)'],
-    '1A': ['Details of employee leaving work', 'Part 1A (Copy for Employee)'],
-    '2': ['Details of employee leaving work', 'Part 2 (Copy for New Employer)'],
-    '3': ['Details of employee leaving work', 'Part 3 (For completion by new employer)'],
-  }
-  return (
-    <div>
-      {parts.map((part) => {
-        const labels = copy[part] ?? ['Details of employee leaving work', `Part ${part}`]
-        return <P45Part key={part} title={labels[0]} subtitle={labels[1]} data={data} />
-      })}
     </div>
   )
 }

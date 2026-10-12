@@ -1,0 +1,129 @@
+.cedar-site {
+  --primary: #17375e;
+  --secondary: #d32027;
+  --background: #f8f7f4;
+  --font-primary: "Montserrat", sans-serif;
+  --main-title: 64px;
+  --subtitle-1: 55px;
+  --subtitle-2: 48px;
+  --body-1: 40px;
+  --body-2: 36px;
+  --body-3: 24px;
+  --body-3-2: 24px;
+  --body-4: 20px;
+  --number: 32px;
+  --light: 16px;
+  --extra-bold: 800;
+  --bold: 700;
+  --semi-bold: 600;
+  --medium: 500;
+  min-height: 100%;
+  font-family: var(--font-primary);
+  background-color: var(--background);
+  color: var(--primary);
+}
+
+.cedar-site *,
+.cedar-site *::before,
+.cedar-site *::after {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+.cedar-site a {
+  text-decoration: none;
+}
+
+.cedar-site ul {
+  list-style: none;
+}
+
+.cedar-site img {
+  max-width: 100%;
+  display: block;
+}
+
+.cedar-site .main-title {
+  font-size: var(--main-title);
+  font-weight: var(--extra-bold);
+  line-height: 1.1;
+}
+
+.cedar-site .subtitle-1 {
+  font-size: var(--subtitle-1);
+  font-weight: var(--bold);
+  line-height: 1.2;
+}
+
+.cedar-site .subtitle-2 {
+  font-size: var(--subtitle-2);
+  font-weight: var(--semi-bold);
+  line-height: 1.2;
+}
+
+.cedar-site .body-1 {
+  font-size: var(--body-1);
+  font-weight: var(--semi-bold);
+  line-height: 1.4;
+}
+
+.cedar-site .body-2 {
+  font-size: var(--body-2);
+  font-weight: var(--medium);
+  line-height: 1.4;
+}
+
+.cedar-site .body-3 {
+  font-size: var(--body-3);
+  font-weight: var(--medium);
+  line-height: 1.5;
+}
+
+.cedar-site .body-3-2 {
+  font-size: var(--body-3-2);
+  font-weight: var(--semi-bold);
+  line-height: 1.5;
+}
+
+.cedar-site .body-4 {
+  font-size: var(--body-3);
+  font-weight: var(--semi-bold);
+  line-height: 1.4;
+}
+
+.cedar-site .body-5 {
+  font-size: var(--body-4);
+  font-weight: var(--medium);
+  line-height: 1.3;
+}
+
+.cedar-site .body-6 {
+  font-size: var(--body-4);
+  font-weight: var(--semi-bold);
+  line-height: 1.4;
+}
+
+.cedar-site .subheading {
+  font-size: 48px;
+  font-weight: var(--extra-bold);
+  line-height: 1.5;
+}
+
+.cedar-site .number {
+  font-size: var(--number);
+  font-weight: var(--semi-bold);
+  line-height: 1.5;
+}
+
+.cedar-site .lighttext {
+  font-size: var(--light);
+  font-weight: var(--medium);
+  line-height: 1.2;
+}
+
+.cedar-site .CTAheading {
+  font-size: var(--body-1);
+  font-weight: var(--extra-bold);
+  line-height: 1.5;
+}

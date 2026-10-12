@@ -1,4 +1,4 @@
-import { useMemo, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useRef, useState, type DragEvent, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { Link, useNavigate } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -6,15 +6,15 @@ import {
   AlertTriangle,
   CheckCircle2,
   ChevronDown,
+  CloudUpload,
   Download,
   Eye,
   FileText,
   Filter,
   Info,
-  MoreHorizontal,
+  MoreVertical,
   Search,
-  Trash2,
-  Upload,
+  UserRound,
   XCircle,
 } from 'lucide-react'
 import { hrApi } from '../../api'
@@ -48,12 +48,22 @@ function fileSizeLabel(bytes?: number | null) {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
 }
 
+function isEmployerUpload(doc: ComplianceFile) {
+  const kind = String(doc.uploaded_by_kind ?? '').toUpperCase()
+  if (kind === 'EMPLOYEE') return false
+  if (kind === 'EMPLOYER') return true
+  return Boolean(doc.employer_only)
+}
+
 function categoryOf(doc: ComplianceFile) {
-  return doc.employer_only || doc.uploaded_by_kind === 'EMPLOYER' ? 'Company' : 'Personal'
+  const category = String(doc.category ?? '').toUpperCase()
+  if (category === 'COMPANY') return 'Company'
+  if (category === 'PERSONAL') return 'Personal'
+  return isEmployerUpload(doc) ? 'Company' : 'Personal'
 }
 
 function uploadedBy(doc: ComplianceFile) {
-  return doc.uploaded_by_kind === 'EMPLOYER' ? 'Admin' : 'You'
+  return isEmployerUpload(doc) ? 'Admin' : 'You'
 }
 
 function displayStatus(doc: ComplianceFile) {
@@ -106,8 +116,8 @@ export function EmployeeDocumentsPage() {
   const visible = useMemo(() => {
     const needle = search.trim().toLowerCase()
     return documents.filter((doc) => {
-      if (tab === 'mine' && doc.uploaded_by_kind === 'EMPLOYER') return false
-      if (tab === 'company' && doc.uploaded_by_kind !== 'EMPLOYER' && !doc.employer_only) return false
+      if (tab === 'mine' && isEmployerUpload(doc)) return false
+      if (tab === 'company' && !isEmployerUpload(doc)) return false
       if (statusFilter === 'valid' && (doc.expiry_state === 'soon' || doc.expiry_state === 'expired')) return false
       if (statusFilter === 'soon' && doc.expiry_state !== 'soon') return false
       if (statusFilter === 'expired' && doc.expiry_state !== 'expired') return false
@@ -150,10 +160,34 @@ export function EmployeeDocumentsPage() {
       </div>
 
       <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <StatCard icon={<FileText size={18} />} label="Total Documents" value={stats.total} hint="All documents uploaded by you and company" />
-        <StatCard icon={<CheckCircle2 size={18} />} label="Valid Documents" value={stats.valid} hint="Up to date and everything good" />
-        <StatCard icon={<AlertTriangle size={18} />} label="Expiring soon" value={stats.soon} hint="Documents expiring in next 60 days" />
-        <StatCard icon={<XCircle size={18} />} label="Expired Documents" value={stats.expired} hint="Require your immediate attention" />
+        <StatCard
+          tone="navy"
+          icon={<FileText size={18} />}
+          label="Total Documents"
+          value={stats.total}
+          hint="All documents uploaded by you and company"
+        />
+        <StatCard
+          tone="green"
+          icon={<CheckCircle2 size={18} />}
+          label="Valid Documents"
+          value={stats.valid}
+          hint="Up to date and everything good"
+        />
+        <StatCard
+          tone="amber"
+          icon={<AlertTriangle size={18} />}
+          label="Expiring soon"
+          value={stats.soon}
+          hint="Documents expiring in next 60 days"
+        />
+        <StatCard
+          tone="red"
+          icon={<XCircle size={18} />}
+          label="Expired Documents"
+          value={stats.expired}
+          hint="Require your immediate attention"
+        />
       </div>
 
       {error ? (
@@ -230,16 +264,16 @@ export function EmployeeDocumentsPage() {
           <p className="px-5 py-10 text-sm text-muted">No documents match this view yet.</p>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[860px] text-left text-sm">
+            <table className="w-full min-w-[920px] table-fixed text-left text-sm">
               <thead>
                 <tr className="text-xs font-medium uppercase tracking-wide text-muted">
-                  {['Document', 'Category', 'Uploaded By', 'Uploaded On', 'Expiry Date', 'Status', 'Action'].map(
-                    (column) => (
-                      <th key={column} className="px-5 py-3 font-medium">
-                        {column}
-                      </th>
-                    ),
-                  )}
+                  <th className="w-[24%] px-5 py-3 font-medium">Document</th>
+                  <th className="w-[12%] px-5 py-3 font-medium">Category</th>
+                  <th className="w-[14%] px-5 py-3 font-medium">Uploaded By</th>
+                  <th className="w-[14%] px-5 py-3 font-medium">Uploaded On</th>
+                  <th className="w-[14%] px-5 py-3 font-medium">Expiry Date</th>
+                  <th className="w-[12%] px-5 py-3 font-medium">Status</th>
+                  <th className="w-[10%] px-5 py-3 text-right font-medium">Action</th>
                 </tr>
               </thead>
               <tbody>
@@ -248,110 +282,52 @@ export function EmployeeDocumentsPage() {
                   return (
                     <tr key={doc.id} className="border-t border-[#f3f1ec]">
                       <td className="px-5 py-4">
-                        <div className="flex items-start gap-3">
-                          {doc.can_delete ?? doc.uploaded_by_kind === 'EMPLOYEE' ? (
-                            <button
-                              type="button"
-                              title="Delete"
-                              aria-label="Delete"
-                              className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-[6px] border border-[#d32027] bg-white text-[#d32027] hover:bg-[#fdecee]"
-                              onClick={() => {
-                                setError(null)
-                                setConfirmDelete(doc)
-                              }}
-                            >
-                              <Trash2 size={16} />
-                            </button>
-                          ) : null}
-                          <span className="mt-0.5 flex size-9 items-center justify-center rounded-[10px] bg-[#eef2f6] text-navy">
+                        <div className="flex min-w-0 items-start gap-3">
+                          <span className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-[10px] bg-[#eef2f6] text-navy">
                             <FileText size={16} />
                           </span>
-                          <div>
-                            <p className="font-semibold text-navy">{doc.title || doc.file_name}</p>
-                            <p className="text-xs text-muted">{doc.file_name}</p>
+                          <div className="min-w-0">
+                            <p className="truncate font-semibold text-navy">{doc.title || doc.file_name}</p>
+                            <p className="truncate text-xs text-muted">{doc.file_name}</p>
                           </div>
                         </div>
                       </td>
+                      <td className="px-5 py-4 text-sm text-navy">{categoryOf(doc)}</td>
                       <td className="px-5 py-4">
-                        <span className="rounded-full bg-[#f3f1ec] px-3 py-1 text-xs font-semibold text-navy">
-                          {categoryOf(doc)}
+                        <span className="inline-flex items-center gap-2 text-sm text-navy">
+                          <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-[#eef2f6] text-navy">
+                            <UserRound size={14} />
+                          </span>
+                          {uploadedBy(doc)}
                         </span>
                       </td>
-                      <td className="px-5 py-4 text-navy">{uploadedBy(doc)}</td>
-                      <td className="px-5 py-4 text-navy">{prettyDate(doc.uploaded_at)}</td>
-                      <td className="px-5 py-4 text-navy">{prettyDate(doc.expiry_date)}</td>
+                      <td className="whitespace-nowrap px-5 py-4 text-navy">{prettyDate(doc.uploaded_at)}</td>
+                      <td className="whitespace-nowrap px-5 py-4 text-navy">{prettyDate(doc.expiry_date)}</td>
                       <td className="px-5 py-4">
-                        <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${status.className}`}>
+                        <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${status.className}`}>
                           {status.label}
                         </span>
                       </td>
                       <td className="px-5 py-4">
-                        <div className="relative flex items-center gap-2 text-navy">
-                          <button
-                            type="button"
-                            title="View"
-                            aria-label="View"
-                            className="flex size-9 items-center justify-center rounded-[6px] border border-[#17375e] bg-white text-navy hover:bg-cream"
-                            onClick={() => setViewer(doc)}
-                          >
-                            <Eye size={16} />
-                          </button>
-                          <button
-                            type="button"
-                            title="Download"
-                            aria-label="Download"
-                            className="flex size-9 items-center justify-center rounded-[6px] border border-[#17375e] bg-white text-navy hover:bg-cream"
-                            onClick={() => void download(doc.download_path, doc.file_name)}
-                          >
-                            <Download size={16} />
-                          </button>
-                          <button
-                            type="button"
-                            title="More"
-                            aria-label="More"
-                            className="flex size-9 items-center justify-center rounded-[6px] border border-[#17375e] bg-white text-navy hover:bg-cream"
-                            onClick={() => setMenuId(menuId === doc.id ? null : doc.id)}
-                          >
-                            <MoreHorizontal size={16} />
-                          </button>
-                          {menuId === doc.id ? (
-                            <div className="absolute right-0 top-7 z-10 w-36 rounded-[10px] border border-[#eceae6] bg-white py-1 shadow-lg">
-                              <button
-                                type="button"
-                                className="block w-full px-3 py-2 text-left text-sm hover:bg-[#f7f6f3]"
-                                onClick={() => {
-                                  setMenuId(null)
-                                  setViewer(doc)
-                                }}
-                              >
-                                View
-                              </button>
-                              <button
-                                type="button"
-                                className="block w-full px-3 py-2 text-left text-sm hover:bg-[#f7f6f3]"
-                                onClick={() => {
-                                  setMenuId(null)
-                                  void download(doc.download_path, doc.file_name)
-                                }}
-                              >
-                                Download
-                              </button>
-                              {doc.can_delete ?? doc.uploaded_by_kind === 'EMPLOYEE' ? (
-                                <button
-                                  type="button"
-                                  className="block w-full px-3 py-2 text-left text-sm text-[#d32027] hover:bg-[#f7f6f3]"
-                                  onClick={() => {
-                                    setMenuId(null)
-                                    setError(null)
-                                    setConfirmDelete(doc)
-                                  }}
-                                >
-                                  Delete
-                                </button>
-                              ) : null}
-                            </div>
-                          ) : null}
-                        </div>
+                        <DocumentRowActions
+                          doc={doc}
+                          open={menuId === doc.id}
+                          onToggle={() => setMenuId(menuId === doc.id ? null : doc.id)}
+                          onClose={() => setMenuId(null)}
+                          onView={() => {
+                            setMenuId(null)
+                            setViewer(doc)
+                          }}
+                          onDownload={() => {
+                            setMenuId(null)
+                            void download(doc.download_path, doc.file_name)
+                          }}
+                          onDelete={() => {
+                            setMenuId(null)
+                            setError(null)
+                            setConfirmDelete(doc)
+                          }}
+                        />
                       </td>
                     </tr>
                   )
@@ -361,7 +337,7 @@ export function EmployeeDocumentsPage() {
           </div>
         )}
         <p className="border-t border-[#eceae6] px-5 py-3 text-xs text-muted">
-          Showing {visible.length ? 1 : 0} to {visible.length} of {visible.length} documents
+          Showing {visible.length ? 1 : 0} to {visible.length} out of {visible.length} documents
         </p>
       </section>
 
@@ -424,25 +400,144 @@ export function EmployeeDocumentsPage() {
   )
 }
 
+function DocumentRowActions({
+  doc,
+  open,
+  onToggle,
+  onClose,
+  onView,
+  onDownload,
+  onDelete,
+}: {
+  doc: ComplianceFile
+  open: boolean
+  onToggle: () => void
+  onClose: () => void
+  onView: () => void
+  onDownload: () => void
+  onDelete: () => void
+}) {
+  const buttonRef = useRef<HTMLButtonElement>(null)
+  const [coords, setCoords] = useState<{ top: number; right: number } | null>(null)
+  const canDelete = Boolean(doc.can_delete ?? doc.uploaded_by_kind === 'EMPLOYEE')
+
+  useEffect(() => {
+    if (!open || !buttonRef.current) {
+      setCoords(null)
+      return
+    }
+    const place = () => {
+      const rect = buttonRef.current?.getBoundingClientRect()
+      if (!rect) return
+      setCoords({
+        top: rect.bottom + 6,
+        right: Math.max(12, window.innerWidth - rect.right),
+      })
+    }
+    place()
+    window.addEventListener('resize', place)
+    window.addEventListener('scroll', place, true)
+    return () => {
+      window.removeEventListener('resize', place)
+      window.removeEventListener('scroll', place, true)
+    }
+  }, [open])
+
+  return (
+    <div className="flex flex-nowrap items-center justify-end gap-0.5 text-navy">
+      <button
+        type="button"
+        aria-label="View"
+        className="flex size-8 shrink-0 items-center justify-center rounded-[6px] text-navy hover:bg-[#f7f6f3]"
+        onClick={onView}
+      >
+        <Eye size={16} />
+      </button>
+      <button
+        type="button"
+        aria-label="Download"
+        className="flex size-8 shrink-0 items-center justify-center rounded-[6px] text-navy hover:bg-[#f7f6f3]"
+        onClick={onDownload}
+      >
+        <Download size={16} />
+      </button>
+      <button
+        ref={buttonRef}
+        type="button"
+        aria-label="More"
+        aria-expanded={open}
+        className="flex size-8 shrink-0 items-center justify-center rounded-[6px] text-navy hover:bg-[#f7f6f3]"
+        onClick={onToggle}
+      >
+        <MoreVertical size={16} />
+      </button>
+      {open && coords
+        ? createPortal(
+            <div
+              className="fixed inset-0 z-[70]"
+              onClick={onClose}
+              role="presentation"
+            >
+              <div
+                role="menu"
+                className="absolute w-36 overflow-hidden rounded-[10px] border border-[#eceae6] bg-white py-1 shadow-lg"
+                style={{ top: coords.top, right: coords.right }}
+                onClick={(event) => event.stopPropagation()}
+              >
+                <button type="button" role="menuitem" className="block w-full px-3 py-2 text-left text-sm text-navy hover:bg-[#f7f6f3]" onClick={onView}>
+                  View
+                </button>
+                <button type="button" role="menuitem" className="block w-full px-3 py-2 text-left text-sm text-navy hover:bg-[#f7f6f3]" onClick={onDownload}>
+                  Download
+                </button>
+                {canDelete ? (
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className="block w-full px-3 py-2 text-left text-sm text-[#d32027] hover:bg-[#f7f6f3]"
+                    onClick={onDelete}
+                  >
+                    Delete
+                  </button>
+                ) : null}
+              </div>
+            </div>,
+            document.body,
+          )
+        : null}
+    </div>
+  )
+}
+
 function StatCard({
   icon,
   label,
   value,
   hint,
+  tone,
 }: {
   icon: ReactNode
   label: string
   value: number
   hint: string
+  tone: 'navy' | 'green' | 'amber' | 'red'
 }) {
+  const tones = {
+    navy: 'bg-[#e8eef6] text-navy',
+    green: 'bg-[#e7f6ec] text-[#1b7d4f]',
+    amber: 'bg-[#fff4e5] text-[#c2782a]',
+    red: 'bg-[#fdecee] text-[#d32027]',
+  }
   return (
-    <section className="rounded-[16px] border border-[#eceae6] bg-white px-5 py-4">
+    <section className="rounded-[14px] border border-[#e6eaf0] bg-white px-5 py-4">
       <div className="flex items-start gap-3">
-        <span className="flex size-9 items-center justify-center rounded-[10px] bg-[#eef2f6] text-navy">{icon}</span>
-        <div>
-          <p className="text-xs text-muted">{label}</p>
-          <p className="mt-1 text-xl font-semibold text-navy">{value}</p>
-          <p className="text-xs text-muted">{hint}</p>
+        <span className={`flex size-11 shrink-0 items-center justify-center rounded-full ${tones[tone]}`}>{icon}</span>
+        <div className="min-w-0">
+          <p className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+            <span className="text-2xl font-semibold text-navy">{value}</span>
+            <span className="text-sm font-semibold text-navy">{label}</span>
+          </p>
+          <p className="mt-0.5 text-xs leading-4 text-muted">{hint}</p>
         </div>
       </div>
     </section>
@@ -457,6 +552,7 @@ export function EmployeeDocumentUploadPage() {
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [file, setFile] = useState<File | null>(null)
+  const [dragging, setDragging] = useState(false)
   const [form, setForm] = useState({
     title: '',
     document_type: 'PASSPORT',
@@ -477,10 +573,18 @@ export function EmployeeDocumentUploadPage() {
       requiresExpiry: Boolean(item.requiresExpiry ?? (item as { requires_expiry?: boolean }).requires_expiry),
       employerOnly: Boolean(item.employerOnly ?? (item as { employer_only?: boolean }).employer_only),
     }))
-    .filter((item) => item.key !== 'NI_EVIDENCE')
+    .filter((item) => item.key !== 'NI_EVIDENCE' && !item.employerOnly)
     .sort((a, b) => a.label.localeCompare(b.label, 'en-GB', { sensitivity: 'base' }))
   const selected = types.find((item) => item.key === form.document_type) ?? types[0]
   const needsExpiry = Boolean(selected?.requiresExpiry || EXPIRY_REQUIRED.includes(selected?.key ?? ''))
+  const fieldClass =
+    'h-11 w-full rounded-[8px] border border-[#d7dee8] bg-white px-3 text-sm text-navy outline-none focus:border-navy'
+
+  function takeFile(next?: File | null) {
+    if (!next) return
+    setFile(next)
+    setError(null)
+  }
 
   async function submit() {
     if (!companyId || !employeeId || !selected) return
@@ -492,6 +596,7 @@ export function EmployeeDocumentUploadPage() {
     const payload = new FormData()
     payload.append('file', file)
     payload.append('document_type', selected.key)
+    payload.append('category', form.category === 'COMPANY' ? 'COMPANY' : 'PERSONAL')
     if (!form.no_expiry && form.expiry_date) payload.append('expiry_date', form.expiry_date)
     await hrApi.uploadCompliance(companyId, employeeId, payload)
     await queryClient.invalidateQueries({ queryKey: ['my-compliance', companyId, employeeId] })
@@ -552,7 +657,7 @@ export function EmployeeDocumentUploadPage() {
             <label className="block">
               <span className="mb-2 block text-sm font-medium text-navy">Document Name</span>
               <input
-                className="h-12 w-full rounded-full border border-[#eceae6] bg-[#f7f6f3] px-4 text-sm text-navy outline-none"
+                className={fieldClass}
                 value={form.title}
                 onChange={(event) => setForm({ ...form, title: event.target.value })}
                 placeholder={selected?.label ?? 'Document name'}
@@ -563,14 +668,13 @@ export function EmployeeDocumentUploadPage() {
                 <span className="mb-2 block text-sm font-medium text-navy">Document Type</span>
                 <span className="relative block">
                   <select
-                    className="h-12 w-full appearance-none rounded-full border border-[#eceae6] bg-[#f7f6f3] px-4 pr-10 text-sm text-navy outline-none"
+                    className={`${fieldClass} appearance-none pr-10`}
                     value={selected?.key ?? ''}
                     onChange={(event) => {
                       const next = types.find((item) => item.key === event.target.value)
                       setForm({
                         ...form,
                         document_type: event.target.value,
-                        category: next?.employerOnly ? 'COMPANY' : 'PERSONAL',
                         no_expiry: !(next?.requiresExpiry || EXPIRY_REQUIRED.includes(event.target.value)),
                         expiry_date: '',
                         title: form.title || next?.label || '',
@@ -590,7 +694,7 @@ export function EmployeeDocumentUploadPage() {
                 <span className="mb-2 block text-sm font-medium text-navy">Category</span>
                 <span className="relative block">
                   <select
-                    className="h-12 w-full appearance-none rounded-full border border-[#eceae6] bg-[#f7f6f3] px-4 pr-10 text-sm text-navy outline-none"
+                    className={`${fieldClass} appearance-none pr-10`}
                     value={form.category}
                     onChange={(event) => setForm({ ...form, category: event.target.value })}
                   >
@@ -608,7 +712,7 @@ export function EmployeeDocumentUploadPage() {
                   type="date"
                   disabled={form.no_expiry && !needsExpiry}
                   required={needsExpiry && !form.no_expiry}
-                  className="h-12 w-full rounded-full border border-[#eceae6] bg-[#f7f6f3] px-4 text-sm text-navy outline-none disabled:opacity-50"
+                  className={`${fieldClass} disabled:opacity-50`}
                   value={form.expiry_date}
                   onChange={(event) => setForm({ ...form, expiry_date: event.target.value, no_expiry: false })}
                 />
@@ -630,7 +734,7 @@ export function EmployeeDocumentUploadPage() {
               <span className="mb-2 block text-sm font-medium text-navy">Notes</span>
               <textarea
                 rows={4}
-                className="w-full rounded-[16px] border border-[#eceae6] bg-[#f7f6f3] px-4 py-3 text-sm text-navy outline-none"
+                className="w-full rounded-[8px] border border-[#d7dee8] bg-white px-3 py-3 text-sm text-navy outline-none focus:border-navy"
                 placeholder="Add any additional notes..."
                 value={form.notes}
                 onChange={(event) => setForm({ ...form, notes: event.target.value })}
@@ -638,35 +742,57 @@ export function EmployeeDocumentUploadPage() {
             </label>
             <div>
               <p className="mb-2 text-sm font-medium text-navy">Upload File</p>
-              <label className="flex min-h-[92px] cursor-pointer items-center justify-between gap-3 rounded-[14px] border border-dashed border-[#d9d9d9] px-4 py-4">
-                <span className="inline-flex items-center gap-3 text-sm text-muted">
-                  <Upload size={20} className="text-navy" />
-                  {file ? `${file.name}${fileSizeLabel(file.size) ? ` · ${fileSizeLabel(file.size)}` : ''}` : 'Drag and drop a file here, or click to browse'}
+              <label
+                className={`flex min-h-[88px] cursor-pointer items-center justify-between gap-3 rounded-[10px] border border-dashed px-4 py-4 ${
+                  dragging ? 'border-navy bg-[#f4f7fb]' : 'border-[#c5d4e4] bg-[#f8fbfe]'
+                }`}
+                onDragOver={(event: DragEvent<HTMLLabelElement>) => {
+                  event.preventDefault()
+                  setDragging(true)
+                }}
+                onDragLeave={() => setDragging(false)}
+                onDrop={(event: DragEvent<HTMLLabelElement>) => {
+                  event.preventDefault()
+                  setDragging(false)
+                  takeFile(event.dataTransfer.files?.[0] ?? null)
+                }}
+              >
+                <span className="inline-flex min-w-0 items-center gap-3 text-sm text-navy">
+                  <CloudUpload size={28} className="shrink-0 text-navy" />
+                  <span>
+                    <span className="block font-medium">
+                      {file
+                        ? `${file.name}${fileSizeLabel(file.size) ? ` · ${fileSizeLabel(file.size)}` : ''}`
+                        : 'Drag and drop file here, or click to browse'}
+                    </span>
+                    <span className="block text-xs text-muted">Supported formats: PDF, JPG, PNG, DOC, DOCX</span>
+                  </span>
                 </span>
-                <span className="rounded-full bg-navy px-4 py-2 text-xs font-semibold text-white">Browse Files</span>
+                <span className="shrink-0 rounded-[8px] bg-navy px-4 py-2 text-xs font-semibold text-white">
+                  Browse Files
+                </span>
                 <input
                   type="file"
                   className="hidden"
                   accept={ACCEPT}
-                  onChange={(event) => setFile(event.target.files?.[0] ?? null)}
+                  onChange={(event) => takeFile(event.target.files?.[0] ?? null)}
                 />
               </label>
-              <p className="mt-2 text-xs text-muted">Supported formats: PDF, JPG, PNG, DOC, DOCX</p>
             </div>
             <div className="flex justify-end gap-3">
               <button
                 type="button"
                 onClick={() => navigate('/portal/documents')}
-                className="h-11 rounded-full border border-[#d9d9d9] px-6 text-sm font-semibold text-navy"
+                className="h-11 rounded-[8px] border border-[#d9d9d9] px-6 text-sm font-semibold text-navy"
               >
                 Cancel
               </button>
               <button
                 type="submit"
                 disabled={busy || !file}
-                className="h-11 rounded-full bg-navy px-6 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-40"
+                className="h-11 rounded-[8px] bg-navy px-6 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-40"
               >
-                Upload Document
+                {busy ? 'Uploading…' : 'Upload Document'}
               </button>
             </div>
           </form>
@@ -679,10 +805,17 @@ export function EmployeeDocumentUploadPage() {
               Important Information
             </p>
             <ul className="mt-4 space-y-3 text-sm text-navy">
-              <li>Ensure the document is clear and readable</li>
-              <li>Use PDF, DOC, DOCX or PNG format</li>
-              <li>Maximum file size: 5 MB</li>
-              <li>Set an expiry date if applicable</li>
+              {[
+                'Ensure document is clear and readable',
+                'Use PDF, DOCX, JPG or PNG format',
+                'Maximum file size: 5MB',
+                'Set an expiry date if applicable',
+              ].map((item) => (
+                <li key={item} className="flex gap-2">
+                  <span className="mt-0.5 text-navy">▸</span>
+                  <span>{item}</span>
+                </li>
+              ))}
             </ul>
           </aside>
           <aside className="rounded-[16px] border border-[#eceae6] bg-white p-5">

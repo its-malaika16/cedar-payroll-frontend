@@ -62,7 +62,7 @@ export function CompanyOnboardPage() {
   const [saving, setSaving] = useState(false)
   const [preview, setPreview] = useState<{ id: string; title: string; filename: string } | null>(null)
 
-  if (!auth.canManageOrganizations) return <Navigate to="/" replace />
+  if (!auth.canManageOrganizations) return <Navigate to="/app" replace />
 
   function toggleModule(value: string) {
     setModules((current) =>

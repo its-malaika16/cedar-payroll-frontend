@@ -483,7 +483,7 @@ export function CommunicationPage() {
     },
   })
 
-  if (!canUse) return <Navigate to="/" replace />
+  if (!canUse) return <Navigate to="/app" replace />
 
   const canSend = Boolean(payload.subject && payload.body) && previewCount > 0 && !send.isPending
 

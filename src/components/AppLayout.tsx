@@ -33,7 +33,7 @@ type NavItem = {
 }
 
 const adminNav: NavItem[] = [
-  { to: '/', label: 'Dashboard', home: true, end: true },
+  { to: '/app', label: 'Dashboard', home: true, end: true },
   {
     to: '/employees',
     label: 'Employees',

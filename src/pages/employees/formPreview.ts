@@ -36,12 +36,16 @@ export type FormPreview = {
   p45?: {
     leaving_date?: string | null
     student_loan?: boolean
+    postgraduate_loan?: boolean
     tax_code?: string | null
+    week1_month1?: boolean
     last_week_number?: number | null
+    last_month_number?: number | null
     total_pay_to_date?: number
     total_tax_to_date?: number
     deceased?: boolean
   }
+  p45_parts?: string[]
   p60?: Record<string, number | string | null>
   p11d?: { has_benefits?: boolean; benefits?: BenefitEntry[] }
   pbik?: { has_benefits?: boolean; benefits?: BenefitEntry[] }

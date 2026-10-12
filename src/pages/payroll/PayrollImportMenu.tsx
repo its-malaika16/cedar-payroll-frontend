@@ -1,8 +1,9 @@
 import { CircleEllipsis, Download, Import } from 'lucide-react'
 import { menuItemClass, menuPanel, useMenuOpen } from './CreateSendMenu'
+import type { PayrollImportKind } from './payrollCsv'
 
 const MIX_ITEM = {
-  id: 'mix',
+  id: 'mix' as const,
   label: 'Import mix of payments, additions and deductions from CSV file...',
 }
 
@@ -16,15 +17,17 @@ const TYPED_ITEMS = [
 ] as const
 
 export function PayrollImportMenu({
-  onUnavailable,
+  onImport,
+  onShowReferences,
 }: {
-  onUnavailable?: (message: string) => void
+  onImport: (kind: PayrollImportKind) => void
+  onShowReferences?: () => void
 }) {
   const { ref, open, setOpen } = useMenuOpen()
 
-  function choose(label: string) {
+  function choose(kind: PayrollImportKind) {
     setOpen(false)
-    onUnavailable?.(`${label.replace(/\.\.\.$/, '')} is not available yet.`)
+    onImport(kind)
   }
 
   return (
@@ -39,7 +42,7 @@ export function PayrollImportMenu({
       </button>
       {open ? (
         <div className={`${menuPanel} right-0 w-[420px]`}>
-          <button type="button" className={menuItemClass} onClick={() => choose(MIX_ITEM.label)}>
+          <button type="button" className={menuItemClass} onClick={() => choose(MIX_ITEM.id)}>
             <Import size={14} className="shrink-0" />
             {MIX_ITEM.label}
           </button>
@@ -49,7 +52,7 @@ export function PayrollImportMenu({
               key={item.id}
               type="button"
               className={menuItemClass}
-              onClick={() => choose(item.label)}
+              onClick={() => choose(item.id)}
             >
               <Import size={14} className="shrink-0" />
               {item.label}
@@ -59,7 +62,10 @@ export function PayrollImportMenu({
           <button
             type="button"
             className={menuItemClass}
-            onClick={() => choose('CSV Import References...')}
+            onClick={() => {
+              setOpen(false)
+              onShowReferences?.()
+            }}
           >
             <CircleEllipsis size={14} className="shrink-0" />
             CSV Import References...

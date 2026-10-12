@@ -16,7 +16,7 @@ import { formatLongDate, fullName, idOf, isEmployeeOnPayrollRun, sortByEmployeeN
 import type { PayrollDeductionLine, PayrollRecord, PayrollRun } from '../../types'
 import iconPerson from '../../assets/brand/icon-person.png'
 import { CreateSendMenu, toolbarBtn } from './CreateSendMenu'
-import { PayrollImportMenu } from './PayrollImportMenu'
+import { PayrollCsvImportHost } from './PayrollCsvImportHost'
 import { PayrollMoreMenu } from './PayrollMoreMenu'
 import { PayrollSchedulesMenu } from './PayrollSchedulesMenu'
 import { ADDITION_ITEMS, DEDUCTION_ITEMS } from './payslipMenus'
@@ -277,6 +277,17 @@ export function BulkPayslipActionPage() {
   if (!run) return <Alert>Payroll run not found</Alert>
 
   return (
+    <PayrollCsvImportHost
+      companyId={companyId}
+      runId={runId}
+      locked={locked}
+      payFrequency={run.pay_frequency}
+      onError={setError}
+      onImported={(count) =>
+        setMessage(`Imported payroll values for ${count} employee${count === 1 ? '' : 's'} and recalculated`)
+      }
+    >
+      {({ menu, panel }) => (
     <div>
       <p className="text-sm font-semibold text-[#607080]">
         Payroll &nbsp;&nbsp;&gt;&nbsp;&nbsp; More &nbsp;&nbsp;&gt;&nbsp;&nbsp;
@@ -295,7 +306,7 @@ export function BulkPayslipActionPage() {
           </span>
         </button>
         <div className="flex flex-wrap items-center gap-2">
-          <PayrollImportMenu onUnavailable={setError} />
+          {menu}
           <button
             type="button"
             className={toolbarBtn}
@@ -347,6 +358,9 @@ export function BulkPayslipActionPage() {
         </div>
       ) : null}
 
+      {panel ? (
+        panel
+      ) : (
       <div className="mt-6 grid min-h-0 gap-4 xl:grid-cols-[276px_minmax(220px,320px)_minmax(0,1fr)]">
         <aside className="h-[min(640px,calc(100vh-16rem))] overflow-hidden rounded-[10px] border border-[#d9d9d9] bg-white">
           <div className="h-full overflow-y-auto">
@@ -556,7 +570,10 @@ export function BulkPayslipActionPage() {
           </div>
         </section>
       </div>
+      )}
     </div>
+      )}
+    </PayrollCsvImportHost>
   )
 }
 

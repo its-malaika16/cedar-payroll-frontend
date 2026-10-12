@@ -8,7 +8,7 @@ import { Alert, Button, Loading } from '../../components/ui'
 import { compareEmployeeNames, fullName, idOf, isEmployeeOnPayrollRun, sortByEmployeeName } from '../../lib/format'
 import type { Employee, PayrollRecord, PayrollRun, PayrollSchedule } from '../../types'
 import { CreateSendMenu, toolbarBtn } from './CreateSendMenu'
-import { PayrollImportMenu } from './PayrollImportMenu'
+import { PayrollCsvImportHost } from './PayrollCsvImportHost'
 import { PayrollMoreMenu } from './PayrollMoreMenu'
 import { PayrollSchedulesMenu } from './PayrollSchedulesMenu'
 import { payrollListPathFromRun } from './payrollNavigation'
@@ -169,6 +169,17 @@ export function SwitchSchedulePage() {
   if (runId && !run) return <Alert>Payroll run not found</Alert>
 
   return (
+    <PayrollCsvImportHost
+      companyId={companyId}
+      runId={runId}
+      locked={['LOCKED', 'COMPLETED'].includes((run?.status ?? '').toUpperCase())}
+      payFrequency={run?.pay_frequency}
+      onError={setError}
+      onImported={(count) =>
+        setMessage(`Imported payroll values for ${count} employee${count === 1 ? '' : 's'} and recalculated`)
+      }
+    >
+      {({ menu, panel }) => (
     <div>
       <p className="text-sm font-semibold text-[#607080]">
         Payroll &nbsp;&nbsp;&gt;&nbsp;&nbsp; More &nbsp;&nbsp;&gt;&nbsp;&nbsp;
@@ -186,7 +197,7 @@ export function SwitchSchedulePage() {
         <div className="flex flex-wrap items-center gap-2">
           {runId ? (
             <>
-              <PayrollImportMenu onUnavailable={setError} />
+              {menu}
               <button type="button" className={toolbarBtn} onClick={() => navigate(`/payroll/runs/${runId}/reopen`)}>
                 <RefreshCw size={16} />
                 Reopen
@@ -219,6 +230,9 @@ export function SwitchSchedulePage() {
         </div>
       ) : null}
 
+      {panel ? (
+        panel
+      ) : (
       <div className="mt-6 grid min-h-0 gap-4 xl:grid-cols-[minmax(280px,360px)_minmax(0,1fr)]">
         <section className="flex min-h-[520px] flex-col overflow-hidden rounded-[10px] border border-[#d9d9d9] bg-white">
           <h3 className="px-5 pt-5 text-base font-semibold text-navy">Select Employees</h3>
@@ -296,6 +310,9 @@ export function SwitchSchedulePage() {
           </div>
         </section>
       </div>
+      )}
     </div>
+      )}
+    </PayrollCsvImportHost>
   )
 }

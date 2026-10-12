@@ -58,7 +58,7 @@ export function CompanyDetailPage() {
   }, [company, roles, rolesQuery.isLoading, hydrated])
 
   if (!auth.canManageOrganizations) {
-    return <Navigate to="/" replace />
+    return <Navigate to="/app" replace />
   }
 
   if (query.isLoading || rolesQuery.isLoading || !hydrated) {

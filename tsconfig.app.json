@@ -10,7 +10,13 @@
 
     /* Bundler mode */
     "moduleResolution": "bundler",
+    "ignoreDeprecations": "6.0",
+    "allowJs": true,
     "allowImportingTsExtensions": true,
+    "baseUrl": ".",
+    "paths": {
+      "@site/*": ["../cedar-payroll-website/src/*"]
+    },
     "verbatimModuleSyntax": true,
     "moduleDetection": "force",
     "noEmit": true,

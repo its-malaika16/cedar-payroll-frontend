@@ -19,7 +19,7 @@ export function usePortalSwitch() {
       auth.adminCompanies.find((item) => item.id === auth.companyId) ??
       auth.adminCompanies[0]
     if (match) auth.setCompanyId(match.id)
-    navigate('/')
+    navigate('/app')
   }
 
   return {

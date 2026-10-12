@@ -148,7 +148,7 @@ export function OnboardingWorkspacePage() {
     },
   })
 
-  if (!auth.needsOnboarding && company?.status !== 'ACTIVE') return <Navigate to="/" replace />
+  if (!auth.needsOnboarding && company?.status !== 'ACTIVE') return <Navigate to="/app" replace />
   if (query.isLoading || !form || !company || step == null) return <Loading />
 
   const locked = company.status === 'PENDING_REVIEW' || company.status === 'ACTIVE'
@@ -545,7 +545,7 @@ export function OnboardingWorkspacePage() {
           note={company.onboarding_review_note}
           onContinue={async () => {
             await auth.refresh()
-            navigate('/')
+            navigate('/app')
           }}
           onUpdateDetails={() => goTo(1)}
           onUpdateContracts={() => goTo(2)}

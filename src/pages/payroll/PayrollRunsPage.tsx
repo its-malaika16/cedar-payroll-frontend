@@ -29,7 +29,7 @@ import {
   periodsFromSavedSchedule,
 } from './scheduleWizard/payDateRules'
 import { CreateSendMenu, toolbarBtn } from './CreateSendMenu'
-import { PayrollImportMenu } from './PayrollImportMenu'
+import { PayrollCsvImportHost } from './PayrollCsvImportHost'
 import { PayrollMoreMenu, payrollMoreMenuItem } from './PayrollMoreMenu'
 import { PayrollSchedulesMenu } from './PayrollSchedulesMenu'
 import { FinaliseEmployeesModal } from './FinaliseEmployeesModal'
@@ -280,6 +280,19 @@ export function PayrollRunsPage() {
   ]
 
   return (
+    <PayrollCsvImportHost
+      companyId={companyId}
+      runId={selectedId}
+      locked={locked || allFinalised}
+      payFrequency={selectedSchedule?.pay_frequency}
+      onError={setError}
+      onImported={(count) =>
+        setMessage(
+          `Imported payroll values for ${count} employee${count === 1 ? '' : 's'} and recalculated`,
+        )
+      }
+    >
+      {({ menu, panel }) => (
     <div>
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
@@ -289,7 +302,7 @@ export function PayrollRunsPage() {
           ) : null}
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <PayrollImportMenu onUnavailable={setError} />
+          {menu}
           <button
             type="button"
             className={toolbarBtn}
@@ -371,7 +384,9 @@ export function PayrollRunsPage() {
         </div>
       ) : null}
 
-      {runs.isLoading ? (
+      {panel ? (
+        panel
+      ) : runs.isLoading ? (
         <Loading />
       ) : (
         <>
@@ -554,5 +569,7 @@ export function PayrollRunsPage() {
         />
       ) : null}
     </div>
+      )}
+    </PayrollCsvImportHost>
   )
 }

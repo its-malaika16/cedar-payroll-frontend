@@ -10,7 +10,7 @@ export function OnboardingLayout() {
 
   if (auth.loading) return <Loading />
   if (!auth.token) return <Navigate to="/login" replace />
-  if (!auth.needsOnboarding) return <Navigate to="/" replace />
+  if (!auth.needsOnboarding) return <Navigate to="/app" replace />
 
   return (
     <div className="flex min-h-screen flex-col bg-cream">

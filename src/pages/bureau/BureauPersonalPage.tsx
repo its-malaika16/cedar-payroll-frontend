@@ -410,7 +410,7 @@ export function BureauPersonalPage() {
   })
   const documents = (documentsQuery.data?.data as ComplianceFile[] | undefined) ?? []
 
-  if (!isBureauHrManager) return <Navigate to="/" replace />
+  if (!isBureauHrManager) return <Navigate to="/app" replace />
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-6">
@@ -418,7 +418,7 @@ export function BureauPersonalPage() {
         <div>
           {view === 'table' ? (
             <p className="mb-2 text-sm text-navy">
-              <Link to="/" className="hover:underline">
+              <Link to="/app" className="hover:underline">
                 Home
               </Link>
               <span className="mx-1.5">&gt;</span>

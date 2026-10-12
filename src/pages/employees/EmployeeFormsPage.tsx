@@ -72,7 +72,7 @@ export function EmployeeFormsPage() {
       if (!data) return
       const title = sheetTitle(type, data)
       popup = openSheetPlaceholder(type, title)
-      const [{ body }] = await sheetsFromPreviews(type, [data])
+      const [{ body }] = await sheetsFromPreviews(type, [data], { p45Parts })
       writeSheetToWindow(popup, type, [body], title, true)
     } catch (error) {
       popup?.close()

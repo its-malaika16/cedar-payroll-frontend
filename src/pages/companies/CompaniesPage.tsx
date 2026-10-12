@@ -506,7 +506,7 @@ export function CompaniesPage() {
   }
 
   if (!canManageOrganizations) {
-    return <Navigate to="/" replace />
+    return <Navigate to="/app" replace />
   }
 
   return (

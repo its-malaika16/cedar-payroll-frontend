@@ -59,7 +59,7 @@ export function ActivitiesPage() {
   })
   const list = (query.data?.data as ActivityRow[] | undefined) ?? []
 
-  if (!isBureauAdmin) return <Navigate to="/" replace />
+  if (!isBureauAdmin) return <Navigate to="/app" replace />
 
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-y-auto pb-6">

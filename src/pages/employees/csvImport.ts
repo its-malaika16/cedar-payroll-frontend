@@ -143,7 +143,7 @@ export function parseCsvText(text: string, filename: string): ParsedCsv {
   })
   if (!headers.length) throw new Error('This CSV has no column headings')
   const rows = table.map((entry) => headers.map((_, index) => (entry[index] ?? '').trim()))
-  if (!rows.length) throw new Error('This CSV has headings but no employee rows')
+  if (!rows.length) throw new Error('This CSV has headings but no data rows')
   return { filename, headers, rows: rows.filter((entry) => entry.some(Boolean)) }
 }
 
@@ -158,7 +158,7 @@ const IGNORED_CSV_HEADERS = new Set([
   'presenter id',
 ])
 
-function scoreHeader(headerKey: string, field: CsvField) {
+function scoreHeader(headerKey: string, field: { aliases: string[] }) {
   const headerWords = headerKey.split(' ').filter(Boolean)
   const compactHeader = headerKey.replace(/\s+/g, '')
   let best = 0
@@ -175,7 +175,10 @@ function scoreHeader(headerKey: string, field: CsvField) {
   return best
 }
 
-export function guessCsvMapping(headers: string[]) {
+export function guessCsvMappingFor(
+  headers: string[],
+  fields: Array<{ id: string; aliases: string[] }>,
+) {
   const mapping: Record<string, string> = {}
   const usedFields = new Set<string>()
   const usedHeaders = new Set<string>()
@@ -184,7 +187,7 @@ export function guessCsvMapping(headers: string[]) {
   for (const header of headers) {
     const key = normalizeHeader(header)
     if (!key || IGNORED_CSV_HEADERS.has(key)) continue
-    for (const field of EMPLOYEE_CSV_FIELDS) {
+    for (const field of fields) {
       const score = scoreHeader(key, field)
       if (score > 0) candidates.push({ fieldId: field.id, header, score })
     }
@@ -198,6 +201,18 @@ export function guessCsvMapping(headers: string[]) {
     usedHeaders.add(candidate.header)
   }
   return mapping
+}
+
+export function guessCsvMapping(headers: string[]) {
+  return guessCsvMappingFor(headers, EMPLOYEE_CSV_FIELDS)
+}
+
+export function invertCsvMapping(fieldToHeader: Record<string, string>) {
+  const headerToField: Record<string, string> = {}
+  for (const [fieldId, header] of Object.entries(fieldToHeader)) {
+    if (header) headerToField[header] = fieldId
+  }
+  return headerToField
 }
 
 export function cellFor(row: string[], headers: string[], column: string | undefined) {

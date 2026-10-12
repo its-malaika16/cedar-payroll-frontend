@@ -51,7 +51,7 @@ export function CompanyOnboardingReviewPage() {
   })
   const company = query.data?.data as OnboardingCompany | undefined
 
-  if (!auth.canManageOrganizations) return <Navigate to="/" replace />
+  if (!auth.canManageOrganizations) return <Navigate to="/app" replace />
   if (query.isLoading) return <Loading />
   if (!company) return <Alert>Onboarding record not found.</Alert>
 

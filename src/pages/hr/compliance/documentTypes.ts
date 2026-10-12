@@ -87,6 +87,7 @@ export type ComplianceFile = {
   expiry_date?: string | null
   visible_to_employee: boolean
   uploaded_by_kind?: string | null
+  category?: 'PERSONAL' | 'COMPANY' | string | null
   employer_only: boolean
   requires_expiry: boolean
   status?: string

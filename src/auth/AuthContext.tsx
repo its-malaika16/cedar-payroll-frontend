@@ -79,7 +79,7 @@ function homePathFromAccess(payload: Partial<AuthPayload> | null | undefined) {
     memberships.length === 0 &&
     bureauAccess.length === 0 &&
     employeeAccess.length > 0
-  return employeeOnly ? '/portal' : '/'
+  return employeeOnly ? '/portal' : '/app'
 }
 
 function isBureauAdminRole(roleName?: string | null) {
@@ -287,7 +287,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     !hasBureauScopedAccess &&
     pendingMemberships.length > 0 &&
     pendingMemberships.length === memberships.length
-  const homePath = needsOnboarding ? '/onboarding' : isEmployeeOnly ? '/portal' : '/'
+  const homePath = needsOnboarding ? '/onboarding' : isEmployeeOnly ? '/portal' : '/app'
 
   const value: AuthContextValue = {
     loading,
