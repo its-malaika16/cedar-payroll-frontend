@@ -17,15 +17,21 @@
 
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  gap: 48px;
 }
 
 /* ====================
    LOGO
 ==================== */
 
+.logo {
+  flex-shrink: 0;
+}
+
 .logo img {
   width: 170px;
+  max-width: none;
+  height: auto;
   display: block;
 }
 
@@ -78,6 +84,8 @@
   display: flex;
   align-items: center;
   gap: 30px;
+  margin-left: auto;
+  flex-shrink: 0;
 }
 
 .support-link {

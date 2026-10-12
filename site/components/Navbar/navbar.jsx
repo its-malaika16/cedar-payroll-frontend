@@ -25,7 +25,7 @@ const Navbar = () => {
           className={`nav-links ${menuOpen ? "active" : ""
             }`}
         >
-          <NavLink to="/" onClick={closeMenu}>
+          <NavLink to="/" end onClick={closeMenu}>
             Home
           </NavLink>
 

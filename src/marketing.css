@@ -23,9 +23,9 @@
   color: var(--primary);
 }
 
-.cedar-site *,
-.cedar-site *::before,
-.cedar-site *::after {
+.cedar-site :where(*),
+.cedar-site :where(*)::before,
+.cedar-site :where(*)::after {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
