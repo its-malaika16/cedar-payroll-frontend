@@ -1,0 +1,194 @@
+.industries-section {
+  width: 100%;
+  background: var(--background);
+  padding: 100px 80px;
+}
+
+.industries-container {
+  max-width: 1450px;
+  margin: 0 auto;
+}
+
+.industries-heading {
+  text-align: center;
+  color: var(--primary);
+
+  margin-bottom: 60px;
+}
+
+/* ==========================
+   GRID
+========================== */
+
+.industries-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 32px;
+}
+
+/* ==========================
+   CARD
+========================== */
+
+.industry-card {
+  background: #ffffff;
+
+  border: 1px solid rgba(23, 55, 94, 0.2);
+  border-radius: 40px;
+
+  overflow: hidden;
+
+  display: flex;
+  flex-direction: column;
+
+  height: 100%;
+
+  transition: all 0.3s ease;
+}
+
+.industry-card:hover {
+  transform: translateY(-5px);
+
+  box-shadow: 0 10px 30px rgba(23, 55, 94, 0.12);
+}
+
+.industry-image {
+  width: 103%;
+  height: 230px;
+
+  object-fit: cover;
+  display: block;
+}
+
+.industry-content {
+  padding: 24px;
+
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+
+.industry-title {
+  color: var(--secondary);
+
+  margin-bottom: 14px;
+}
+
+.industry-description {
+  color: var(--primary);
+
+  line-height: 1.7;
+}
+
+/* ==========================
+   LARGE DESKTOP
+========================== */
+
+@media (min-width: 1600px) {
+  .industries-container {
+    max-width: 1650px;
+  }
+
+  .industry-image {
+    height: 260px;
+  }
+}
+
+/* ==========================
+   DESKTOP
+========================== */
+
+@media (max-width: 1400px) {
+  .industries-section {
+    padding: 90px 60px;
+  }
+
+  .industry-image {
+    height: 220px;
+  }
+}
+
+/* ==========================
+   LAPTOP
+========================== */
+
+@media (max-width: 1200px) {
+  .industries-grid {
+    gap: 22px;
+  }
+
+  .industry-image {
+    height: 200px;
+  }
+}
+
+/* ==========================
+   TABLET
+========================== */
+
+@media (max-width: 992px) {
+  .industries-section {
+    padding: 80px 40px;
+  }
+
+  .industries-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 20px;
+  }
+
+  .industry-image {
+    height: 180px;
+  }
+
+  .industry-content {
+    padding: 20px;
+  }
+}
+
+/* ==========================
+   MOBILE
+========================== */
+
+@media (max-width: 768px) {
+  .industries-section {
+    padding: 70px 20px;
+  }
+
+  .industries-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .industries-heading {
+    margin-bottom: 40px;
+  }
+
+  .industry-image {
+    height: 220px;
+  }
+
+  .industry-content {
+    padding: 20px;
+  }
+}
+
+/* ==========================
+   SMALL MOBILE
+========================== */
+
+@media (max-width: 480px) {
+  .industries-section {
+    padding: 60px 16px;
+  }
+
+  .industry-card {
+    border-radius: 20px;
+  }
+
+  .industry-image {
+    height: 180px;
+  }
+
+  .industry-content {
+    padding: 18px;
+  }
+}

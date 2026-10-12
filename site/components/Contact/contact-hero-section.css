@@ -1,0 +1,149 @@
+.contact-intro {
+  width: 100%;
+  background: var(--background);
+  padding: 140px 80px;
+}
+
+.contact-intro-container {
+  max-width: 900px;
+  margin: 0 auto;
+  text-align: center;
+}
+
+.contact-intro-title {
+  color: var(--primary);
+  margin-bottom: 30px;
+}
+
+.contact-intro-description {
+  color: var(--primary);
+
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.contact-intro-description strong {
+  font-weight: 700;
+}
+
+/* =========================
+   LARGE DESKTOP
+========================= */
+
+@media (min-width: 1600px) {
+  .contact-intro {
+    padding: 180px 80px;
+  }
+
+  .contact-intro-title {
+    font-size: 72px;
+  }
+
+  .contact-intro-description {
+    font-size: 28px;
+    max-width: 900px;
+  }
+}
+
+/* =========================
+   DESKTOP
+========================= */
+
+@media (max-width: 1400px) {
+  .contact-intro {
+    padding: 120px 60px;
+  }
+
+  .contact-intro-title {
+    font-size: 56px;
+  }
+
+  .contact-intro-description {
+    font-size: 22px;
+  }
+}
+
+/* =========================
+   LAPTOP
+========================= */
+
+@media (max-width: 1200px) {
+  .contact-intro-title {
+    font-size: 48px;
+  }
+
+  .contact-intro-description {
+    font-size: 20px;
+  }
+}
+
+/* =========================
+   TABLET
+========================= */
+
+@media (max-width: 992px) {
+  .contact-intro {
+    padding: 100px 40px;
+  }
+
+  .contact-intro-title {
+    font-size: 42px;
+  }
+
+  .contact-intro-description {
+    font-size: 18px;
+    max-width: 650px;
+  }
+}
+
+/* =========================
+   MOBILE
+========================= */
+
+@media (max-width: 768px) {
+  .contact-intro {
+    padding: 80px 20px;
+  }
+
+  .contact-intro-title {
+    font-size: 36px;
+    margin-bottom: 20px;
+  }
+
+  .contact-intro-description {
+    font-size: 16px;
+    line-height: 1.6;
+  }
+}
+
+/* =========================
+   SMALL MOBILE
+========================= */
+
+@media (max-width: 480px) {
+  .contact-intro {
+    padding: 60px 16px;
+  }
+
+  .contact-intro-title {
+    font-size: 30px;
+  }
+
+  .contact-intro-description {
+    font-size: 15px;
+  }
+}
+
+/* =========================
+   EXTRA SMALL
+========================= */
+
+@media (max-width: 360px) {
+  .contact-intro-title {
+    font-size: 26px;
+  }
+
+  .contact-intro-description {
+    font-size: 14px;
+  }
+}

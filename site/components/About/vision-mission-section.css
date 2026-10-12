@@ -1,0 +1,216 @@
+.mission-vision {
+  width: 100%;
+  background: var(--background);
+  padding: 120px 80px;
+}
+
+.mission-vision-container {
+  max-width: 1400px;
+  margin: 0 auto;
+
+  display: flex;
+  flex-direction: column;
+  gap: 140px;
+}
+
+/* ==========================
+   CARD
+========================== */
+
+.mission-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+/* ==========================
+   ICON
+========================== */
+
+.mission-icon-wrapper {
+  width: 130px;
+  height: 130px;
+
+  background: #FFFFFF;
+  border-radius: 50%;
+
+  display: flex;
+  justify-content: center;
+  align-items: center;
+
+  margin-bottom: 30px;
+}
+
+.mission-icon {
+  width: 80px;
+  height: 80px;
+  object-fit: contain;
+}
+
+/* ==========================
+   CONTENT
+========================== */
+
+.mission-title {
+  color: var(--primary);
+
+  margin-bottom: 24px;
+}
+
+.mission-description {
+  color: var(--primary);
+
+  max-width: 1050px;
+
+  font-size: 24px;
+  font-weight: 500;
+  line-height: 1.45;
+}
+
+/* ==========================
+   LARGE DESKTOP
+========================== */
+
+@media (min-width: 1600px) {
+  .mission-vision-container {
+    max-width: 1400px;
+  }
+
+  .mission-title {
+    font-size: 60px;
+  }
+}
+
+/* ==========================
+   DESKTOP
+========================== */
+
+@media (max-width: 1400px) {
+  .mission-vision {
+    padding: 100px 60px;
+  }
+
+  .mission-title {
+    font-size: 50px;
+  }
+
+  .mission-description {
+    font-size: 22px;
+  }
+}
+
+/* ==========================
+   LAPTOP
+========================== */
+
+@media (max-width: 1200px) {
+  .mission-vision-container {
+    gap: 110px;
+  }
+
+  .mission-title {
+    font-size: 44px;
+  }
+
+  .mission-description {
+    font-size: 20px;
+    max-width: 850px;
+  }
+}
+
+/* ==========================
+   TABLET
+========================== */
+
+@media (max-width: 992px) {
+  .mission-vision {
+    padding: 90px 40px;
+  }
+
+  .mission-vision-container {
+    gap: 90px;
+  }
+
+  .mission-title {
+    font-size: 40px;
+  }
+
+  .mission-description {
+    font-size: 18px;
+    max-width: 100%;
+  }
+
+  .mission-icon-wrapper {
+    width: 85px;
+    height: 85px;
+  }
+
+  .mission-icon {
+    width: 40px;
+    height: 40px;
+  }
+}
+
+/* ==========================
+   MOBILE
+========================== */
+
+@media (max-width: 768px) {
+  .mission-vision {
+    padding: 70px 20px;
+  }
+
+  .mission-vision-container {
+    gap: 70px;
+  }
+
+  .mission-title {
+    font-size: 34px;
+    margin-bottom: 18px;
+  }
+
+  .mission-description {
+    font-size: 16px;
+    line-height: 1.6;
+  }
+
+  .mission-icon-wrapper {
+    width: 75px;
+    height: 75px;
+    margin-bottom: 24px;
+  }
+
+  .mission-icon {
+    width: 34px;
+    height: 34px;
+  }
+}
+
+/* ==========================
+   SMALL MOBILE
+========================== */
+
+@media (max-width: 480px) {
+  .mission-vision {
+    padding: 60px 16px;
+  }
+
+  .mission-title {
+    font-size: 28px;
+  }
+
+  .mission-description {
+    font-size: 15px;
+  }
+
+  .mission-icon-wrapper {
+    width: 65px;
+    height: 65px;
+  }
+
+  .mission-icon {
+    width: 28px;
+    height: 28px;
+  }
+}

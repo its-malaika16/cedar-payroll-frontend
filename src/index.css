@@ -1,6 +1,6 @@
 @import "tailwindcss" source(none);
 @source ".";
-@source not "../../cedar-payroll-website";
+@source not "../site";
 
 @theme {
   --font-sans: "Montserrat", ui-sans-serif, system-ui, sans-serif;

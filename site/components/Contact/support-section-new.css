@@ -1,0 +1,180 @@
+.support-section {
+  padding: 100px 80px;
+  background: var(--background);
+}
+
+.support-container {
+  max-width: 1500px;
+  margin: 0 auto;
+}
+
+.support-main-heading {
+  text-align: center;
+  font-size: 40px;
+  font-weight: 700;
+  color: var(--primary);
+  margin-bottom: 70px;
+}
+
+/* ==========================
+   GRID
+========================== */
+
+.support-grid {
+  display: grid;
+  grid-template-columns: 400px 1fr 1fr;
+  gap: 50px;
+  align-items: start;
+}
+
+/* ==========================
+   CARDS
+========================== */
+
+.support-card {
+  color: var(--primary);
+}
+
+.support-card h3 {
+  color: var(--primary);
+  font-size: 30px;
+  font-weight: 600;
+  margin-bottom: 24px;
+}
+
+.support-card h4 {
+  color: var(--secondary);
+  margin: 28px 0 12px;
+  font-size: 20px;
+  font-weight: 500;
+  font-weight: 700;
+}
+
+.support-card p {
+  line-height: 1.8;
+  margin-bottom: 18px;
+}
+
+.support-card ul {
+  padding-left: 22px;
+  margin-bottom: 20px;
+  list-style: circle;
+}
+
+.support-card li {
+  line-height: 1.8;
+  margin-bottom: 10px;
+}
+
+.support-card strong {
+  color: var(--primary);
+  font-weight: 700;
+}
+
+/* ==========================
+   SALES CARD
+========================== */
+
+.sales-card {
+  background: #ffffff;
+  border: 1px solid rgba(23, 55, 94, 0.15);
+  border-radius: 24px;
+  padding: 32px;
+
+  box-shadow: 0 5px 20px rgba(0, 0, 0, 0.08);
+}
+
+.sales-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  height: 52px;
+  padding: 0 32px;
+
+  margin-top: 20px;
+
+  border-radius: 10px;
+
+  background: var(--secondary);
+  color: white;
+
+  text-decoration: none;
+  font-weight: 700;
+
+  transition: 0.3s ease;
+}
+
+.sales-btn:hover {
+  opacity: 0.9;
+}
+
+/* ==========================
+   LAPTOP
+========================== */
+
+@media (max-width: 1200px) {
+  .support-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .sales-card {
+    grid-column: span 2;
+  }
+}
+
+/* ==========================
+   TABLET
+========================== */
+
+@media (max-width: 992px) {
+  .support-section {
+    padding: 80px 40px;
+  }
+
+  .support-grid {
+    grid-template-columns: 1fr;
+    gap: 50px;
+  }
+
+  .sales-card {
+    grid-column: auto;
+  }
+}
+
+/* ==========================
+   MOBILE
+========================== */
+
+@media (max-width: 768px) {
+  .support-section {
+    padding: 70px 20px;
+  }
+
+  .support-main-heading {
+    margin-bottom: 50px;
+  }
+
+  .sales-card {
+    padding: 24px;
+  }
+}
+
+/* ==========================
+   SMALL MOBILE
+========================== */
+
+@media (max-width: 480px) {
+  .support-section {
+    padding: 60px 16px;
+  }
+
+  .sales-card {
+    padding: 20px;
+    border-radius: 18px;
+  }
+
+  .sales-btn {
+    width: 100%;
+  }
+}

@@ -1,0 +1,138 @@
+.services-hero {
+  position: relative;
+  padding: 120px 20px 80px;
+  text-align: center;
+  color: white;
+  background: radial-gradient(circle at left, #1c3f36, #0c2c26);
+  overflow: hidden;
+}
+
+/* ✅ TOP TAG */
+.hero-tag {
+  margin-bottom: 40px;
+}
+
+.hero-tag span {
+  font-size: 12px;
+  letter-spacing: 3px;
+  color: #d4af37;
+  border: 1px solid rgba(255,255,255,0.15);
+  padding: 10px 20px;
+  border-radius: 30px;
+  background: rgba(255,255,255,0.05);
+}
+
+/* ✅ MAIN CARD */
+.hero-card {
+  max-width: 950px;
+  margin: 0 auto;
+  padding: 80px 40px;
+
+  border-radius: 30px;
+  background: rgba(255,255,255,0.04);
+  backdrop-filter: blur(10px);
+
+  border: 1px solid rgba(255,255,255,0.08);
+
+  position: relative;
+}
+
+/* ✅ CORNER DESIGN */
+.hero-card::before,
+.hero-card::after {
+  content: "";
+  position: absolute;
+  width: 40px;
+  height: 40px;
+  border: 2px solid #d4af37;
+}
+
+.hero-card::before {
+  top: -10px;
+  left: -10px;
+  border-right: none;
+  border-bottom: none;
+}
+
+.hero-card::after {
+  bottom: -10px;
+  right: -10px;
+  border-left: none;
+  border-top: none;
+}
+
+/* ✅ HEADING */
+.hero-card h1 {
+  font-size: 70px;
+  font-weight: 600;
+  margin-bottom: 25px;
+}
+
+.hero-card span {
+  color: #d4af37;
+}
+
+/* ✅ DIVIDER */
+.divider {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.divider span {
+  width: 50px;
+  height: 1px;
+  background: rgba(255,255,255,0.2);
+}
+
+.divider .diamond {
+  width: 6px;
+  height: 6px;
+  background: #d4af37;
+  transform: rotate(45deg);
+}
+
+/* ✅ TEXT */
+.hero-card p {
+  color: #b7c5c0;
+  max-width: 650px;
+  margin: auto;
+  line-height: 1.6;
+  font-size: 16px;
+}
+
+.hero-card strong {
+  color: white;
+  font-weight: 600;
+}
+
+/* ✅ BREADCRUMB */
+.breadcrumb {
+  margin-top: 30px;
+  font-size: 12px;
+  letter-spacing: 2px;
+  color: #9fb3ad;
+}
+
+.breadcrumb span {
+  color: #d4af37;
+  margin: 0 5px;
+}
+
+.breadcrumb .active {
+  color: #d4af37;
+}
+
+/* ✅ RESPONSIVE */
+@media (max-width: 768px) {
+
+  .hero-card {
+    padding: 50px 20px;
+  }
+
+  .hero-card h1 {
+    font-size: 36px;
+  }
+}

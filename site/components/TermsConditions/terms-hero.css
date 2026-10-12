@@ -1,0 +1,228 @@
+.services-hero {
+  position: relative;
+  padding: 120px 20px 80px;
+  text-align: center;
+  color: #ffffff;
+
+  background: linear-gradient(
+    135deg,
+    var(--primary) 0%,
+    #214b7d 100%
+  );
+
+  overflow: hidden;
+}
+
+/* ==========================
+   TOP TAG
+========================== */
+
+.hero-tag {
+  margin-bottom: 40px;
+}
+
+.hero-tag span {
+  font-size: 12px;
+  letter-spacing: 3px;
+
+  color: var(--secondary);
+
+  border: 1px solid rgba(255, 255, 255, 0.15);
+
+  padding: 10px 20px;
+  border-radius: 30px;
+
+  background: rgba(255, 255, 255, 0.08);
+}
+
+/* ==========================
+   MAIN CARD
+========================== */
+
+.hero-card {
+  max-width: 950px;
+  margin: 0 auto;
+
+  padding: 80px 40px;
+
+  border-radius: 30px;
+
+  background: rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(12px);
+
+  border: 1px solid rgba(255, 255, 255, 0.12);
+
+  position: relative;
+}
+
+/* ==========================
+   CORNER DESIGN
+========================== */
+
+.hero-card::before,
+.hero-card::after {
+  content: "";
+  position: absolute;
+
+  width: 40px;
+  height: 40px;
+
+  border: 2px solid var(--secondary);
+}
+
+.hero-card::before {
+  top: -10px;
+  left: -10px;
+
+  border-right: none;
+  border-bottom: none;
+}
+
+.hero-card::after {
+  bottom: -10px;
+  right: -10px;
+
+  border-left: none;
+  border-top: none;
+}
+
+/* ==========================
+   HEADING
+========================== */
+
+.hero-card h1 {
+  font-size: 70px;
+  font-weight: 700;
+  margin-bottom: 25px;
+
+  color: #ffffff;
+}
+
+.hero-card h1 span {
+  color: var(--secondary);
+}
+
+/* ==========================
+   DIVIDER
+========================== */
+
+.divider {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.divider span {
+  width: 50px;
+  height: 1px;
+
+  background: rgba(255, 255, 255, 0.25);
+}
+
+.divider .diamond {
+  width: 8px;
+  height: 8px;
+
+  background: var(--secondary);
+  transform: rotate(45deg);
+}
+
+/* ==========================
+   TEXT
+========================== */
+
+.hero-card p {
+  color: rgba(255, 255, 255, 0.85);
+
+  max-width: 650px;
+  margin: auto;
+
+  line-height: 1.7;
+  font-size: 16px;
+}
+
+.hero-card strong {
+  color: var(--secondary);
+  font-weight: 700;
+}
+
+/* ==========================
+   BREADCRUMB
+========================== */
+
+.breadcrumb {
+  margin-top: 30px;
+
+  font-size: 12px;
+  letter-spacing: 2px;
+
+  color: rgba(255, 255, 255, 0.65);
+}
+
+.breadcrumb span {
+  color: var(--secondary);
+  margin: 0 5px;
+}
+
+.breadcrumb .active {
+  color: var(--secondary);
+  font-weight: 600;
+}
+
+/* ==========================
+   TABLET
+========================== */
+
+@media (max-width: 992px) {
+  .hero-card {
+    padding: 60px 30px;
+  }
+
+  .hero-card h1 {
+    font-size: 52px;
+  }
+}
+
+/* ==========================
+   MOBILE
+========================== */
+
+@media (max-width: 768px) {
+  .services-hero {
+    padding: 90px 20px 60px;
+  }
+
+  .hero-card {
+    padding: 50px 20px;
+  }
+
+  .hero-card h1 {
+    font-size: 36px;
+  }
+
+  .hero-card p {
+    font-size: 15px;
+  }
+}
+
+/* ==========================
+   SMALL MOBILE
+========================== */
+
+@media (max-width: 480px) {
+  .hero-card h1 {
+    font-size: 30px;
+  }
+
+  .hero-tag span {
+    font-size: 11px;
+    padding: 8px 16px;
+  }
+
+  .breadcrumb {
+    font-size: 11px;
+  }
+}

@@ -1,0 +1,194 @@
+.client-success-section {
+  width: 100%;
+  background: var(--background);
+  padding: 100px 80px;
+}
+
+.client-success-container {
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+/* ======================
+   HEADER
+====================== */
+
+.client-success-header {
+  max-width: 850px;
+  margin-bottom: 60px;
+}
+
+.client-success-title {
+  color: var(--primary);
+  margin-bottom: 16px;
+}
+
+.client-success-subtitle {
+  color: var(--secondary);
+  font-weight: 700;
+  margin-bottom: 18px;
+}
+
+.client-success-description {
+  color: var(--primary);
+  line-height: 1.7;
+}
+
+/* ======================
+   CARDS
+====================== */
+
+.success-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 40px;
+}
+
+.success-card {
+  background: #ffffff;
+
+  border-radius: 24px;
+  border: 1px solid rgba(23, 55, 94, 0.12);
+
+  padding: 35px;
+
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.04);
+}
+
+/* ======================
+   CARD HEADER
+====================== */
+
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+
+  gap: 30px;
+
+  margin-bottom: 25px;
+}
+
+.company-name {
+  color: var(--primary);
+  margin-bottom: 8px;
+}
+
+.company-subtitle {
+  color: var(--primary);
+  font-weight: 600;
+}
+
+.company-logo {
+  max-width: 180px;
+  width: 100%;
+  height: auto;
+  object-fit: contain;
+}
+
+/* ======================
+   CONTENT
+====================== */
+
+.content-block h4 {
+  color: var(--secondary);
+  margin-bottom: 10px;
+}
+
+.content-block p {
+  color: var(--primary);
+  line-height: 1.7;
+}
+
+.content-block ul {
+  padding-left: 20px;
+  list-style: circle;
+}
+
+.content-block li {
+  color: var(--primary);
+  line-height: 1.8;
+}
+
+.divider {
+  width: 100%;
+  height: 1px;
+
+  background: rgba(23, 55, 94, 0.15);
+
+  margin: 22px 0;
+}
+
+/* ======================
+   DESKTOP
+====================== */
+
+@media (max-width: 1400px) {
+  .client-success-section {
+    padding: 90px 60px;
+  }
+}
+
+/* ======================
+   TABLET
+====================== */
+
+@media (max-width: 992px) {
+  .client-success-section {
+    padding: 80px 40px;
+  }
+
+  .card-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .company-logo {
+    max-width: 150px;
+  }
+}
+
+/* ======================
+   MOBILE
+====================== */
+
+@media (max-width: 768px) {
+  .client-success-section {
+    padding: 70px 20px;
+  }
+
+  .success-card {
+    padding: 24px;
+  }
+
+  .client-success-header {
+    margin-bottom: 40px;
+  }
+
+  .company-logo {
+    max-width: 130px;
+  }
+}
+
+/* ======================
+   SMALL MOBILE
+====================== */
+
+@media (max-width: 480px) {
+  .client-success-section {
+    padding: 60px 16px;
+  }
+
+  .success-card {
+    padding: 20px;
+    border-radius: 20px;
+  }
+
+  .card-header {
+    gap: 16px;
+  }
+
+  .company-logo {
+    max-width: 110px;
+  }
+}

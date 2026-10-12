@@ -1,0 +1,217 @@
+.payroll-features-hero {
+  width: 100%;
+  background: var(--primary);
+  overflow: hidden;
+}
+
+.payroll-features-container {
+  max-width: 1600px;
+  margin: 0 auto;
+
+  padding: 80px;
+
+  display: grid;
+  grid-template-columns: 1.1fr 1fr;
+  gap: 80px;
+
+  align-items: center;
+}
+
+/* =========================
+   ANIMATION
+========================= */
+
+.animation-wrapper {
+  width: 100%;
+}
+
+.animation-wrapper .network-section {
+  height: 700px;
+  min-height: auto;
+  background: transparent;
+}
+
+/* =========================
+   CONTENT
+========================= */
+
+.features-content {
+  color: #ffffff;
+  max-width: 620px;
+}
+
+.features-title {
+  color: #ffffff;
+
+  font-size: 48px;
+  font-weight: 800;
+  line-height: 1.05;
+
+  margin-bottom: 45px;
+}
+
+.features-title span {
+  color: var(--secondary);
+}
+
+.features-list {
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+
+.feature-item-list{
+  padding-bottom: 4px;
+}
+
+.feature-item-list h3 {
+  color: #ffffff;
+
+  font-size: 22px;
+  font-weight: 700;
+
+  line-height: 1.4;
+
+  margin-bottom: 6px;
+}
+
+.feature-item-list p {
+  color: rgba(255, 255, 255, 0.85);
+
+  font-size: 16px;
+  line-height: 1.5;
+
+  margin-left: 20px;
+}
+
+/* =========================
+   DESKTOP
+========================= */
+
+@media (max-width: 1400px) {
+  .payroll-features-container {
+    padding: 70px 60px;
+    gap: 60px;
+  }
+
+  .features-title {
+    font-size: 56px;
+  }
+}
+
+/* =========================
+   LAPTOP
+========================= */
+
+@media (max-width: 1200px) {
+  .payroll-features-container {
+    grid-template-columns: 1fr;
+    gap: 50px;
+  }
+
+  .features-content {
+    max-width: 100%;
+    text-align: center;
+  }
+
+  .features-title {
+    font-size: 50px;
+  }
+
+  .feature-item-list p {
+    margin-left: 0;
+  }
+
+  .animation-wrapper .network-section {
+    height: 600px;
+  }
+}
+
+/* =========================
+   TABLET
+========================= */
+
+@media (max-width: 992px) {
+  .payroll-features-container {
+    padding: 60px 40px;
+  }
+
+  .features-title {
+    font-size: 42px;
+    margin-bottom: 35px;
+  }
+
+  .features-list {
+    gap: 24px;
+  }
+
+  .feature-item-list h3 {
+    font-size: 20px;
+  }
+
+  .feature-item-list p {
+    font-size: 15px;
+  }
+}
+
+/* =========================
+   MOBILE
+========================= */
+
+@media (max-width: 768px) {
+  .payroll-features-container {
+    padding: 50px 20px;
+  }
+
+  .features-title {
+    font-size: 34px;
+  }
+
+  .features-list {
+    gap: 22px;
+  }
+
+  .feature-item-list h3 {
+    font-size: 18px;
+  }
+
+  .feature-item-list p {
+    font-size: 14px;
+  }
+
+  .animation-wrapper .network-section {
+    height: 500px;
+  }
+}
+
+/* =========================
+   SMALL MOBILE
+========================= */
+
+@media (max-width: 480px) {
+  .payroll-features-container {
+    padding: 40px 16px;
+  }
+
+  .features-title {
+    font-size: 28px;
+    margin-bottom: 30px;
+  }
+
+  .feature-item-list {
+    gap: 20px;
+  }
+
+  .feature-item-list h3 {
+    font-size: 17px;
+  }
+
+  .feature-item-list p {
+    font-size: 13px;
+    line-height: 1.5;
+  }
+
+  .animation-wrapper .network-section {
+    height: 420px;
+  }
+}

@@ -1,0 +1,254 @@
+.managed-payroll {
+  width: 100%;
+  background: var(--background);
+  padding: 100px 80px;
+}
+
+.managed-payroll-container {
+  max-width: 1600px;
+  margin: 0 auto;
+
+  /* display: grid;
+  grid-template-columns: 45% 55%;
+  align-items: stretch; */
+
+  border-radius: 40px;
+  overflow: hidden;
+
+  background: #f4f4f4;
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.25);
+}
+
+/* =========================
+   IMAGE
+========================= */
+
+/* .managed-payroll-image-wrapper {
+  width: 100%;
+  height: 100%;
+}
+
+.managed-payroll-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+} */
+
+/* =========================
+   CONTENT
+========================= */
+
+.managed-payroll-content {
+  padding: 60px 55px;
+
+  /* display: flex;
+  flex-direction: column;
+  justify-content: center; */
+}
+
+.managed-payroll-title {
+  color: var(--primary);
+  margin-bottom: 35px;
+}
+
+.managed-payroll-description {
+  color: var(--primary);
+  font-size: 20px;
+  font-weight: 500;
+  line-height: 1.45;
+
+  margin-bottom: 45px;
+}
+
+.managed-payroll-benefits {
+  margin-bottom: 50px;
+}
+
+.managed-payroll-benefits p {
+  color: var(--primary);
+}
+
+.managed-payroll-btn {
+  width: 260px;
+  height: 72px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  border-radius: 999px;
+
+  background: var(--secondary);
+  color: white;
+
+  font-size: 24px;
+  font-weight: 700;
+
+  transition: 0.3s ease;
+}
+
+.managed-payroll-btn:hover {
+  background: #b9181f;
+}
+
+/* =========================
+   LARGE DESKTOP
+========================= */
+
+@media (min-width: 1600px) {
+  .managed-payroll-container {
+    max-width: 1700px;
+  }
+}
+
+/* =========================
+   DESKTOP
+========================= */
+
+@media (max-width: 1400px) {
+  .managed-payroll {
+    padding: 90px 60px;
+  }
+
+  .managed-payroll-title {
+    font-size: 48px;
+  }
+
+  .managed-payroll-content {
+    padding: 50px;
+  }
+}
+
+/* =========================
+   LAPTOP
+========================= */
+
+@media (max-width: 1200px) {
+  .managed-payroll-title {
+    font-size: 42px;
+  }
+
+  .managed-payroll-description {
+    font-size: 18px;
+  }
+
+  .managed-payroll-benefits p {
+    font-size: 20px;
+  }
+
+  .managed-payroll-btn {
+    width: 220px;
+    height: 64px;
+    font-size: 20px;
+  }
+}
+
+/* =========================
+   TABLET
+========================= */
+
+@media (max-width: 992px) {
+  .managed-payroll {
+    padding: 80px 40px;
+  }
+
+  .managed-payroll-container {
+    grid-template-columns: 1fr;
+  }
+
+  .managed-payroll-image-wrapper {
+    height: 450px;
+  }
+
+  .managed-payroll-content {
+    padding: 50px 40px;
+  }
+
+  .managed-payroll-title {
+    font-size: 40px;
+  }
+}
+
+/* =========================
+   MOBILE
+========================= */
+
+@media (max-width: 768px) {
+  .managed-payroll {
+    padding: 70px 20px;
+  }
+
+  .managed-payroll-image-wrapper {
+    height: 320px;
+  }
+
+  .managed-payroll-content {
+    padding: 35px 25px;
+  }
+
+  .managed-payroll-title {
+    font-size: 32px;
+    margin-bottom: 20px;
+  }
+
+  .managed-payroll-description {
+    font-size: 16px;
+    margin-bottom: 30px;
+  }
+
+  .managed-payroll-benefits {
+    margin-bottom: 35px;
+  }
+
+  .managed-payroll-benefits p {
+    font-size: 18px;
+  }
+
+  .managed-payroll-btn {
+    width: 100%;
+    max-width: 240px;
+    height: 58px;
+    font-size: 18px;
+  }
+}
+
+/* =========================
+   SMALL MOBILE
+========================= */
+
+@media (max-width: 480px) {
+  .managed-payroll {
+    padding: 60px 16px;
+  }
+
+  .managed-payroll-container {
+    border-radius: 24px;
+  }
+
+  .managed-payroll-image-wrapper {
+    height: 240px;
+  }
+
+  .managed-payroll-content {
+    padding: 25px 20px;
+  }
+
+  .managed-payroll-title {
+    font-size: 28px;
+  }
+
+  .managed-payroll-description {
+    font-size: 15px;
+  }
+
+  .managed-payroll-benefits p {
+    font-size: 16px;
+  }
+
+  .managed-payroll-btn {
+    max-width: 100%;
+    height: 54px;
+    font-size: 16px;
+  }
+}

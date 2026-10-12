@@ -15,7 +15,7 @@
     "allowImportingTsExtensions": true,
     "baseUrl": ".",
     "paths": {
-      "@site/*": ["../cedar-payroll-website/src/*"]
+      "@site/*": ["./site/*"]
     },
     "verbatimModuleSyntax": true,
     "moduleDetection": "force",

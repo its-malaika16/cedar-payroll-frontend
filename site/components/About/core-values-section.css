@@ -1,0 +1,233 @@
+.core-values {
+  width: 100%;
+  background: var(--primary);
+  padding: 100px 80px;
+}
+
+.core-values-container {
+  max-width: 1600px;
+  margin: 0 auto;
+}
+
+/* =========================
+   HEADER
+========================= */
+
+.core-values-header {
+  text-align: center;
+  max-width: 900px;
+  margin: 0 auto 70px;
+}
+
+.core-values-title {
+  color: #ffffff;
+  margin-bottom: 20px;
+}
+
+.core-values-subtitle {
+  color: #ffffff;
+}
+
+/* =========================
+   GRID
+========================= */
+
+.values-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 22px;
+}
+
+/* =========================
+   CARD
+========================= */
+
+.value-card {
+  background: #d9d9d9;
+  border-radius: 28px;
+
+  min-height: 280px;
+
+  padding: 30px 24px;
+
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.value-icon-wrapper {
+  width: 73px;
+  height: 73px;
+
+  border-radius: 50%;
+  background: #f3f3f3;
+
+  display: flex;
+  justify-content: center;
+  align-items: center;
+
+  margin-bottom: 24px;
+}
+
+.value-icon {
+  width: 40px;
+  height: 50px;
+  object-fit: contain;
+}
+
+.value-title {
+  color: var(--primary);
+
+  margin-bottom: 16px;
+}
+
+.value-description {
+  color: var(--primary);
+
+}
+
+/* =========================
+   LARGE DESKTOP
+========================= */
+
+@media (min-width: 1600px) {
+  .core-values-container {
+    max-width: 1700px;
+  }
+
+  .values-grid {
+    gap: 30px;
+  }
+}
+
+/* =========================
+   DESKTOP
+========================= */
+
+@media (max-width: 1400px) {
+  .core-values {
+    padding: 90px 60px;
+  }
+
+  .core-values-title {
+    font-size: 50px;
+  }
+}
+
+/* =========================
+   LAPTOP
+========================= */
+
+@media (max-width: 1200px) {
+  .values-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 25px;
+  }
+
+  .value-card {
+    min-height: 240px;
+  }
+
+  .value-title {
+    font-size: 26px;
+  }
+}
+
+/* =========================
+   TABLET
+========================= */
+
+@media (max-width: 992px) {
+  .core-values {
+    padding: 80px 40px;
+  }
+
+  .core-values-title {
+    font-size: 42px;
+  }
+
+  .core-values-subtitle {
+    font-size: 18px;
+  }
+
+  .value-card {
+    min-height: 220px;
+  }
+}
+
+/* =========================
+   MOBILE
+========================= */
+
+@media (max-width: 768px) {
+  .core-values {
+    padding: 70px 20px;
+  }
+
+  .values-grid {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+
+  .core-values-header {
+    margin-bottom: 50px;
+  }
+
+  .core-values-title {
+    font-size: 34px;
+  }
+
+  .core-values-subtitle {
+    font-size: 16px;
+  }
+
+  .value-card {
+    min-height: auto;
+    padding: 30px 20px;
+  }
+
+  .value-title {
+    font-size: 24px;
+  }
+
+  .value-description {
+    font-size: 15px;
+  }
+}
+
+/* =========================
+   SMALL MOBILE
+========================= */
+
+@media (max-width: 480px) {
+  .core-values {
+    padding: 60px 16px;
+  }
+
+  .core-values-title {
+    font-size: 28px;
+  }
+
+  .core-values-subtitle {
+    font-size: 15px;
+  }
+
+  .value-icon-wrapper {
+    width: 60px;
+    height: 60px;
+  }
+
+  .value-icon {
+    width: 28px;
+    height: 28px;
+  }
+
+  .value-title {
+    font-size: 22px;
+  }
+
+  .value-description {
+    font-size: 14px;
+  }
+}

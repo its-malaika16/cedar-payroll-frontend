@@ -1,0 +1,158 @@
+/* ==========================
+   SECTION BACKGROUND
+========================== */
+
+.privacy-section {
+  background: linear-gradient(
+    135deg,
+    var(--primary),
+    #214b7d
+  );
+
+  padding: 100px 6%;
+  display: flex;
+  justify-content: center;
+}
+
+/* ==========================
+   CARD
+========================== */
+
+.privacy-card {
+  max-width: 900px;
+  width: 100%;
+
+  padding: 50px;
+
+  border-radius: 20px;
+
+  background: rgba(255, 255, 255, 0.06);
+
+  border: 1px solid rgba(255, 255, 255, 0.12);
+
+  backdrop-filter: blur(20px);
+
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.25);
+
+  color: rgba(255, 255, 255, 0.9);
+}
+
+/* ==========================
+   LAST UPDATED
+========================== */
+
+.last-updated {
+  color: rgba(255, 255, 255, 0.65);
+
+  font-size: 14px;
+  margin-bottom: 30px;
+}
+
+/* ==========================
+   HEADINGS
+========================== */
+
+.privacy-card h2 {
+  font-size: 28px;
+  font-weight: 700;
+
+  color: #ffffff;
+
+  margin-top: 30px;
+  margin-bottom: 15px;
+}
+
+/* ==========================
+   TEXT
+========================== */
+
+.privacy-card p {
+  font-size: 16px;
+  line-height: 1.8;
+
+  margin-bottom: 20px;
+
+  color: rgba(255, 255, 255, 0.88);
+}
+
+/* ==========================
+   LISTS
+========================== */
+
+.privacy-card ul {
+  padding-left: 20px;
+  margin-bottom: 20px;
+}
+
+.privacy-card li {
+  margin-bottom: 10px;
+  line-height: 1.7;
+
+  color: rgba(255, 255, 255, 0.88);
+}
+
+/* ==========================
+   HIGHLIGHT
+========================== */
+
+.highlight {
+  color: var(--secondary);
+  font-weight: 600;
+}
+
+/* ==========================
+   LINKS
+========================== */
+
+.privacy-card a {
+  color: var(--secondary);
+  text-decoration: none;
+}
+
+.privacy-card a:hover {
+  text-decoration: underline;
+}
+
+/* ==========================
+   RESPONSIVE
+========================== */
+
+@media (max-width: 992px) {
+  .privacy-section {
+    padding: 80px 40px;
+  }
+
+  .privacy-card {
+    padding: 40px;
+  }
+}
+
+@media (max-width: 768px) {
+  .privacy-section {
+    padding: 60px 20px;
+  }
+
+  .privacy-card {
+    padding: 30px;
+  }
+
+  .privacy-card h2 {
+    font-size: 22px;
+  }
+
+  .privacy-card p,
+  .privacy-card li {
+    font-size: 14px;
+  }
+}
+
+@media (max-width: 480px) {
+  .privacy-section {
+    padding: 50px 16px;
+  }
+
+  .privacy-card {
+    padding: 24px 20px;
+    border-radius: 16px;
+  }
+}

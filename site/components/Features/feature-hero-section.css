@@ -1,0 +1,180 @@
+.feature-hero {
+  width: 100%;
+  background: var(--primary);
+
+  min-height: 600px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  padding: 120px 20px;
+}
+
+.feature-hero-container {
+  max-width: 1200px;
+  width: 100%;
+  margin: 0 auto;
+  text-align: center;
+}
+
+.feature-hero-title {
+  color: white;
+  /* font-size: 64px;
+  font-weight: 800; */
+  line-height: 1.15;
+
+  margin-bottom: 35px;
+}
+
+.feature-hero-description {
+  max-width: 900px;
+  margin: 0 auto;
+
+  color: white;
+
+  /* font-size: 24px;
+  font-weight: 600; */
+  line-height: 1.4;
+}
+
+/* =========================
+   EXTRA LARGE DESKTOP
+========================= */
+
+@media (min-width: 1800px) {
+  .feature-hero {
+    min-height: 700px;
+  }
+
+  .feature-hero-title {
+    font-size: 72px;
+  }
+
+  .feature-hero-description {
+    font-size: 28px;
+  }
+}
+
+/* =========================
+   LARGE DESKTOP
+========================= */
+
+@media (max-width: 1400px) {
+  .feature-hero {
+    min-height: 550px;
+    padding: 100px 40px;
+  }
+
+  .feature-hero-title {
+    font-size: 56px;
+  }
+}
+
+/* =========================
+   LAPTOP
+========================= */
+
+@media (max-width: 1200px) {
+  .feature-hero-title {
+    font-size: 48px;
+  }
+
+  .feature-hero-description {
+    font-size: 22px;
+    max-width: 800px;
+  }
+}
+
+/* =========================
+   TABLET
+========================= */
+
+@media (max-width: 992px) {
+  .feature-hero {
+    min-height: 500px;
+    padding: 90px 30px;
+  }
+
+  .feature-hero-title {
+    font-size: 42px;
+  }
+
+  .feature-hero-description {
+    font-size: 20px;
+    max-width: 700px;
+  }
+}
+
+/* =========================
+   MOBILE LARGE
+========================= */
+
+@media (max-width: 768px) {
+  .feature-hero {
+    min-height: 420px;
+    padding: 80px 20px;
+  }
+
+  .feature-hero-title {
+    font-size: 36px;
+    margin-bottom: 24px;
+  }
+
+  .feature-hero-description {
+    font-size: 18px;
+  }
+}
+
+/* =========================
+   MOBILE
+========================= */
+
+@media (max-width: 576px) {
+  .feature-hero {
+    min-height: 380px;
+  }
+
+  .feature-hero-title {
+    font-size: 32px;
+  }
+
+  .feature-hero-description {
+    font-size: 16px;
+  }
+}
+
+/* =========================
+   SMALL MOBILE
+========================= */
+
+@media (max-width: 480px) {
+  .feature-hero {
+    min-height: 350px;
+    padding: 70px 16px;
+  }
+
+  .feature-hero-title {
+    font-size: 28px;
+    line-height: 1.2;
+  }
+
+  .feature-hero-description {
+    font-size: 15px;
+    line-height: 1.5;
+  }
+}
+
+/* =========================
+   VERY SMALL DEVICES
+========================= */
+
+@media (max-width: 360px) {
+  .feature-hero-title {
+    font-size: 24px;
+  }
+
+  .feature-hero-description {
+    font-size: 14px;
+  }
+}

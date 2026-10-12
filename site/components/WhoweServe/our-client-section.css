@@ -1,0 +1,146 @@
+.clients-section {
+  width: 100%;
+  background: var(--background);
+  padding: 80px 0;
+  overflow: hidden;
+}
+
+.clients-container {
+  max-width: 1600px;
+  margin: 0 auto;
+}
+
+/* ==========================
+   HEADING
+========================== */
+
+.clients-heading {
+  text-align: center;
+  color: var(--primary);
+  margin-bottom: 50px;
+}
+
+/* ==========================
+   SLIDER
+========================== */
+
+.clients-slider {
+  width: 100%;
+  overflow: hidden;
+  position: relative;
+}
+
+.clients-track {
+  display: flex;
+  align-items: center;
+  width: max-content;
+}
+
+/* ==========================
+   LOGO
+========================== */
+
+.client-logo {
+  flex-shrink: 0;
+  width: 220px;
+  height: 90px;
+
+  display: flex;
+  justify-content: center;
+  align-items: center;
+
+  margin: 0 10px;
+}
+
+.client-logo img {
+  max-width: 180px;
+  max-height: 70px;
+
+  width: auto;
+  height: auto;
+
+  object-fit: contain;
+
+  transition: transform 0.3s ease;
+}
+
+.client-logo img:hover {
+  transform: scale(1.05);
+}
+
+/* ==========================
+   LAPTOP
+========================== */
+
+@media (max-width: 1200px) {
+  .client-logo {
+    width: 180px;
+    margin: 0 20px;
+  }
+
+  .client-logo img {
+    max-width: 140px;
+  }
+}
+
+/* ==========================
+   TABLET
+========================== */
+
+@media (max-width: 992px) {
+  .clients-section {
+    padding: 70px 0;
+  }
+
+  .clients-heading {
+    margin-bottom: 40px;
+  }
+
+  .client-logo {
+    width: 160px;
+  }
+
+  .client-logo img {
+    max-width: 120px;
+  }
+}
+
+/* ==========================
+   MOBILE
+========================== */
+
+@media (max-width: 768px) {
+  .clients-section {
+    padding: 60px 0;
+  }
+
+  .client-logo {
+    width: 130px;
+    height: 70px;
+    margin: 0 15px;
+  }
+
+  .client-logo img {
+    max-width: 100px;
+    max-height: 50px;
+  }
+}
+
+/* ==========================
+   SMALL MOBILE
+========================== */
+
+@media (max-width: 480px) {
+  .clients-heading {
+    margin-bottom: 30px;
+  }
+
+  .client-logo {
+    width: 110px;
+    margin: 0 12px;
+  }
+
+  .client-logo img {
+    max-width: 85px;
+  }
+}

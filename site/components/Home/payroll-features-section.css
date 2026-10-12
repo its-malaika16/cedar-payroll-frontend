@@ -1,0 +1,80 @@
+.payroll-features {
+  width: 100%;
+  background: var(--background);
+  padding: 80px 120px;
+}
+
+.features-grid {
+  max-width: 1400px;
+  margin: 0 auto;
+
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 50px 80px;
+}
+
+.feature-item {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.feature-icon {
+  min-width: 40px;
+  width: 40px;
+  height: 40px;
+
+  color: var(--secondary);
+  stroke-width: 2;
+}
+
+.feature-item span {
+  color: var(--primary);
+
+  font-size: 24px;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+/* Laptop */
+@media (max-width: 1200px) {
+  .payroll-features {
+    padding: 70px 60px;
+  }
+
+  .features-grid {
+    gap: 40px;
+  }
+
+  .feature-item span {
+    font-size: 22px;
+  }
+}
+
+/* Tablet */
+@media (max-width: 992px) {
+  .features-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* Mobile */
+@media (max-width: 768px) {
+  .payroll-features {
+    padding: 50px 20px;
+  }
+
+  .features-grid {
+    grid-template-columns: 1fr;
+    gap: 30px;
+  }
+
+  .feature-icon {
+    width: 34px;
+    height: 34px;
+  }
+
+  .feature-item span {
+    font-size: 18px;
+  }
+}

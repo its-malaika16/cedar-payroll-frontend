@@ -1,0 +1,257 @@
+.global-presence {
+  width: 100%;
+  background: var(--background);
+  padding-right: 80px;
+  padding-left: 80px;
+  padding-top: 50px;
+  padding-bottom: 10px;
+  /* padding: 70px 80px; */
+  margin-bottom: 30px;
+}
+
+.global-presence-container {
+  max-width: 1500px;
+  margin: 0 auto;
+}
+
+/* =====================
+   HEADER
+===================== */
+
+.global-header {
+  display: flex;
+  align-items: center;
+  gap: 30px;
+
+  margin-bottom: 50px;
+}
+
+.global-header-icon {
+  width: 83px;
+  height: 83px;
+}
+
+.global-title {
+  color: var(--primary);
+}
+
+/* =====================
+   MAP
+===================== */
+
+.world-map-wrapper {
+  position: relative;
+
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+
+  margin-bottom: 30px;
+}
+
+.world-map {
+  width: 100%;
+  max-width: 1200px;
+
+  display: block;
+  margin: 0 auto;
+}
+
+/* =====================
+   MARKERS
+===================== */
+
+.location-marker {
+  position: absolute;
+  transform: translate(-50%, -100%);
+}
+
+.location-label {
+  color: var(--secondary);
+
+  font-size: 24px;
+  font-weight: 700;
+
+  white-space: nowrap;
+
+  margin-bottom: 15px;
+}
+
+.location-line {
+  width: 2px;
+  height: 120px;
+
+  border-left: 2px dashed var(--secondary);
+
+  margin: 0 auto;
+}
+
+.location-dot {
+  width: 8px;
+  height: 8px;
+
+  border-radius: 50%;
+  background: var(--secondary);
+
+  margin: 0 auto 15px;
+}
+
+.location-pin {
+  width: 42px;
+  height: 42px;
+
+  display: block;
+  margin: 0 auto;
+}
+
+/* =====================
+   LARGE DESKTOP
+===================== */
+
+@media (min-width: 1600px) {
+  .global-presence-container {
+    max-width: 1700px;
+  }
+
+  .global-title {
+    font-size: 60px;
+  }
+}
+
+/* =====================
+   DESKTOP
+===================== */
+
+@media (max-width: 1400px) {
+  .global-presence {
+    padding: 90px 60px;
+  }
+
+  .global-title {
+    font-size: 48px;
+  }
+
+  .location-label {
+    font-size: 20px;
+  }
+}
+
+/* =====================
+   LAPTOP
+===================== */
+
+@media (max-width: 1200px) {
+  .location-line {
+    height: 90px;
+  }
+
+  .location-label {
+    font-size: 18px;
+  }
+
+  .location-pin {
+    width: 34px;
+    height: 34px;
+  }
+}
+
+/* =====================
+   TABLET
+===================== */
+
+@media (max-width: 992px) {
+  .global-presence {
+    padding: 80px 40px;
+  }
+
+  .global-header {
+    justify-content: center;
+    text-align: center;
+  }
+
+  .global-title {
+    font-size: 40px;
+  }
+
+  .location-line {
+    height: 70px;
+  }
+
+  .location-label {
+    font-size: 15px;
+  }
+}
+
+/* =====================
+   MOBILE
+===================== */
+
+@media (max-width: 768px) {
+  .global-presence {
+    padding: 70px 20px;
+  }
+
+  .global-header {
+    margin-bottom: 50px;
+    gap: 12px;
+  }
+
+  .global-header-icon {
+    width: 30px;
+    height: 30px;
+  }
+
+  .global-title {
+    font-size: 32px;
+  }
+
+  .location-label {
+    display: none;
+  }
+
+  .location-line {
+    height: 40px;
+  }
+
+  .location-pin {
+    width: 26px;
+    height: 26px;
+  }
+
+  .location-dot {
+    width: 6px;
+    height: 6px;
+  }
+}
+
+/* =====================
+   SMALL MOBILE
+===================== */
+
+@media (max-width: 480px) {
+  .global-presence {
+    padding: 60px 16px;
+  }
+
+  .global-title {
+    font-size: 28px;
+  }
+
+  .world-map-wrapper {
+    position: relative;
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-bottom: 30px;
+    overflow: hidden;
+  }
+
+  .world-map {
+    width: 100%;
+    max-width: 1200px;
+    height: auto;
+    display: block;
+  }
+}

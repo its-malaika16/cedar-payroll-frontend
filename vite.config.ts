@@ -10,7 +10,7 @@ export default defineConfig({
   plugins: [react(), tailwindcss()],
   resolve: {
     alias: {
-      '@site': path.resolve(rootDir, '../cedar-payroll-website/src'),
+      '@site': path.resolve(rootDir, 'site'),
     },
   },
   // esbuild 0.28 will not lower destructuring for Vite 6's default Safari 14

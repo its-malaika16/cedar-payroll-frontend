@@ -1,0 +1,212 @@
+.platform-solutions {
+  width: 100%;
+  background: var(--background);
+  padding: 120px 80px;
+}
+
+.platform-solutions-container {
+  max-width: 1660px;
+  margin: 0 auto;
+
+  display: grid;
+  grid-template-columns: 35% 65%;
+  gap: 50px;
+  align-items: center;
+}
+
+/* =========================
+   IMAGE
+========================= */
+
+.platform-image-wrapper {
+    margin-left: 20px;
+  width: 100%;
+}
+
+.platform-image {
+width: 100%;
+max-height: 650px;
+object-fit: contain;
+display: block;
+border-radius: 36px;
+}
+
+/* =========================
+   CONTENT
+========================= */
+.platform-content{
+    padding-bottom: 80px;
+}
+
+.platform-heading {
+  color: var(--primary);
+  font-size: 48px;
+  font-weight: 800;
+  line-height: 1.1;
+  margin-bottom: 70px;
+}
+
+.solution-list {
+  width: 100%;
+}
+
+.solution-item {
+  padding: 28px 0;
+}
+
+.solution-item.with-border {
+  border-bottom: 1px solid var(--primary);
+}
+
+.solution-item h3 {
+  color: var(--primary);
+  font-size: 24px;
+  font-weight: 600;
+  line-height: 1.25;
+  margin-bottom: 16px;
+}
+
+.solution-item p {
+  color: var(--primary);
+  font-size: 20px;
+  font-weight: 500;
+  line-height: 1.45;
+}
+
+/* =========================
+   LARGE DESKTOP
+========================= */
+
+@media (min-width: 1600px) {
+  .platform-solutions-container {
+    max-width: 1600px;
+    gap: 100px;
+  }
+}
+
+/* =========================
+   LAPTOP
+========================= */
+
+@media (max-width: 1400px) {
+  .platform-solutions {
+    padding: 100px 60px;
+  }
+
+  .platform-solutions-container {
+    grid-template-columns: 580px 1fr;
+    gap: 60px;
+  }
+
+  .platform-heading {
+    font-size: 56px;
+    margin-bottom: 60px;
+  }
+
+  .solution-item h3 {
+    font-size: 32px;
+  }
+
+  .solution-item p {
+    font-size: 22px;
+  }
+}
+
+@media (max-width: 1200px) {
+  .platform-solutions-container {
+    grid-template-columns: 520px 1fr;
+    gap: 50px;
+  }
+
+  .platform-heading {
+    font-size: 48px;
+  }
+
+  .solution-item h3 {
+    font-size: 28px;
+  }
+
+  .solution-item p {
+    font-size: 20px;
+  }
+}
+
+/* =========================
+   TABLET
+========================= */
+
+@media (max-width: 992px) {
+  .platform-solutions {
+    padding: 80px 40px;
+  }
+
+  .platform-solutions-container {
+    grid-template-columns: 1fr;
+    gap: 60px;
+  }
+
+  .platform-image-wrapper {
+    max-width: 600px;
+    margin: 0 auto;
+  }
+
+  .platform-heading {
+    text-align: center;
+    margin-bottom: 50px;
+  }
+}
+
+/* =========================
+   MOBILE
+========================= */
+
+@media (max-width: 768px) {
+  .platform-solutions {
+    padding: 70px 20px;
+  }
+
+  .platform-heading {
+    font-size: 40px;
+    margin-bottom: 40px;
+  }
+
+  .solution-item {
+    padding: 24px 0;
+  }
+
+  .solution-item h3 {
+    font-size: 24px;
+    margin-bottom: 10px;
+  }
+
+  .solution-item p {
+    font-size: 16px;
+    line-height: 1.5;
+  }
+
+  .platform-image {
+    border-radius: 24px;
+  }
+}
+
+/* =========================
+   SMALL MOBILE
+========================= */
+
+@media (max-width: 480px) {
+  .platform-solutions {
+    padding: 60px 16px;
+  }
+
+  .platform-heading {
+    font-size: 32px;
+  }
+
+  .solution-item h3 {
+    font-size: 22px;
+  }
+
+  .solution-item p {
+    font-size: 15px;
+  }
+}
