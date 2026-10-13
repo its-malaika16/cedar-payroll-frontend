@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
-import { payrollApi } from '../../api'
+import { employeesApi, payrollApi } from '../../api'
 import { Alert, Button, Card } from '../../components/ui'
 import { fullName, idOf } from '../../lib/format'
 import type { PayrollRecord, PayrollRun } from '../../types'
@@ -16,6 +16,7 @@ import {
   hasIdentityMapping,
   IMPORT_KIND_LABEL,
   isRecordLocked,
+  matchNamedPerson,
   matchPayrollRecord,
   mergeDeductionLines,
   mergePayLines,
@@ -84,9 +85,13 @@ export function PayrollCsvImport({
     const failed: { row: number; name: string; reason: string }[] = []
     let imported = 0
     try {
-      const detail = await payrollApi.getRun(companyId, runId)
+      const [detail, peopleRes] = await Promise.all([
+        payrollApi.getRun(companyId, runId),
+        employeesApi.list(companyId),
+      ])
       const run = detail.data as PayrollRun
       const records = (run.payroll_records ?? []) as PayrollRecord[]
+      const companyPeople = peopleRes.data ?? []
       const used = new Set<string>()
       const fieldHeader = invertCsvMapping(headerToField)
 
@@ -98,12 +103,16 @@ export function PayrollCsvImport({
         const code = value('employee_code')
         const email = value('email')
         const name = [first, last].filter(Boolean).join(' ') || code || email || `Row ${index + 2}`
-        const record = matchPayrollRecord(records, { code, email, first, last })
+        const identity = { code, email, first, last }
+        const record = matchPayrollRecord(records, identity)
         if (!record) {
+          const companyMatch = matchNamedPerson(companyPeople, identity)
           failed.push({
             row: index + 2,
             name,
-            reason: 'No matching employee on this payroll run',
+            reason: companyMatch
+              ? 'This employee is in the company but not on this payroll run'
+              : 'No matching employee on this payroll run',
           })
           continue
         }
@@ -152,7 +161,9 @@ export function PayrollCsvImport({
           <h2 className="text-xl font-semibold text-navy">Import payroll CSV</h2>
           <p className="mt-1 text-sm text-muted">
             {file.filename} · {file.rows.length} row{file.rows.length === 1 ? '' : 's'} · importing{' '}
-            {IMPORT_KIND_LABEL[kind]}. Match each CSV column to a Cedar payroll field.
+            {IMPORT_KIND_LABEL[kind]}. Match each CSV column to a Cedar payroll field. Rows are
+            matched to people already on this run by works number, then email, then first and last
+            name.
           </p>
         </div>
         <Button type="button" variant="secondary" onClick={onCancel} disabled={busy}>

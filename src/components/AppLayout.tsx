@@ -1,5 +1,6 @@
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { Building2, ChevronDown, Home, Search } from 'lucide-react'
+import { APP_HOME } from '../appHome'
 import { ResponsiveShell } from './ResponsiveShell'
 import { useAuth } from '../auth/AuthContext'
 import { BrandIcon } from './BrandIcon'
@@ -212,14 +213,14 @@ export function AppLayout() {
       if (item.to === '/employees/payslips') {
         return auth.isCompanyAdmin && auth.hasModule('PAYROLL') && !auth.hasModule('INVOICE')
       }
-      if (invoiceOnlyCompany) return item.to === '/' || item.to === '/company-invoices'
+      if (invoiceOnlyCompany) return item.to === APP_HOME || item.to === '/company-invoices'
       if (item.to === '/payroll/invoices') {
         if (auth.isCompanyAdmin) return auth.hasModule('PAYROLL')
         return true
       }
       if (auth.isCompanyAdmin) {
         return [
-          '/',
+          APP_HOME,
           '/employees',
           '/employees/payslips',
           '/hr',

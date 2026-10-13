@@ -227,39 +227,98 @@ export function hasIdentityMapping(mapping: Record<string, string>) {
 
 function key(value: string | null | undefined) {
   return String(value ?? '')
+    .normalize('NFKC')
+    .replace(/\u00a0/g, ' ')
     .trim()
     .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')
     .replace(/\s+/g, ' ')
+    .trim()
+}
+
+type PayrollIdentity = { code: string; email: string; first: string; last: string }
+
+type NamedPerson = {
+  employee_code?: string | null
+  first_name?: string | null
+  last_name?: string | null
+  email?: string | null
+  extra_emails?: { address?: string }[] | null
+}
+
+function only<T>(items: T[]) {
+  return items.length === 1 ? items[0] : null
+}
+
+function personEmails(person: NamedPerson | null | undefined) {
+  return [person?.email, ...(person?.extra_emails ?? []).map((item) => item.address)]
+    .map(key)
+    .filter(Boolean)
+}
+
+function namesMatch(person: NamedPerson | null | undefined, first: string, last: string) {
+  const csvFirst = key(first)
+  const csvLast = key(last)
+  if (!csvFirst && !csvLast) return false
+  const personFirst = key(person?.first_name)
+  const personLast = key(person?.last_name)
+  if (csvFirst && csvLast) {
+    if (personFirst === csvFirst && personLast === csvLast) return true
+    const csv = `${csvFirst} ${csvLast}`
+    const personName = `${personFirst} ${personLast}`.trim()
+    if (personName === csv) return true
+    const csvParts = csv.split(' ')
+    const personParts = personName.split(' ').filter(Boolean)
+    return (
+      personParts.length >= 2 &&
+      csvParts.length >= 2 &&
+      personParts[0] === csvParts[0] &&
+      personParts[personParts.length - 1] === csvParts[csvParts.length - 1]
+    )
+  }
+  return false
+}
+
+export function matchNamedPerson<T extends NamedPerson>(
+  people: T[],
+  identity: PayrollIdentity,
+) {
+  const code = key(identity.code)
+  const email = key(identity.email)
+  const first = identity.first
+  const last = identity.last
+
+  if (code) {
+    const hit = only(people.filter((person) => key(person.employee_code) === code))
+    if (hit) return hit
+  }
+  if (email) {
+    const hit = only(people.filter((person) => personEmails(person).includes(email)))
+    if (hit) return hit
+  }
+  if (key(first) && key(last)) {
+    const hit = only(people.filter((person) => namesMatch(person, first, last)))
+    if (hit) return hit
+  }
+  if (key(first) && !key(last)) {
+    const hit = only(people.filter((person) => key(person.first_name) === key(first)))
+    if (hit) return hit
+  }
+  return null
 }
 
 export function matchPayrollRecord(
   records: PayrollRecord[],
-  identity: { code: string; email: string; first: string; last: string },
+  identity: PayrollIdentity,
 ) {
-  const code = key(identity.code)
-  const email = key(identity.email)
-  const name = key(`${identity.first} ${identity.last}`)
-  const first = key(identity.first)
-
-  if (code) {
-    const matches = records.filter((record) => key(record.employees?.employee_code) === code)
-    return matches.length === 1 ? matches[0] : null
-  }
-  if (email) {
-    const matches = records.filter((record) => key(record.employees?.email) === email)
-    return matches.length === 1 ? matches[0] : null
-  }
-  if (name) {
-    const matches = records.filter(
-      (record) => key(`${record.employees?.first_name ?? ''} ${record.employees?.last_name ?? ''}`) === name,
-    )
-    if (matches.length === 1) return matches[0]
-  }
-  if (first && !identity.last) {
-    const matches = records.filter((record) => key(record.employees?.first_name) === first)
-    return matches.length === 1 ? matches[0] : null
-  }
-  return null
+  const people = records
+    .map((record) => record.employees)
+    .filter((person): person is NonNullable<PayrollRecord['employees']> => Boolean(person))
+  const person = matchNamedPerson(people, identity)
+  if (!person) return null
+  return (
+    records.find((record) => String(record.employees?.id ?? '') === String(person.id ?? '')) ?? null
+  )
 }
 
 export function mergePayLines(
