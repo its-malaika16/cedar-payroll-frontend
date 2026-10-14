@@ -331,7 +331,7 @@ export function CompanyPayslipsPage() {
                       <span className="min-w-0">
                         <span className="block font-semibold">{name}</span>
                         <span className="block text-sm text-muted">
-                          {item.employee_code || 'No works number'} · Take-home {money(item.take_home_pay)}
+                          Take-home {money(item.take_home_pay)}
                         </span>
                       </span>
                     </label>

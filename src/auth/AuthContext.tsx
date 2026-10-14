@@ -265,7 +265,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const isCompanyAdmin =
     !isSuperAdmin &&
     !hasBureauScopedAccess &&
-    isCompanyAdminRole(currentMembership?.role_name)
+    (isCompanyAdminRole(currentMembership?.role_name) || Boolean(currentMembership?.is_owner))
   const permissions = isSuperAdmin || isBureauAdmin
     ? ['*']
     : [

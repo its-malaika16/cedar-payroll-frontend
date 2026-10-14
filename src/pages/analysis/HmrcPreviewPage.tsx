@@ -89,7 +89,7 @@ function TableBlock({
 
 export function HmrcPreviewPage({ kind }: { kind: AnalysisBuilderKind }) {
   const spec = specFor(kind)
-  const { companyId } = useAuth()
+  const { companyId, isCompanyAdmin } = useAuth()
   const navigate = useNavigate()
   const draft = readReportDraft(kind, spec?.defaultName ?? '', spec?.defaultFieldIds)
   const [notice, setNotice] = useState<string | null>(null)
@@ -144,28 +144,34 @@ export function HmrcPreviewPage({ kind }: { kind: AnalysisBuilderKind }) {
   const yearsWithData = rowsByYear.filter(([, yearRows]) => yearRows.some((row) => row.hasData))
 
   if (!spec) return <Navigate to="/payroll/reports" replace />
-  if (!draft.selectedFieldIds.length) return <Navigate to={`/payroll/reports/${kind}`} replace />
+  if (isCompanyAdmin && !draft.savedReportId) return <Navigate to="/payroll/reports" replace />
+  if (!draft.selectedFieldIds.length) {
+    return <Navigate to={isCompanyAdmin ? '/payroll/reports' : `/payroll/reports/${kind}`} replace />
+  }
 
-  function persist(published?: boolean) {
-    if (!companyId) return
+  async function persist(published?: boolean) {
+    if (!companyId || isCompanyAdmin) return
     const payload = { ...draft, kind }
-    if (draft.savedReportId) {
-      updatePreviousReport(companyId, draft.savedReportId, {
-        name: draft.reportName,
-        published,
-        payload,
-        generatedAt: new Date().toISOString(),
-      })
+    try {
+      if (draft.savedReportId) {
+        await updatePreviousReport(companyId, draft.savedReportId, {
+          name: draft.reportName,
+          published,
+          payload,
+          generatedAt: new Date().toISOString(),
+        })
+      } else {
+        const saved = await recordPreviousReport(companyId, kind, {
+          name: draft.reportName,
+          payload,
+          published,
+        })
+        writeReportDraft({ ...payload, savedReportId: saved.id })
+      }
       setNotice(published ? 'Report published.' : 'Report saved.')
-      return
+    } catch (err) {
+      setNotice(err instanceof Error ? err.message : 'Could not save this report')
     }
-    const saved = recordPreviousReport(companyId, kind, {
-      name: draft.reportName,
-      payload,
-      published,
-    })
-    writeReportDraft({ ...payload, savedReportId: saved.id })
-    setNotice(published ? 'Report published.' : 'Report saved.')
   }
 
   function exportSections() {
@@ -223,28 +229,42 @@ export function HmrcPreviewPage({ kind }: { kind: AnalysisBuilderKind }) {
           Analysis
         </Link>
         <span> &gt; </span>
-        <Link to={`/payroll/reports/${kind}`} className="hover:text-navy">
-          {spec?.generateCrumb}
-        </Link>
-        <span> &gt; </span>
-        <span className="font-semibold text-navy">Report Preview</span>
+        {isCompanyAdmin ? (
+          <span className="font-semibold text-navy">Published report</span>
+        ) : (
+          <>
+            <Link to={`/payroll/reports/${kind}`} className="hover:text-navy">
+              {spec?.generateCrumb}
+            </Link>
+            <span> &gt; </span>
+            <span className="font-semibold text-navy">Report Preview</span>
+          </>
+        )}
       </p>
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2">
-          <button type="button" onClick={() => navigate(`/payroll/reports/${kind}`)} aria-label="Back">
+          <button
+            type="button"
+            onClick={() => navigate(isCompanyAdmin ? '/payroll/reports' : `/payroll/reports/${kind}`)}
+            aria-label="Back"
+          >
             <ArrowLeft size={22} className="text-navy" />
           </button>
           <h1 className="text-[32px] font-semibold leading-none text-navy">{draft.reportName || spec?.title}</h1>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button variant="secondary" onClick={() => persist(false)}>
-            Save
-          </Button>
-          <Button variant="secondary" onClick={() => navigate(`/payroll/reports/${kind}`)}>
-            Edit
-          </Button>
+          {isCompanyAdmin ? null : (
+            <>
+              <Button variant="secondary" onClick={() => void persist(false)}>
+                Save
+              </Button>
+              <Button variant="secondary" onClick={() => navigate(`/payroll/reports/${kind}`)}>
+                Edit
+              </Button>
+            </>
+          )}
           <ReportExportMenu onCsv={exportCsv} onPdf={exportPdf} disabled={loading || yearsWithData.length === 0} />
-          <Button onClick={() => persist(true)}>Publish Report</Button>
+          {isCompanyAdmin ? null : <Button onClick={() => void persist(true)}>Publish Report</Button>}
         </div>
       </div>
       {notice ? (

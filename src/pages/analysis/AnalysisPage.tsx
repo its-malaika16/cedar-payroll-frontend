@@ -1,9 +1,10 @@
 import { useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
+import { useQuery } from '@tanstack/react-query'
 import { Trash2 } from 'lucide-react'
 import { useAuth } from '../../auth/AuthContext'
-import { Button, Card, EmptyState, PageHeader } from '../../components/ui'
+import { Button, Card, EmptyState, Loading, PageHeader } from '../../components/ui'
 import { formatDate } from '../../lib/format'
 import {
   FEATURED_REPORTS,
@@ -12,42 +13,40 @@ import {
   ALL_REPORTS,
   type ReportDefinition,
 } from './reportCatalog'
-import {
-  deletePreviousReport,
-  listPreviousReports,
-  recordPreviousReport,
-  type PreviousReport,
-} from './previousReports'
+import { deletePreviousReport, listPreviousReports, type PreviousReport } from './previousReports'
 import { clearReportDraft, writeReportDraft } from './employeeDetailsState'
 import { isBuilderKind } from './reportSpecs'
 import { ReportArrowButton, ReportCard } from './ReportCard'
 
 export function AnalysisPage() {
-  const { companyId } = useAuth()
+  const { companyId, isCompanyAdmin } = useAuth()
   const navigate = useNavigate()
   const [showMore, setShowMore] = useState(false)
-  const [previousTick, setPreviousTick] = useState(0)
   const [pendingDelete, setPendingDelete] = useState<PreviousReport | null>(null)
+  const [deleting, setDeleting] = useState(false)
 
-  const previous = useMemo(
-    () => (companyId ? listPreviousReports(companyId) : []),
-    [companyId, previousTick],
-  )
+  const previousQuery = useQuery({
+    queryKey: ['analysis-reports', companyId],
+    queryFn: () => listPreviousReports(companyId!),
+    enabled: Boolean(companyId),
+  })
+  const previous = useMemo(() => {
+    const rows = previousQuery.data ?? []
+    return isCompanyAdmin ? rows.filter((item) => item.published) : rows
+  }, [isCompanyAdmin, previousQuery.data])
 
   function openReport(report: ReportDefinition) {
+    if (isCompanyAdmin) return
     if (isBuilderKind(report.slug)) {
       clearReportDraft(report.slug)
       navigate(`/payroll/reports/${report.slug}`)
       return
     }
-    if (companyId) {
-      recordPreviousReport(companyId, report.slug)
-      setPreviousTick((value) => value + 1)
-    }
     navigate(`/payroll/reports/${report.slug}`)
   }
 
-  function openPrevious(item: (typeof previous)[number]) {
+  function openPrevious(item: PreviousReport) {
+    if (isCompanyAdmin && !item.published) return
     if (isBuilderKind(item.type) && item.payload) {
       writeReportDraft({ ...item.payload, savedReportId: item.id })
       navigate(`/payroll/reports/${item.type}/preview`)
@@ -56,56 +55,75 @@ export function AnalysisPage() {
     navigate(`/payroll/reports/${item.type}`)
   }
 
-  function confirmDelete() {
-    if (!companyId || !pendingDelete) return
-    deletePreviousReport(companyId, pendingDelete.id)
-    setPendingDelete(null)
-    setPreviousTick((value) => value + 1)
+  async function confirmDelete() {
+    if (!companyId || !pendingDelete || isCompanyAdmin) return
+    setDeleting(true)
+    try {
+      await deletePreviousReport(companyId, pendingDelete.id)
+      await previousQuery.refetch()
+      setPendingDelete(null)
+    } finally {
+      setDeleting(false)
+    }
   }
 
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-y-auto pb-6">
       <PageHeader
         title="Analysis"
-        subtitle="Explore your payroll data and generate reports"
+        subtitle={
+          isCompanyAdmin
+            ? 'View payroll reports published for your company'
+            : 'Explore your payroll data and generate reports'
+        }
       />
 
-      <section className="mb-8">
-        <h2 className="mb-4 text-lg font-semibold text-navy">Generate Report</h2>
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
-          {FEATURED_REPORTS.map((report) => (
-            <ReportCard key={report.slug} report={report} onClick={() => openReport(report)} />
-          ))}
-          <ReportCard
-            report={{
-              name: MORE_REPORTS_CARD.name,
-              description: MORE_REPORTS_CARD.description,
-              icon: MORE_REPORTS_CARD.icon,
-            }}
-            onClick={() => setShowMore((open) => !open)}
-          />
-        </div>
-        {showMore ? (
-          <div className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
-            {MORE_REPORTS.map((report) => (
-              <ReportCard
-                key={report.slug}
-                report={report}
-                badge
-                onClick={() => openReport(report)}
-              />
+      {isCompanyAdmin ? null : (
+        <section className="mb-8">
+          <h2 className="mb-4 text-lg font-semibold text-navy">Generate Report</h2>
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+            {FEATURED_REPORTS.map((report) => (
+              <ReportCard key={report.slug} report={report} onClick={() => openReport(report)} />
             ))}
+            <ReportCard
+              report={{
+                name: MORE_REPORTS_CARD.name,
+                description: MORE_REPORTS_CARD.description,
+                icon: MORE_REPORTS_CARD.icon,
+              }}
+              onClick={() => setShowMore((open) => !open)}
+            />
           </div>
-        ) : null}
-      </section>
+          {showMore ? (
+            <div className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+              {MORE_REPORTS.map((report) => (
+                <ReportCard
+                  key={report.slug}
+                  report={report}
+                  badge
+                  onClick={() => openReport(report)}
+                />
+              ))}
+            </div>
+          ) : null}
+        </section>
+      )}
 
       <section>
-        <h2 className="mb-4 text-lg font-semibold text-navy">Previous Reports</h2>
+        <h2 className="mb-4 text-lg font-semibold text-navy">
+          {isCompanyAdmin ? 'Published Reports' : 'Previous Reports'}
+        </h2>
         <Card className="overflow-hidden">
-          {previous.length === 0 ? (
+          {previousQuery.isLoading ? (
+            <Loading />
+          ) : previous.length === 0 ? (
             <EmptyState
-              title="No reports yet"
-              body="Generate a report above and it will appear in this list."
+              title={isCompanyAdmin ? 'No published reports yet' : 'No reports yet'}
+              body={
+                isCompanyAdmin
+                  ? 'Published analysis reports will appear here when your bureau shares them.'
+                  : 'Generate a report above and it will appear in this list.'
+              }
             />
           ) : (
             <div className="overflow-x-auto">
@@ -133,14 +151,16 @@ export function AnalysisPage() {
                         <td className="px-5 py-4 text-navy">{formatDate(item.generatedAt)}</td>
                         <td className="px-5 py-4">
                           <div className="flex justify-end gap-2">
-                            <button
-                              type="button"
-                              className="inline-flex size-9 items-center justify-center rounded-[8px] border border-[#d9d9d9] bg-white text-brand hover:bg-red-50"
-                              aria-label={`Delete ${item.name}`}
-                              onClick={() => setPendingDelete(item)}
-                            >
-                              <Trash2 size={16} strokeWidth={1.8} />
-                            </button>
+                            {isCompanyAdmin ? null : (
+                              <button
+                                type="button"
+                                className="inline-flex size-9 items-center justify-center rounded-[8px] border border-[#d9d9d9] bg-white text-brand hover:bg-red-50"
+                                aria-label={`Delete ${item.name}`}
+                                onClick={() => setPendingDelete(item)}
+                              >
+                                <Trash2 size={16} strokeWidth={1.8} />
+                              </button>
+                            )}
                             <button
                               type="button"
                               className="rounded-[8px]"
@@ -192,7 +212,8 @@ export function AnalysisPage() {
                     variant="danger"
                     type="button"
                     className="h-10 min-w-[105px] text-xs"
-                    onClick={confirmDelete}
+                    disabled={deleting}
+                    onClick={() => void confirmDelete()}
                   >
                     Delete
                   </Button>

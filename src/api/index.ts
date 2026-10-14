@@ -243,6 +243,26 @@ export const employeesApi = {
     }),
 }
 
+export type AnalysisReportRecord = {
+  id: string
+  type: string
+  name: string
+  description?: string
+  generatedAt: string
+  published?: boolean
+  payload?: Record<string, unknown> | null
+}
+
+export const analysisReportsApi = {
+  list: (companyId: string) => get<AnalysisReportRecord[]>(`/companies/${companyId}/analysis-reports`),
+  create: (companyId: string, body: Record<string, unknown>) =>
+    post<AnalysisReportRecord>(`/companies/${companyId}/analysis-reports`, body),
+  update: (companyId: string, reportId: string, body: Record<string, unknown>) =>
+    patch<AnalysisReportRecord>(`/companies/${companyId}/analysis-reports/${reportId}`, body),
+  delete: (companyId: string, reportId: string) =>
+    del(`/companies/${companyId}/analysis-reports/${reportId}`),
+}
+
 export const payrollApi = {
   schedules: (companyId: string) =>
     get<PayrollSchedule[]>(`/companies/${companyId}/payroll/schedules`),

@@ -1,3 +1,4 @@
+import { analysisReportsApi } from '../../api'
 import { reportBySlug, type ReportKind } from './reportCatalog'
 import type { AnalysisReportDraft } from './employeeDetailsState'
 
@@ -11,74 +12,60 @@ export type PreviousReport = {
   payload?: AnalysisReportDraft
 }
 
-function storageKey(companyId: string) {
-  return `cedar.analysis.previous.${companyId}`
-}
-
-function readAll(companyId: string): PreviousReport[] {
-  try {
-    const raw = localStorage.getItem(storageKey(companyId))
-    if (!raw) return []
-    const parsed = JSON.parse(raw) as PreviousReport[]
-    return Array.isArray(parsed) ? parsed : []
-  } catch {
-    return []
+function asReport(row: {
+  id: string
+  type: string
+  name: string
+  description?: string
+  generatedAt: string
+  published?: boolean
+  payload?: AnalysisReportDraft | null
+}): PreviousReport {
+  return {
+    id: row.id,
+    type: row.type as ReportKind,
+    name: row.name,
+    description: row.description || reportBySlug(row.type as ReportKind)?.listDescription || 'Report',
+    generatedAt: row.generatedAt,
+    published: Boolean(row.published),
+    payload: (row.payload as AnalysisReportDraft | null | undefined) ?? undefined,
   }
 }
 
-function writeAll(companyId: string, reports: PreviousReport[]) {
-  localStorage.setItem(storageKey(companyId), JSON.stringify(reports))
+export async function listPreviousReports(companyId: string): Promise<PreviousReport[]> {
+  const result = await analysisReportsApi.list(companyId)
+  return (result.data ?? []).map(asReport)
 }
 
-export function listPreviousReports(companyId: string): PreviousReport[] {
-  return readAll(companyId)
-}
-
-export function getPreviousReport(companyId: string, reportId: string) {
-  return readAll(companyId).find((item) => item.id === reportId)
-}
-
-export function recordPreviousReport(
+export async function recordPreviousReport(
   companyId: string,
   type: ReportKind,
   extras?: { name?: string; payload?: AnalysisReportDraft; published?: boolean },
-): PreviousReport {
+): Promise<PreviousReport> {
   const definition = reportBySlug(type)
-  const existing = readAll(companyId)
-  const sameCount = existing.filter((item) => item.type === type).length
-  const baseName = extras?.name?.trim() || definition?.name || 'Report'
-  const next: PreviousReport = {
-    id: crypto.randomUUID(),
-    type,
-    name: extras?.name?.trim()
-      ? baseName
-      : sameCount === 0
-        ? baseName
-        : `${baseName} ${sameCount + 1}`,
+  const result = await analysisReportsApi.create(companyId, {
+    report_type: type,
+    name: extras?.name?.trim() || definition?.name || 'Report',
     description: definition?.listDescription ?? 'Employee details',
-    generatedAt: new Date().toISOString(),
-    published: extras?.published,
-    payload: extras?.payload,
-  }
-  writeAll(companyId, [next, ...existing])
-  return next
+    payload: extras?.payload ?? null,
+    published: extras?.published ?? false,
+  })
+  return asReport(result.data)
 }
 
-export function updatePreviousReport(
+export async function updatePreviousReport(
   companyId: string,
   reportId: string,
   patch: Partial<PreviousReport>,
 ) {
-  const existing = readAll(companyId)
-  writeAll(
-    companyId,
-    existing.map((item) => (item.id === reportId ? { ...item, ...patch } : item)),
-  )
+  await analysisReportsApi.update(companyId, reportId, {
+    name: patch.name,
+    description: patch.description,
+    payload: patch.payload ?? undefined,
+    published: patch.published,
+  })
 }
 
-export function deletePreviousReport(companyId: string, reportId: string) {
-  writeAll(
-    companyId,
-    readAll(companyId).filter((item) => item.id !== reportId),
-  )
+export async function deletePreviousReport(companyId: string, reportId: string) {
+  await analysisReportsApi.delete(companyId, reportId)
 }

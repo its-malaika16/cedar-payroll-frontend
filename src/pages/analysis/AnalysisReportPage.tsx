@@ -1,13 +1,15 @@
 import { Link, Navigate, useParams } from 'react-router-dom'
 import { ArrowLeft } from 'lucide-react'
+import { useAuth } from '../../auth/AuthContext'
 import { Button, Card, PageHeader } from '../../components/ui'
 import { reportBySlug } from './reportCatalog'
 
 export function AnalysisReportPage() {
   const { reportType } = useParams()
+  const { isCompanyAdmin } = useAuth()
   const report = reportBySlug(reportType)
 
-  if (!report) {
+  if (!report || isCompanyAdmin) {
     return <Navigate to="/payroll/reports" replace />
   }
 

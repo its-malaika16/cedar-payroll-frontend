@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, Navigate, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { ArrowLeft, ArrowRight, CalendarDays, GripVertical, User, X } from 'lucide-react'
 import { payrollApi } from '../../api'
@@ -99,8 +99,9 @@ export function ReportBuilderPage({ kind }: { kind: AnalysisBuilderKind }) {
   const spec = specFor(kind) as ReportSpec
   const hmrcLayout = spec.layout === 'hmrc' || isHmrcKind(kind)
   const periodModes = spec.periodModes ?? PERIOD_MODES
-  const { companyId } = useAuth()
+  const { companyId, isCompanyAdmin } = useAuth()
   const navigate = useNavigate()
+  if (isCompanyAdmin) return <Navigate to="/payroll/reports" replace />
   const [draft, setDraft] = useState<AnalysisReportDraft>(() =>
     readReportDraft(kind, spec.defaultName, spec.defaultFieldIds, hmrcLayout ? periodModes[0] : EMPLOYEE_PERIOD_DEFAULT),
   )
