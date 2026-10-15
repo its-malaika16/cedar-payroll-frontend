@@ -35,6 +35,20 @@ export const authApi = {
     post<AuthPayload>('/auth/register', { email, password, confirm_password }),
   profile: () => get<User & AuthPayload>('/auth/profile'),
   access: () => get<AuthPayload>('/auth/me/access'),
+  forgotPassword: (email: string, resend = false) =>
+    post<null>('/auth/forgot-password', { email, resend }),
+  resetPassword: (
+    email: string,
+    code: string,
+    new_password: string,
+    confirm_password: string,
+  ) =>
+    post<null>('/auth/reset-password', {
+      email,
+      code,
+      new_password,
+      confirm_password,
+    }),
 }
 
 export const companiesApi = {

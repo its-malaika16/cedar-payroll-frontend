@@ -59,7 +59,11 @@ export async function api<T>(
   })
 
   if (response.status === 401) {
-    const isAuthRoute = path.startsWith('/auth/login') || path.startsWith('/auth/register')
+    const isAuthRoute =
+      path.startsWith('/auth/login') ||
+      path.startsWith('/auth/register') ||
+      path.startsWith('/auth/forgot-password') ||
+      path.startsWith('/auth/reset-password')
     if (!isAuthRoute) {
       localStorage.removeItem(TOKEN_KEY)
       window.dispatchEvent(new Event(SESSION_EXPIRED_EVENT))
