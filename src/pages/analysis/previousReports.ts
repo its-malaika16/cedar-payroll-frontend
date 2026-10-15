@@ -1,4 +1,4 @@
-import { analysisReportsApi } from '../../api'
+import { analysisReportsApi, type AnalysisReportRecord } from '../../api'
 import { reportBySlug, type ReportKind } from './reportCatalog'
 import type { AnalysisReportDraft } from './employeeDetailsState'
 
@@ -12,15 +12,7 @@ export type PreviousReport = {
   payload?: AnalysisReportDraft
 }
 
-function asReport(row: {
-  id: string
-  type: string
-  name: string
-  description?: string
-  generatedAt: string
-  published?: boolean
-  payload?: AnalysisReportDraft | null
-}): PreviousReport {
+function asReport(row: AnalysisReportRecord): PreviousReport {
   return {
     id: row.id,
     type: row.type as ReportKind,
