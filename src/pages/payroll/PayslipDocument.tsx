@@ -23,6 +23,10 @@ function InfoField({ label, value }: { label: string; value: string }) {
   )
 }
 
+function hasMoney(value: number) {
+  return Math.round(Number(value ?? 0) * 100) !== 0
+}
+
 function SummaryRow({
   label,
   value,
@@ -32,6 +36,7 @@ function SummaryRow({
   value: number
   highlight?: boolean
 }) {
+  if (!hasMoney(value)) return null
   return (
     <div
       className={`flex items-center justify-between px-4 py-2.5 text-sm`}
@@ -118,6 +123,7 @@ export function PayslipDocument({ model }: { model: PayslipViewModel }) {
           </div>
         </section>
 
+        {model.earnings.length > 0 ? (
         <section className="mt-5 overflow-hidden rounded-[8px]">
           <div className="px-4 py-2.5 text-[11px] font-semibold tracking-[0.08em] text-white" style={{ backgroundColor: NAVY }}>
             EARNINGS
@@ -132,12 +138,7 @@ export function PayslipDocument({ model }: { model: PayslipViewModel }) {
               <span className="text-right">RATE</span>
               <span className="text-right">AMOUNT</span>
             </div>
-            {model.earnings.length === 0 ? (
-              <div className="px-4 py-3 text-sm" style={{ color: NAVY }}>
-                No earnings this period
-              </div>
-            ) : (
-              model.earnings.map((line, index) => (
+            {model.earnings.map((line, index) => (
                 <div
                   key={`${line.description}-${index}`}
                   className="grid grid-cols-[minmax(0,1fr)_7rem_6.5rem_7rem] items-center px-4 py-2.5 text-sm"
@@ -148,8 +149,8 @@ export function PayslipDocument({ model }: { model: PayslipViewModel }) {
                   <span className="text-right tabular-nums">{line.rate ? money(line.rate) : ''}</span>
                   <span className="text-right font-semibold tabular-nums">{money(line.amount)}</span>
                 </div>
-              ))
-            )}
+            ))}
+            {hasMoney(model.totalEarnings) ? (
             <div
               className="grid grid-cols-[minmax(0,1fr)_7rem_6.5rem_7rem] border-t px-4 py-3 text-sm font-semibold"
               style={{ backgroundColor: PALE, borderColor: NAVY, color: NAVY }}
@@ -159,9 +160,12 @@ export function PayslipDocument({ model }: { model: PayslipViewModel }) {
               <span />
               <span className="text-right tabular-nums">{money(model.totalEarnings)}</span>
             </div>
+            ) : null}
           </div>
         </section>
+        ) : null}
 
+        {model.deductions.length > 0 ? (
         <section className="mt-5 overflow-hidden rounded-[8px]">
           <div className="px-4 py-2.5 text-[11px] font-semibold tracking-[0.08em] text-white" style={{ backgroundColor: NAVY }}>
             DEDUCTIONS
@@ -174,12 +178,7 @@ export function PayslipDocument({ model }: { model: PayslipViewModel }) {
               <span>DESCRIPTION</span>
               <span className="text-right">AMOUNT</span>
             </div>
-            {model.deductions.length === 0 ? (
-              <div className="px-4 py-3 text-sm" style={{ color: NAVY }}>
-                No deductions this period
-              </div>
-            ) : (
-              model.deductions.map((line, index) => (
+            {model.deductions.map((line, index) => (
                 <div
                   key={`${line.description}-${index}`}
                   className="grid grid-cols-[minmax(0,1fr)_7rem] items-center px-4 py-2.5 text-sm"
@@ -188,8 +187,8 @@ export function PayslipDocument({ model }: { model: PayslipViewModel }) {
                   <span>{line.description}</span>
                   <span className="text-right font-semibold tabular-nums">{money(line.amount)}</span>
                 </div>
-              ))
-            )}
+            ))}
+            {hasMoney(model.totalDeductions) ? (
             <div
               className="grid grid-cols-[minmax(0,1fr)_7rem] border-t px-4 py-3 text-sm font-semibold"
               style={{ backgroundColor: PALE, borderColor: NAVY, color: NAVY }}
@@ -197,10 +196,20 @@ export function PayslipDocument({ model }: { model: PayslipViewModel }) {
               <span>TOTAL DEDUCTIONS</span>
               <span className="text-right tabular-nums">{money(model.totalDeductions)}</span>
             </div>
+            ) : null}
           </div>
         </section>
+        ) : null}
 
         <div className="mt-5 grid gap-4 lg:grid-cols-2">
+          {hasMoney(model.ytd.taxablePay) ||
+          hasMoney(model.ytd.taxPaid) ||
+          hasMoney(model.ytd.employeeNi) ||
+          hasMoney(model.ytd.studentLoan) ||
+          hasMoney(model.ytd.pension) ||
+          (display.employerNiYtd && hasMoney(model.ytd.employerNi)) ||
+          (display.employerPensionYtd && hasMoney(model.employerPensionYtd)) ||
+          (display.statutoryPayYtd && hasMoney(model.statutoryPayYtd)) ? (
           <section className="overflow-hidden rounded-[8px] border border-[#e4e7ec]">
             <div className="px-4 py-2.5 text-[11px] font-semibold tracking-[0.06em] text-white" style={{ backgroundColor: NAVY }}>
               YEAR TO DATE (YTD)
@@ -216,6 +225,13 @@ export function PayslipDocument({ model }: { model: PayslipViewModel }) {
             ) : null}
             {display.statutoryPayYtd ? <SummaryRow label="Statutory Pay" value={model.statutoryPayYtd} /> : null}
           </section>
+          ) : null}
+          {hasMoney(model.period.taxableGross) ||
+          hasMoney(model.period.taxPaid) ||
+          hasMoney(model.period.employeeNi) ||
+          hasMoney(model.period.netPay) ||
+          (display.employerNi && hasMoney(model.period.employerNi)) ||
+          (display.employerPension && hasMoney(model.period.employerPension)) ? (
           <section className="overflow-hidden rounded-[8px] border border-[#e4e7ec]">
             <div className="px-4 py-2.5 text-[11px] font-semibold tracking-[0.06em] text-white" style={{ backgroundColor: NAVY }}>
               THIS PAY PERIOD
@@ -229,6 +245,7 @@ export function PayslipDocument({ model }: { model: PayslipViewModel }) {
             ) : null}
             {display.netPay ? <SummaryRow label="NET PAY" value={model.period.netPay} highlight /> : null}
           </section>
+          ) : null}
         </div>
 
         {display.notes && model.notes ? (

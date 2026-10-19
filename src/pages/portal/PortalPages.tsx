@@ -57,7 +57,18 @@ export function PortalPayslipsPage() {
     queryFn: () => employeesApi.myPayslips(companyId!, employeeId!),
     enabled: Boolean(companyId && employeeId),
   })
-  const list = (query.data?.data as Record<string, unknown>[] | undefined) ?? []
+  const list = ((query.data?.data as Record<string, unknown>[] | undefined) ?? [])
+    .filter((item) => {
+      const record = item.payroll_records as { take_home_pay?: unknown; net_pay?: unknown } | undefined
+      return Math.round(Number(item.take_home_pay ?? record?.take_home_pay ?? record?.net_pay ?? 0) * 100) !== 0
+    })
+    .sort((left, right) => {
+      const leftRun = left.payroll_runs as PayslipRun | undefined
+      const rightRun = right.payroll_runs as PayslipRun | undefined
+      const leftTime = new Date(leftRun?.period_end_date || leftRun?.pay_date || 0).getTime()
+      const rightTime = new Date(rightRun?.period_end_date || rightRun?.pay_date || 0).getTime()
+      return rightTime - leftTime
+    })
   const employeeName = fullName(
     currentEmployee?.first_name ?? user?.first_name,
     currentEmployee?.last_name ?? user?.last_name,

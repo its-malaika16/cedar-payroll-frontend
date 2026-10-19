@@ -120,15 +120,26 @@ function polar(cx: number, cy: number, radius: number, angle: number) {
 }
 
 function donutPath(startPct: number, pct: number, cx: number, cy: number, outer: number, inner: number) {
-  if (pct <= 0) return ''
+  if (pct <= 0.02) return ''
   const startAngle = (startPct / 100) * 360 - 90
-  const endAngle = ((startPct + pct) / 100) * 360 - 90
+  const endAngle = ((startPct + Math.min(pct, 99.98)) / 100) * 360 - 90
   const large = pct > 50 ? 1 : 0
   const os = polar(cx, cy, outer, startAngle)
   const oe = polar(cx, cy, outer, endAngle)
   const is = polar(cx, cy, inner, startAngle)
   const ie = polar(cx, cy, inner, endAngle)
   return `M ${os.x} ${os.y} A ${outer} ${outer} 0 ${large} 1 ${oe.x} ${oe.y} L ${ie.x} ${ie.y} A ${inner} ${inner} 0 ${large} 0 ${is.x} ${is.y} Z`
+}
+
+function donutSegments(startPct: number, pct: number) {
+  if (pct <= 0.02) return []
+  if (pct >= 99.96) {
+    return [
+      { start: startPct, pct: 50 },
+      { start: startPct + 50, pct: 50 },
+    ]
+  }
+  return [{ start: startPct, pct }]
 }
 
 function PayrollBreakdown({ slices, takeHome }: { slices: Slice[]; takeHome: number }) {
@@ -146,20 +157,26 @@ function PayrollBreakdown({ slices, takeHome }: { slices: Slice[]; takeHome: num
     <div className="grid items-center gap-8 md:grid-cols-[220px_minmax(0,1fr)]" onMouseLeave={() => setHover(null)}>
       <div className="relative mx-auto size-[188px]">
         <svg viewBox={`0 0 ${size} ${size}`} className="size-full" role="img" aria-label="Payroll breakdown">
-          {slices.map((slice, index) => {
-            const path = donutPath(slice.start, slice.pct, cx, cy, outer, inner)
-            if (!path) return null
-            return (
-              <path
-                key={slice.label}
-                d={path}
-                fill={slice.color}
-                opacity={hover == null || hover === index ? 1 : 0.35}
-                className="cursor-pointer"
-                onMouseEnter={() => setHover(index)}
-              />
-            )
-          })}
+          <path
+            d={donutPath(0, 50, cx, cy, outer, inner) + ' ' + donutPath(50, 50, cx, cy, outer, inner)}
+            fill="#e8e4dc"
+          />
+          {slices.flatMap((slice, index) =>
+            donutSegments(slice.start, slice.pct).map((segment, part) => {
+              const path = donutPath(segment.start, segment.pct, cx, cy, outer, inner)
+              if (!path) return null
+              return (
+                <path
+                  key={`${slice.label}-${part}`}
+                  d={path}
+                  fill={slice.color}
+                  opacity={hover == null || hover === index ? 1 : 0.35}
+                  className="cursor-pointer"
+                  onMouseEnter={() => setHover(index)}
+                />
+              )
+            }),
+          )}
         </svg>
         <div className="pointer-events-none absolute inset-[42px] flex flex-col items-center justify-center rounded-full bg-white text-center">
           <p className="text-[11px] text-muted">{active ? active.label : 'Take home pay'}</p>
@@ -209,10 +226,18 @@ function paySeriesMeta(frequency?: string | null) {
   }
 }
 
+const TAX_MONTH_SHORT = ['Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec', 'Jan', 'Feb', 'Mar']
+
 function axisLabelStep(count: number) {
+  if (count <= 12) return 1
   if (count <= 14) return 2
   if (count <= 26) return 4
   return 8
+}
+
+function seriesLabel(unit: string, period: number) {
+  if (unit === 'Month') return TAX_MONTH_SHORT[(period - 1 + 12) % 12] ?? `Month ${period}`
+  return `${unit} ${period}`
 }
 
 function PaySeriesChart({
@@ -231,6 +256,19 @@ function PaySeriesChart({
   const max = Math.max(...points.map((point) => point.amount), 1)
   const ticks = [0, max / 4, max / 2, (max * 3) / 4, max]
   const step = axisLabelStep(points.length)
+  const labelIndexes = (() => {
+    const picked: number[] = []
+    for (let i = 0; i < points.length; i += 1) {
+      if (i === 0 || i % step === 0) picked.push(i)
+    }
+    const last = points.length - 1
+    if (last > 0) {
+      const tail = picked[picked.length - 1]
+      if (tail === last - 1) picked[picked.length - 1] = last
+      else if (tail !== last) picked.push(last)
+    }
+    return new Set(picked)
+  })()
   const coords = points.map((point, index) => {
     const x = pad.left + (index / Math.max(points.length - 1, 1)) * innerW
     const y = pad.top + innerH - (point.amount / max) * innerH
@@ -281,14 +319,7 @@ function PaySeriesChart({
           )
         })}
         {coords
-          .filter((point, index) => {
-            const first = coords[0]?.period ?? 1
-            return (
-              index === 0 ||
-              index === coords.length - 1 ||
-              (point.period - first) % step === 0
-            )
-          })
+          .filter((_, index) => labelIndexes.has(index))
           .map((point) => (
             <text
               key={`label-${point.period}-${point.x}`}
@@ -297,7 +328,7 @@ function PaySeriesChart({
               textAnchor="middle"
               className="fill-[#8a93a0] text-[10px]"
             >
-              {unit} {point.period}
+              {seriesLabel(unit, point.period)}
             </text>
           ))}
       </svg>
@@ -310,7 +341,7 @@ function PaySeriesChart({
           }}
         >
           <ChartTip
-            title={`${unit} ${active.period}`}
+            title={seriesLabel(unit, active.period)}
             value={money(active.amount)}
             align={active.x > width * 0.8 ? 'right' : active.x < width * 0.2 ? 'left' : 'center'}
           />
