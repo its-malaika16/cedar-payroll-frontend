@@ -1,8 +1,10 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { useMemo, useState, type ReactNode } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import {
   CheckSquare,
+  ChevronLeft,
+  ChevronRight,
   Clock3,
   LogOut,
   Plus,
@@ -10,28 +12,23 @@ import {
   User,
   CalendarPlus,
 } from 'lucide-react'
-import { employeesApi, hrApi, payrollApi } from '../../api'
+import { employeesApi, hrApi } from '../../api'
 import { useAuth } from '../../auth/AuthContext'
 import { Alert, Button, Loading, PageHeader } from '../../components/ui'
 import { fullName, idOf } from '../../lib/format'
-import type { CalendarDay, Employee, PayrollSchedule } from '../../types'
-import { PayslipPeriodSwitcher } from '../payroll/PayslipPeriodSwitcher'
-import { asPayFrequency } from '../payroll/scheduleWizard/payDateRules'
+import type { CalendarDay, Employee } from '../../types'
 import { RotaMonthGrid, RotaWeekGrid } from './rota/RotaGrid'
 import type { ShiftAction } from './rota/ShiftCard'
 import { ShiftModal, formFromShift, selectedEmployeeIds, shiftPayload, type ShiftFormValue, type ShiftModalMode } from './rota/ShiftModal'
 import {
-  chunkWeeks,
+  addDays,
   dateKey,
-  daysInPeriod,
+  formatMonthLabel,
+  formatWeekRange,
+  startOfWeek,
+  weekDays,
   weeksInMonth,
 } from './rota/rotaDates'
-import {
-  activePaySchedules,
-  pickPaySchedule,
-  scheduleWeekStartDay,
-  timesheetPeriodFromSchedule,
-} from './timesheets/timesheetPeriod'
 import {
   calendarLeaveLabel,
   decodeShiftNotes,
@@ -45,15 +42,6 @@ import {
 } from './rota/rotaModel'
 
 type ViewMode = 'week' | 'month'
-
-function payScheduleIdOf(employee: Employee): string {
-  const details = Array.isArray(employee.employment_details)
-    ? employee.employment_details[0]
-    : employee.employment_details
-  if (!details || typeof details !== 'object') return ''
-  const value = (details as { pay_schedule_id?: unknown }).pay_schedule_id
-  return value == null ? '' : String(value)
-}
 
 function jobTitleOf(employee: Employee): string | null {
   const details = Array.isArray(employee.employment_details)
@@ -93,8 +81,7 @@ export function ShiftsPage() {
   const { companyId } = useAuth()
   const queryClient = useQueryClient()
   const [view, setView] = useState<ViewMode>('week')
-  const [scheduleId, setScheduleId] = useState('')
-  const [periodKey, setPeriodKey] = useState('')
+  const [anchor, setAnchor] = useState(() => startOfWeek(new Date()))
   const [error, setError] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
@@ -104,49 +91,16 @@ export function ShiftsPage() {
     shiftId?: string
   } | null>(null)
 
-  const schedulesQuery = useQuery({
-    queryKey: ['schedules', companyId],
-    queryFn: () => payrollApi.schedules(companyId!),
-    enabled: Boolean(companyId),
-  })
-  const scheduleList = activePaySchedules((schedulesQuery.data?.data ?? []) as PayrollSchedule[])
-  const paySchedule = pickPaySchedule(scheduleList, scheduleId)
-  const selectedScheduleId = paySchedule ? idOf(paySchedule) : ''
-  const period = useMemo(
-    () => timesheetPeriodFromSchedule(paySchedule, periodKey),
-    [paySchedule, periodKey],
-  )
-  const frequency = asPayFrequency(paySchedule?.pay_frequency)
-  const calendarPeriod = frequency === 'MONTHLY' || frequency === 'QUARTERLY' || frequency === 'YEARLY'
-  const weekStartsOn = scheduleWeekStartDay(paySchedule)
-  const periodDays = useMemo(
-    () => daysInPeriod(period.start, period.end),
-    [period.from, period.to],
-  )
-  const monthWeeks = useMemo(
-    () =>
-      calendarPeriod
-        ? chunkWeeks(periodDays)
-        : weeksInMonth(period.start, weekStartsOn),
-    [calendarPeriod, periodDays, period.start, weekStartsOn],
-  )
-  const weekDaysList = periodDays.length <= 14 ? periodDays : periodDays.slice(0, 7)
+  const weekStart = startOfWeek(anchor)
+  const weekDaysList = useMemo(() => weekDays(weekStart), [weekStart])
+  const monthWeeks = useMemo(() => weeksInMonth(anchor), [anchor])
+  const monthLast = new Date(anchor.getFullYear(), anchor.getMonth() + 1, 0)
   const visibleDays = view === 'week' ? weekDaysList : monthWeeks.flat()
-  const rangeStart = period.start
-  const rangeFrom = period.from
-  const rangeTo = period.to
-  const periodLabel = view === 'week' && weekDaysList.length <= 7 ? 'This week' : 'This period'
-
-  useEffect(() => {
-    setScheduleId('')
-    setPeriodKey('')
-  }, [companyId])
-
-  useEffect(() => {
-    if (!selectedScheduleId) return
-    if (scheduleId !== selectedScheduleId) setScheduleId(selectedScheduleId)
-    if (periodKey !== period.periodKey) setPeriodKey(period.periodKey)
-  }, [selectedScheduleId, scheduleId, period.periodKey, periodKey])
+  const rangeStart = view === 'week' ? weekStart : new Date(anchor.getFullYear(), anchor.getMonth(), 1)
+  const rangeFrom = dateKey(rangeStart)
+  const rangeTo = dateKey(view === 'week' ? addDays(weekStart, 6) : monthLast)
+  const periodLabel = view === 'week' ? 'This week' : 'This month'
+  const rangeLabel = view === 'week' ? formatWeekRange(weekStart) : formatMonthLabel(anchor)
 
   const employeesQuery = useQuery({
     queryKey: ['employees', companyId],
@@ -176,20 +130,14 @@ export function ShiftsPage() {
 
   const people = useMemo(() => {
     const list = (employeesQuery.data?.data ?? []) as Employee[]
-    return [...list]
-      .filter((employee) => {
-        if (!selectedScheduleId) return true
-        const assigned = payScheduleIdOf(employee)
-        return !assigned || assigned === selectedScheduleId
-      })
-      .sort((left, right) =>
-        fullName(left.first_name, left.last_name).localeCompare(
-          fullName(right.first_name, right.last_name),
-          'en-GB',
-          { sensitivity: 'base' },
-        ),
-      )
-  }, [employeesQuery.data, selectedScheduleId])
+    return [...list].sort((left, right) =>
+      fullName(left.first_name, left.last_name).localeCompare(
+        fullName(right.first_name, right.last_name),
+        'en-GB',
+        { sensitivity: 'base' },
+      ),
+    )
+  }, [employeesQuery.data])
   const shifts = ((shiftsQuery.data?.data as RotaShift[] | undefined) ?? []).map((shift) => ({
     ...shift,
     id: idOf(shift),
@@ -375,7 +323,7 @@ export function ShiftsPage() {
     <div className="flex min-h-0 flex-1 flex-col">
       <PageHeader
         title="Rota"
-        subtitle="Assign shifts for the selected pay schedule. The week or month matches that schedule’s dates."
+        subtitle="Assign shifts, then publish so the team can see their rota."
         actions={
           <>
             <Button onClick={() => openCreate(null, rangeStart)}>
@@ -441,29 +389,51 @@ export function ShiftsPage() {
           <button
             type="button"
             className={`rounded-[8px] px-3 py-1.5 ${view === 'week' ? 'bg-navy text-white' : 'text-navy'}`}
-            onClick={() => setView('week')}
+            onClick={() => {
+              setView('week')
+              setAnchor(startOfWeek(anchor))
+            }}
           >
             Week Overview
           </button>
           <button
             type="button"
             className={`rounded-[8px] px-3 py-1.5 ${view === 'month' ? 'bg-navy text-white' : 'text-navy'}`}
-            onClick={() => setView('month')}
+            onClick={() => {
+              setView('month')
+              setAnchor(new Date(anchor.getFullYear(), anchor.getMonth(), 1))
+            }}
           >
             Month Overview
           </button>
         </div>
-        <PayslipPeriodSwitcher
-          schedules={scheduleList}
-          scheduleId={selectedScheduleId}
-          periodKey={period.periodKey}
-          onScheduleChange={(nextId) => {
-            setScheduleId(nextId)
-            setPeriodKey('')
-          }}
-          onPeriodChange={setPeriodKey}
-          disabled={scheduleList.length === 0}
-        />
+        <div className="inline-flex h-[38px] items-center gap-1 rounded-[6px] border border-[#9b9a9a] bg-white px-1 text-navy">
+          <button
+            type="button"
+            className="flex size-8 items-center justify-center rounded-[6px] hover:bg-cream"
+            aria-label="Previous"
+            onClick={() =>
+              setAnchor((current) =>
+                view === 'week' ? addDays(current, -7) : new Date(current.getFullYear(), current.getMonth() - 1, 1),
+              )
+            }
+          >
+            <ChevronLeft size={16} />
+          </button>
+          <span className="min-w-[160px] px-2 text-center text-[11px] font-semibold">{rangeLabel}</span>
+          <button
+            type="button"
+            className="flex size-8 items-center justify-center rounded-[6px] hover:bg-cream"
+            aria-label="Next"
+            onClick={() =>
+              setAnchor((current) =>
+                view === 'week' ? addDays(current, 7) : new Date(current.getFullYear(), current.getMonth() + 1, 1),
+              )
+            }
+          >
+            <ChevronRight size={16} />
+          </button>
+        </div>
         <div className="ml-auto">
           <Button variant="secondary" onClick={() => void publish()}>
             <Send size={16} />
@@ -487,17 +457,13 @@ export function ShiftsPage() {
         ) : (
           <RotaMonthGrid
             weeks={monthWeeks}
-            month={period.start.getMonth()}
-            year={period.start.getFullYear()}
+            month={anchor.getMonth()}
+            year={anchor.getFullYear()}
             employees={people}
             shifts={shifts}
             leave={leave}
-            inRange={
-              calendarPeriod
-                ? (day) => dateKey(day) >= rangeFrom && dateKey(day) <= rangeTo
-                : (day) =>
-                    day.getMonth() === period.start.getMonth() &&
-                    day.getFullYear() === period.start.getFullYear()
+            inRange={(day) =>
+              day.getMonth() === anchor.getMonth() && day.getFullYear() === anchor.getFullYear()
             }
             onAdd={openCreate}
             onAction={(shift, action) => void handleAction(shift, action)}

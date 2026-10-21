@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { Link, Navigate } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -409,6 +409,22 @@ export function BureauPersonalPage() {
     enabled: Boolean(companyId && selected?.id && isBureauHrManager),
   })
   const documents = (documentsQuery.data?.data as ComplianceFile[] | undefined) ?? []
+  const countsQuery = useQuery({
+    queryKey: ['compliance-employees', companyId],
+    queryFn: () => hrApi.complianceByEmployee(companyId!),
+    enabled: Boolean(companyId && isBureauHrManager),
+  })
+  const documentCounts = useMemo(() => {
+    const groups =
+      (countsQuery.data?.data as Array<{ employee_id: string; documents?: ComplianceFile[] }> | undefined) ??
+      []
+    return Object.fromEntries(groups.map((group) => [group.employee_id, group.documents?.length ?? 0]))
+  }, [countsQuery.data])
+
+  function documentsLabel(employeeId: string) {
+    const count = documentCounts[employeeId] ?? 0
+    return `${count} document${count === 1 ? '' : 's'}`
+  }
 
   if (!isBureauHrManager) return <Navigate to="/app" replace />
 
@@ -497,12 +513,13 @@ export function BureauPersonalPage() {
                       <th className="px-5 py-3 font-semibold">Employee Name</th>
                       <th className="px-5 py-3 font-semibold">Email Address</th>
                       <th className="px-5 py-3 font-semibold">Phone Number</th>
+                      <th className="px-5 py-3 font-semibold">Documents</th>
                     </tr>
                   </thead>
                   <tbody>
                     {filtered.length === 0 ? (
                       <tr>
-                        <td colSpan={3} className="px-5 py-8 text-center text-muted">
+                        <td colSpan={4} className="px-5 py-8 text-center text-muted">
                           No employees found
                         </td>
                       </tr>
@@ -520,6 +537,9 @@ export function BureauPersonalPage() {
                             <td className="px-5 py-3.5">{fullName(employee.first_name, employee.last_name)}</td>
                             <td className="px-5 py-3.5">{primaryEmail(employee) || '—'}</td>
                             <td className="px-5 py-3.5">{primaryPhone(employee) || '—'}</td>
+                            <td className="px-5 py-3.5 whitespace-nowrap text-navy/80">
+                              {documentsLabel(employee.id)}
+                            </td>
                           </tr>
                         )
                       })
@@ -587,9 +607,10 @@ export function BureauPersonalPage() {
                       <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-[#e7f1f8]">
                         <User size={14} />
                       </span>
-                      <span className="min-w-0 truncate">
+                      <span className="min-w-0 flex-1 truncate">
                         {fullName(employee.first_name, employee.last_name)}
                       </span>
+                      <span className="shrink-0 text-xs text-muted">{documentsLabel(employee.id)}</span>
                     </button>
                   )
                 })

@@ -211,7 +211,7 @@ export function RotaMonthGrid({
         className="sticky top-0 z-20 grid border-b border-[#eceae6] bg-[#f7f6f3] text-xs font-semibold text-navy"
         style={gridColumns(columns)}
       >
-        <div className="sticky left-0 z-30 bg-[#f7f6f3] px-4 py-3">Employee</div>
+        <div className="sticky left-0 top-0 z-30 bg-[#f7f6f3] px-4 py-3">Employee</div>
         {weekdayHeaders(headerDays).map((day, index) => (
           <div key={`${day}-${index}`} className="border-l border-[#eceae6] px-2 py-3 text-center">
             {day}
@@ -275,10 +275,10 @@ export function RotaWeekGrid({
   return (
     <div className="min-w-[980px]">
       <div
-        className="grid border-b border-[#eceae6] bg-[#f7f6f3] text-xs font-semibold text-navy"
+        className="sticky top-0 z-20 grid border-b border-[#eceae6] bg-[#f7f6f3] text-xs font-semibold text-navy"
         style={columns}
       >
-        <div className="sticky left-0 z-10 bg-[#f7f6f3] px-4 py-3">Employee</div>
+        <div className="sticky left-0 top-0 z-30 bg-[#f7f6f3] px-4 py-3">Employee</div>
         {days.map((day) => (
           <div key={dateKey(day)} className="border-l border-[#eceae6] px-2 py-3 text-center">
             {compact ? (

@@ -178,6 +178,8 @@ function InvoiceChart({
   maxAmount: number
 }) {
   const count = Math.max(chart.length, 1)
+  const [hover, setHover] = useState<number | null>(null)
+  const hovered = hover == null ? null : chart[hover]
 
   return (
     <div className="min-w-0 w-full">
@@ -190,7 +192,21 @@ function InvoiceChart({
           <span>{compactMoney(maxAmount / 2)}</span>
           <span>£0</span>
         </div>
-        <div className="relative min-w-0 flex-1" style={{ height: PLOT_HEIGHT + PLOT_HEAD }}>
+        <div className="relative min-w-0 flex-1 overflow-visible" style={{ height: PLOT_HEIGHT + PLOT_HEAD }}>
+          {hovered && hover != null ? (
+            <div
+              className="pointer-events-none absolute z-30 rounded-[12px] bg-navy px-3 py-2 text-center shadow-lg"
+              style={{
+                top: 0,
+                left: `${((hover + 0.5) / count) * 100}%`,
+                minWidth: 132,
+                transform: hover >= count - 2 ? 'translateX(-90%)' : hover <= 1 ? 'translateX(-10%)' : 'translateX(-50%)',
+              }}
+            >
+              <p className="text-sm font-semibold text-white">{money(hovered.amount)}</p>
+              <p className="mt-0.5 text-[11px] text-white/70">{hovered.detail}</p>
+            </div>
+          ) : null}
           <div
             className="pointer-events-none absolute inset-x-0"
             style={{ top: PLOT_HEAD, height: PLOT_HEIGHT }}
@@ -210,45 +226,30 @@ function InvoiceChart({
               const hasValue = bucket.amount > 0
               const height = hasValue
                 ? Math.max(10, Math.round((bucket.amount / scale) * (PLOT_HEIGHT - 8)))
-                : 0
-              const tall = height >= 48
-              const tooltipAlign =
-                index >= count - 2 ? 'left-auto right-0 translate-x-0' : 'left-1/2 -translate-x-1/2'
+                : 6
+              const active = hover === index
               return (
-                <div key={bucket.key} className="group relative flex h-full items-end justify-center px-1">
+                <div
+                  key={bucket.key}
+                  className="relative flex h-full cursor-pointer items-end justify-center px-1"
+                  onMouseEnter={() => setHover(index)}
+                  onMouseLeave={() => setHover(null)}
+                  onFocus={() => setHover(index)}
+                  onBlur={() => setHover(null)}
+                  tabIndex={0}
+                >
                   <div
                     className="relative z-10 w-[70%] max-w-[72px]"
-                    style={{ height: height || 6 }}
-                  >
-                    <div
-                      className={`pointer-events-none absolute bottom-full z-20 mb-2 hidden min-w-[132px] rounded-[12px] bg-navy px-3 py-2 text-center group-hover:block ${tooltipAlign}`}
-                    >
-                      <p className="text-sm font-semibold text-white">{money(bucket.amount)}</p>
-                      <p className="mt-0.5 text-[11px] text-white/70">{bucket.detail}</p>
-                    </div>
-                    <div
-                      className="relative h-full w-full"
-                      style={{
-                        borderRadius: hasValue ? '12px 12px 4px 4px' : 4,
-                        background: hasValue
-                          ? bucket.current
-                            ? `linear-gradient(180deg, #3b6ea8 0%, ${NAVY} 100%)`
-                            : `linear-gradient(180deg, #5b7fa6 0%, #2a4a70 100%)`
-                          : '#e4eaf2',
-                      }}
-                    >
-                      {hasValue && tall ? (
-                        <p className="absolute inset-x-0 top-2 text-center text-[11px] font-semibold text-white">
-                          {compactMoney(bucket.amount)}
-                        </p>
-                      ) : null}
-                    </div>
-                    {hasValue && !tall ? (
-                      <p className="pointer-events-none absolute bottom-full left-1/2 mb-1 -translate-x-1/2 text-[11px] font-semibold text-navy">
-                        {compactMoney(bucket.amount)}
-                      </p>
-                    ) : null}
-                  </div>
+                    style={{
+                      height,
+                      borderRadius: hasValue ? '12px 12px 4px 4px' : 4,
+                      background: hasValue
+                        ? active || bucket.current
+                          ? `linear-gradient(180deg, #3b6ea8 0%, ${NAVY} 100%)`
+                          : `linear-gradient(180deg, #5b7fa6 0%, #2a4a70 100%)`
+                        : '#e4eaf2',
+                    }}
+                  />
                 </div>
               )
             })}
