@@ -210,6 +210,10 @@ export const employeesApi = {
       `/companies/${companyId}/employees/${employeeId}/me/payslips/${payslipId}/download`,
       filename,
     ),
+  myPayslipBlob: (companyId: string, employeeId: string, payslipId: string) =>
+    fetchBlob(
+      `/companies/${companyId}/employees/${employeeId}/me/payslips/${payslipId}/download`,
+    ),
   myP45: (companyId: string, employeeId: string) =>
     get(`/companies/${companyId}/employees/${employeeId}/me/p45`),
   myP60: (companyId: string, employeeId: string) =>

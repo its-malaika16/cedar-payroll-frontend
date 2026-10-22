@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
@@ -29,6 +29,7 @@ export function PayslipPreviewModal({
   const selfId = currentEmployee?.employee_id
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+  const pdfFrame = useRef<HTMLIFrameElement>(null)
 
   const runQuery = useQuery({
     queryKey: ['payroll-run', companyId, runId],
@@ -64,10 +65,29 @@ export function PayslipPreviewModal({
 
   const employee = (employeeQuery.data?.data as Employee | undefined) ?? record?.employees
   const company = companyQuery.data?.data
+  const publishedPayslipId = record?.payslips?.id ? String(record.payslips.id) : ''
+  const pdfQuery = useQuery({
+    queryKey: ['payslip-file', companyId, publishedPayslipId, inEmployeePortal, selfId],
+    queryFn: () =>
+      inEmployeePortal && selfId
+        ? employeesApi.myPayslipBlob(companyId!, selfId, publishedPayslipId)
+        : payslipsApi.fileBlob(companyId!, publishedPayslipId),
+    enabled: Boolean(companyId && publishedPayslipId && (inEmployeePortal ? selfId : true)),
+  })
+  const pdfUrl = useMemo(() => {
+    if (!pdfQuery.data) return null
+    return URL.createObjectURL(pdfQuery.data)
+  }, [pdfQuery.data])
   const model = useMemo(() => {
     if (!record) return null
     return buildPayslipViewModel(record, run, employee, company)
   }, [record, run, employee, company])
+
+  useEffect(() => {
+    return () => {
+      if (pdfUrl) URL.revokeObjectURL(pdfUrl)
+    }
+  }, [pdfUrl])
 
   const displayName = fullName(employee?.first_name, employee?.last_name)
   const periodLabel = formatPeriodEndingLabel(
@@ -93,6 +113,10 @@ export function PayslipPreviewModal({
     setError(null)
     setBusy(true)
     try {
+      if (pdfQuery.data) {
+        downloadBlobFile(pdfQuery.data, String(record?.payslips?.file_name ?? 'payslip.pdf'))
+        return
+      }
       if (inEmployeePortal && selfId && record?.payslips?.id) {
         await employeesApi.downloadMyPayslip(
           companyId,
@@ -113,6 +137,16 @@ export function PayslipPreviewModal({
     } finally {
       setBusy(false)
     }
+  }
+
+  function printPayslip() {
+    const frame = pdfFrame.current?.contentWindow
+    if (frame) {
+      frame.focus()
+      frame.print()
+      return
+    }
+    window.print()
   }
 
   return createPortal(
@@ -179,7 +213,7 @@ export function PayslipPreviewModal({
               type="button"
               className="flex size-8 items-center justify-center rounded-[6px] text-white hover:bg-white/10"
               aria-label="Print"
-              onClick={() => window.print()}
+              onClick={() => printPayslip()}
             >
               <Printer size={15} />
             </button>
@@ -198,16 +232,27 @@ export function PayslipPreviewModal({
             <Alert>{error}</Alert>
           </div>
         ) : null}
-        {recordQuery.isLoading || employeeQuery.isLoading ? (
+        {recordQuery.isLoading || employeeQuery.isLoading || (publishedPayslipId && pdfQuery.isLoading) ? (
           <div className="flex min-h-[40vh] items-center justify-center">
             <Loading />
           </div>
-        ) : !record || !model ? (
+        ) : !record ? (
           <div className="p-4">
             <Alert>Payslip not found</Alert>
           </div>
-        ) : (
+        ) : pdfUrl ? (
+          <iframe
+            ref={pdfFrame}
+            title={periodLabel ? `Payslip ${periodLabel}` : 'Payslip'}
+            src={`${pdfUrl}#toolbar=0&navpanes=0`}
+            className="block h-[min(1123px,calc(100dvh-3.5rem))] w-full border-0 bg-white"
+          />
+        ) : model ? (
           <PayslipDocument model={model} />
+        ) : (
+          <div className="p-4">
+            <Alert>Payslip not found</Alert>
+          </div>
         )}
       </div>
     </div>,

@@ -264,6 +264,9 @@ export function PayslipDocument({ model }: { model: PayslipViewModel }) {
             {model.employerAddress}
           </p>
         ) : null}
+        <p className="mt-10 text-center text-[11px] text-[#9b9a9a]">
+          © {model.year} Cedar Payroll. All rights reserved.
+        </p>
       </div>
     </div>
   )
