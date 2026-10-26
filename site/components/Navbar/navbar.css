@@ -1,71 +1,58 @@
 .navbar {
   width: 100%;
-  background: #ffffff;
-
-  border-top: 3px solid var(--primary);
-
+  background: rgba(248, 247, 244, 0.92);
+  backdrop-filter: blur(16px);
+  border-bottom: 1px solid rgba(23, 55, 94, 0.08);
   position: sticky;
   top: 0;
   z-index: 1000;
 }
 
 .navbar-container {
-  max-width: 1500px;
-
+  max-width: 1370px;
   margin: 0 auto;
-  padding: 16px 40px;
-
+  padding: 18px 40px;
   display: flex;
   align-items: center;
-  gap: 48px;
+  gap: 36px;
 }
-
-/* ====================
-   LOGO
-==================== */
 
 .logo {
   flex-shrink: 0;
 }
 
 .logo img {
-  width: 170px;
+  width: 156px;
   max-width: none;
   height: auto;
   display: block;
 }
 
-/* ====================
-   NAVIGATION
-==================== */
-
 .nav-links {
   display: flex;
   align-items: center;
-  gap: 45px;
+  gap: 36px;
 }
 
 .nav-links a {
   text-decoration: none;
-
   color: var(--primary);
-
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 600;
-   transition: 0.3s ease;
+  transition: 0.3s ease;
   position: relative;
 }
 
 .nav-links a:hover,
 .nav-links a.active {
-  color: #0f2e57;
+  color: var(--secondary);
 }
 
 .nav-links a::after {
   content: "";
   position: absolute;
   left: 0;
-  bottom: -6px;
+  bottom: -8px;
   width: 0%;
   height: 2px;
   background: var(--secondary);
@@ -76,92 +63,65 @@
 .nav-links a.active::after {
   width: 100%;
 }
-/* ====================
-   RIGHT SIDE
-==================== */
 
 .navbar-right {
   display: flex;
   align-items: center;
-  gap: 30px;
+  gap: 28px;
   margin-left: auto;
   flex-shrink: 0;
 }
 
 .support-link {
   text-decoration: none;
-  color: var(--secondary);
-
-  font-size: 16px;
+  color: var(--primary);
+  font-size: 15px;
   font-weight: 600;
-     transition: 0.3s ease;
-  position: relative;
-}
-
-.support-link a:hover,
-.support-link a.active {
-  color: var(--secondary);
-}
-
-.support-link a::after {
-  content: "";
-  position: absolute;
-  left: 0;
-  bottom: -6px;
-  width: 0%;
-  height: 2px;
-  background: var(--secondary);
   transition: 0.3s ease;
 }
+
+.support-link:hover {
+  color: var(--secondary);
+}
+
 .signin-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 120px;
-  height: 44px;
-
-  border: 2px solid var(--secondary);
-  background: transparent;
-
-  border-radius: 8px;
-
-  color: var(--secondary);
-
+  min-width: 124px;
+  height: 41px;
+  padding: 0 22px;
+  border: none;
+  background: var(--secondary);
+  border-radius: 10px;
+  color: #ffffff;
   font-size: 15px;
   font-weight: 700;
-
   cursor: pointer;
-  transition: 0.3s;
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+  box-shadow: 0 8px 18px rgba(211, 32, 39, 0.28);
 }
 
 .signin-btn:hover {
-  background: var(--secondary);
+  transform: translateY(-2px);
+  box-shadow: 0 12px 24px rgba(211, 32, 39, 0.36);
   color: #ffffff;
 }
 
-/* ====================
-   HAMBURGER
-==================== */
-
 .hamburger {
   display: none;
-
   flex-direction: column;
   gap: 5px;
-
   border: none;
   background: transparent;
-
   cursor: pointer;
 }
 
 .hamburger span {
   width: 28px;
   height: 3px;
-
   background: var(--primary);
   border-radius: 10px;
-
   transition: 0.3s;
 }
 
@@ -177,59 +137,45 @@
   transform: translateY(-8px) rotate(-45deg);
 }
 
-/* ====================
-   LARGE DESKTOP
-==================== */
-
 @media (min-width: 1600px) {
   .navbar-container {
-    max-width: 1700px;
+    max-width: 1500px;
   }
 }
-
-/* ====================
-   DESKTOP
-==================== */
 
 @media (max-width: 1200px) {
   .nav-links {
-    gap: 28px;
+    gap: 20px;
   }
 
   .logo img {
-    width: 150px;
+    width: 140px;
   }
 }
-
-/* ====================
-   TABLET
-==================== */
 
 @media (max-width: 992px) {
-  .nav-links {
-    gap: 20px;
-  }
-
-  .nav-links a {
-    font-size: 14px;
-  }
-
-  .navbar-right {
-    gap: 20px;
+  .nav-links a,
+  .support-link {
+    font-size: 13px;
   }
 }
 
-/* ====================
-   MOBILE
-==================== */
+.mobile-only-link {
+  display: none;
+}
 
 @media (max-width: 768px) {
+  .mobile-only-link {
+    display: inline-flex;
+  }
+
   .navbar-container {
-    padding: 16px 20px;
+    padding: 14px 20px;
   }
 
   .hamburger {
     display: flex;
+    margin-left: auto;
   }
 
   .navbar-right {
@@ -240,24 +186,16 @@
     position: absolute;
     top: 100%;
     left: 0;
-
     width: 100%;
-
-    background: #ffffff;
-
+    background: #f8f7f4;
     flex-direction: column;
     align-items: center;
-
-    gap: 24px;
-
-    padding: 30px 0;
-
-    box-shadow: 0 12px 25px rgba(0,0,0,0.08);
-
+    gap: 22px;
+    padding: 28px 0 32px;
+    box-shadow: 0 16px 32px rgba(23, 55, 94, 0.1);
     opacity: 0;
     visibility: hidden;
     transform: translateY(-10px);
-
     transition: 0.3s;
   }
 
@@ -268,12 +206,8 @@
   }
 }
 
-/* ====================
-   SMALL MOBILE
-==================== */
-
 @media (max-width: 480px) {
   .logo img {
-    width: 140px;
+    width: 128px;
   }
 }

@@ -2,20 +2,16 @@ import "./platform-banking-section.css";
 
 const services = [
   {
-    title: "HMRC Compliance ",
-    description:
-      "Stay compliant with RTI submissions, PAYE requirements, and pension regulations.",
+    title: "Compliance Risk Monitoring",
+    description: "Built-in KYC, AML and fraud monitoring infrastructure.",
   },
   {
-    title: "P45 & P60 Management",
-    description:
-    "Generate employee tax documents quickly and accurately.",
-     
+    title: "API & System Integration",
+    description: "Connect banking services into applications with powerful APIs.",
   },
   {
-    title: "Payroll Reporting",
-    description:
-      "Access reports on payroll costs, deductions, and employee earnings whenever you need them.",
+    title: "Digital Account Management",
+    description: "Create and manage accounts with secure onboarding flows.",
   },
 ];
 
@@ -23,33 +19,33 @@ const PayrollBankingSection = () => {
   return (
     <section className="payroll-banking">
       <div className="payroll-banking-container">
-        {/* Left Side */}
+        <div className="banking-image-wrapper">
+          <div className="cedar-blob banking-blob banking-blob-a" />
+          <div className="cedar-blob banking-blob banking-blob-b" />
+          <img
+            className="banking-image"
+            src="/assets/images/platform-solution.svg"
+            alt="Cedar Payroll platform cards"
+          />
+        </div>
 
         <div className="banking-content">
-          <h2 className="banking-title subheading">
-            One platform, Unlimited Payroll Possibilities
-            
+          <p className="cedar-kicker">All-in-one solution</p>
+          <h2 className="banking-title">
+            One Platform, Unlimited Possibilities.
           </h2>
 
           <div className="banking-services">
             {services.map((service, index) => (
-              <div
-                key={index}
-                className={`banking-service ${
-                  index !== services.length - 1 ? "service-border" : ""
-                }`}
-              >
-                <h3 className = "body-4">{service.title}</h3>
-                <p className = "body-5">{service.description}</p>
+              <div className="banking-service" key={index}>
+                <span className="solution-index">{String(index + 1).padStart(2, "0")}</span>
+                <div>
+                  <h3>{service.title}</h3>
+                  <p>{service.description}</p>
+                </div>
               </div>
             ))}
           </div>
-        </div>
-
-        {/* Right Side */}
-
-        <div className="banking-image-wrapper">
-          <img className = "banking-image" src = "/assets/images/platform-solution.svg" />
         </div>
       </div>
     </section>

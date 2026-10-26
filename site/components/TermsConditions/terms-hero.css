@@ -1,13 +1,14 @@
 .services-hero {
   position: relative;
-  padding: 120px 20px 80px;
+  padding: 88px 20px 64px;
   text-align: center;
   color: #ffffff;
 
   background: linear-gradient(
     135deg,
     var(--primary) 0%,
-    #214b7d 100%
+    #1f4d82 55%,
+    #d32027 160%
   );
 
   overflow: hidden;

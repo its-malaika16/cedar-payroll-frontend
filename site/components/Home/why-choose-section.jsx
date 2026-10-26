@@ -26,8 +26,9 @@ const WhyChooseSection = () => {
         <section className="why-choose">
             <div className="why-choose-container">
                 <div className="why-choose-header">
-                    <h2 className="why-choose-title main-title">
-                        Why Choose Cedar Payroll?
+                    <p className="cedar-kicker why-choose-kicker">Why choose Cedar Payroll</p>
+                    <h2 className="why-choose-title">
+                        A Smarter Way To Manage Payroll
                     </h2>
 
                     <p className="why-choose-subtitle">

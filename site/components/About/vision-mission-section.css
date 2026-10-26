@@ -1,216 +1,58 @@
 .mission-vision {
   width: 100%;
   background: var(--background);
-  padding: 120px 80px;
+  padding: 40px 24px 80px;
 }
 
 .mission-vision-container {
-  max-width: 1400px;
+  max-width: 1100px;
   margin: 0 auto;
-
-  display: flex;
-  flex-direction: column;
-  gap: 140px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 28px;
 }
-
-/* ==========================
-   CARD
-========================== */
 
 .mission-card {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  text-align: center;
+  background: #ffffff;
+  border-radius: 24px;
+  padding: 40px 32px;
+  box-shadow: 0 16px 40px rgba(23, 55, 94, 0.08);
+  animation: cedar-rise 0.7s ease both;
 }
 
-/* ==========================
-   ICON
-========================== */
-
 .mission-icon-wrapper {
-  width: 130px;
-  height: 130px;
-
-  background: #FFFFFF;
+  width: 84px;
+  height: 84px;
+  background: var(--primary);
   border-radius: 50%;
-
   display: flex;
   justify-content: center;
   align-items: center;
-
-  margin-bottom: 30px;
+  margin-bottom: 22px;
 }
 
 .mission-icon {
-  width: 80px;
-  height: 80px;
+  width: 40px;
+  height: 40px;
   object-fit: contain;
+  filter: brightness(0) invert(1);
 }
-
-/* ==========================
-   CONTENT
-========================== */
 
 .mission-title {
   color: var(--primary);
-
-  margin-bottom: 24px;
+  font-size: 32px;
+  font-weight: 800;
+  margin-bottom: 14px;
 }
 
 .mission-description {
-  color: var(--primary);
-
-  max-width: 1050px;
-
-  font-size: 24px;
-  font-weight: 500;
-  line-height: 1.45;
+  color: #4a5870;
+  font-size: 16px;
+  line-height: 1.65;
 }
 
-/* ==========================
-   LARGE DESKTOP
-========================== */
-
-@media (min-width: 1600px) {
+@media (max-width: 800px) {
   .mission-vision-container {
-    max-width: 1400px;
-  }
-
-  .mission-title {
-    font-size: 60px;
-  }
-}
-
-/* ==========================
-   DESKTOP
-========================== */
-
-@media (max-width: 1400px) {
-  .mission-vision {
-    padding: 100px 60px;
-  }
-
-  .mission-title {
-    font-size: 50px;
-  }
-
-  .mission-description {
-    font-size: 22px;
-  }
-}
-
-/* ==========================
-   LAPTOP
-========================== */
-
-@media (max-width: 1200px) {
-  .mission-vision-container {
-    gap: 110px;
-  }
-
-  .mission-title {
-    font-size: 44px;
-  }
-
-  .mission-description {
-    font-size: 20px;
-    max-width: 850px;
-  }
-}
-
-/* ==========================
-   TABLET
-========================== */
-
-@media (max-width: 992px) {
-  .mission-vision {
-    padding: 90px 40px;
-  }
-
-  .mission-vision-container {
-    gap: 90px;
-  }
-
-  .mission-title {
-    font-size: 40px;
-  }
-
-  .mission-description {
-    font-size: 18px;
-    max-width: 100%;
-  }
-
-  .mission-icon-wrapper {
-    width: 85px;
-    height: 85px;
-  }
-
-  .mission-icon {
-    width: 40px;
-    height: 40px;
-  }
-}
-
-/* ==========================
-   MOBILE
-========================== */
-
-@media (max-width: 768px) {
-  .mission-vision {
-    padding: 70px 20px;
-  }
-
-  .mission-vision-container {
-    gap: 70px;
-  }
-
-  .mission-title {
-    font-size: 34px;
-    margin-bottom: 18px;
-  }
-
-  .mission-description {
-    font-size: 16px;
-    line-height: 1.6;
-  }
-
-  .mission-icon-wrapper {
-    width: 75px;
-    height: 75px;
-    margin-bottom: 24px;
-  }
-
-  .mission-icon {
-    width: 34px;
-    height: 34px;
-  }
-}
-
-/* ==========================
-   SMALL MOBILE
-========================== */
-
-@media (max-width: 480px) {
-  .mission-vision {
-    padding: 60px 16px;
-  }
-
-  .mission-title {
-    font-size: 28px;
-  }
-
-  .mission-description {
-    font-size: 15px;
-  }
-
-  .mission-icon-wrapper {
-    width: 65px;
-    height: 65px;
-  }
-
-  .mission-icon {
-    width: 28px;
-    height: 28px;
+    grid-template-columns: 1fr;
   }
 }

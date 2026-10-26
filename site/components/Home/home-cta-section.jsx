@@ -5,42 +5,21 @@ const PayrollCtaSection = () => {
   return (
     <section className="payroll-cta">
       <div className="payroll-cta-container">
-        {/* Left Card */}
-
-        <div className="cta-card cta-left">
-          <h2 className="cta-title">
-            Ready to Streamline
-            <br />
-            Your Payroll?
-          </h2>
-
+        <div className="cta-card">
+          <p className="cedar-kicker">Get started</p>
+          <h2 className="cta-title">Ready to streamline your payroll?</h2>
           <p className="cta-description">
-            Join hundreds of UK businesses who trust Cedar
-             Payroll for their payroll needs. Get
-            started today with our 14-day free trial.
+            Join businesses who trust Cedar Payroll for accurate, on-time pay.
+            Speak with our team and see how quickly you can go live.
           </p>
-
-          <Link to="/services" className="cta-link">
-            View All Services
-          </Link>
-        </div>
-
-        {/* Right Card */}
-
-        <div className="cta-card cta-right">
-          <h2 className="cta-title">
-            Stay Updated
-          </h2>
-
-          <p className="cta-description">
-            Subscribe to receive emails, news, and updates
-            straight from Cedar Payroll insights
-            and announcements delivered to your inbox.
-          </p>
-
-          <Link to="/contact" className="cta-button">
-            Contact Us
-          </Link>
+          <div className="cta-actions">
+            <Link to="/contact" className="cta-button">
+              Contact Us
+            </Link>
+            <Link to="/services" className="cta-link">
+              View all services
+            </Link>
+          </div>
         </div>
       </div>
     </section>

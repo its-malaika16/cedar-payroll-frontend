@@ -6,14 +6,15 @@ export default function PrivacyPolicy() {
 
       <div className="privacy-card">
 
-        <p className="last-updated">Last updated: 13 May 2026</p>
+        <p className="last-updated">Last updated: 26 October 2026</p>
 
         {/* 1 */}
         <h2>1. Introduction</h2>
         <p>
           Cedar Capital Payroll ("we", "us", "our") is committed to protecting your privacy.
           This Privacy Policy explains how we collect, use, store, and safeguard the personal
-          information you share with us through our website cedarpayroll.co.uk and our payroll services.
+          information you share with us through our website cedarpayroll.com, the Cedar Payroll
+          mobile app, and our payroll services.
         </p>
 
         {/* 2 */}
@@ -23,6 +24,9 @@ export default function PrivacyPolicy() {
           <li>Information you provide via our contact form or newsletter signup.</li>
           <li>Employee payroll data submitted by client businesses for processing.</li>
           <li>Technical information such as IP address, browser type, and pages visited.</li>
+          <li>Mobile app account details (email and encrypted password) if you sign up or log in.</li>
+          <li>Location, only when you clock in, to confirm you are at work.</li>
+          <li>Photos or documents you choose to upload (for example a profile picture or HR files).</li>
         </ul>
 
         {/* 3 */}
@@ -67,14 +71,24 @@ export default function PrivacyPolicy() {
         </p>
 
         {/* 8 */}
-        <h2>8. Security</h2>
+        <h2>8. Mobile app accounts</h2>
+        <p>
+          You can create an app login only with an email already held by Cedar Payroll for your
+          employer. In the app, open More, then Security &amp; Privacy, and choose Delete account.
+          This removes your sign-in so you can no longer log in. We keep employer payroll records
+          for as long as UK tax law requires (typically at least six years). Location is used only
+          for clock-in and is not used for advertising or tracking across other companies’ apps.
+        </p>
+
+        {/* 9 */}
+        <h2>9. Security</h2>
         <p>
           We use appropriate technical and organisational measures to safeguard your data, including
           encrypted storage, access controls, and secure cloud infrastructure.
         </p>
 
-        {/* 9 */}
-        <h2>9. Contact Us</h2>
+        {/* 10 */}
+        <h2>10. Contact Us</h2>
         <p>
           For any privacy-related questions, please contact Cedar Capital Payroll at{" "}
           <span className="highlight">Support@cedarpayroll.com</span> or{" "}

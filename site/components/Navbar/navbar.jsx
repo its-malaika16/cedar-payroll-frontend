@@ -56,6 +56,18 @@ const Navbar = () => {
           >
             Contact Us
           </NavLink>
+
+          <NavLink
+            to="/support"
+            className="mobile-only-link"
+            onClick={closeMenu}
+          >
+            Support
+          </NavLink>
+
+          <a href="/login" className="signin-btn mobile-only-link" onClick={closeMenu}>
+            Log In
+          </a>
         </nav>
 
         {/* Right Side */}
@@ -69,7 +81,7 @@ const Navbar = () => {
           </NavLink>
 
           <a href="/login" className="signin-btn" onClick={closeMenu}>
-            Sign In
+            Log In
           </a>
         </div>
 

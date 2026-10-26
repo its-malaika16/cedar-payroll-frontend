@@ -1,307 +1,70 @@
 import { Link } from "react-router-dom";
+import "./footer.css";
 
 const Footer = () => {
   return (
-    <>
-      <style>
-        {`
-          .footer-box {
-            width: 100%;
-            background: #ffffff;
-            border-top: 1px solid rgba(23, 55, 94, 0.15);
-          }
-
-          .footer-container {
-            max-width: 1500px;
-            margin: 0 auto;
-
-            padding: 70px 80px;
-
-            display: flex;
-            justify-content: space-between;
-            gap: 80px;
-          }
-
-          /* LEFT */
-
-          .footer-left {
-            max-width: 320px;
-          }
-
-          .footer-logo {
-            width: 190px;
-            margin-bottom: 24px;
-          }
-
-          .footer-tagline {
-            color: var(--primary);
-            margin-bottom: 30px;
-          }
-
-          .footer-contact {
-            display: flex;
-            flex-direction: column;
-            gap: 16px;
-          }
-
-          .contact-item {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-
-            color: var(--primary);
-          }
-
-          .contact-item img {
-            width: 18px;
-            height: 18px;
-          }
-
-          /* RIGHT */
-
-          .footer-right {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 70px;
-            flex: 1;
-          }
-
-          .footer-column {
-            display: flex;
-            flex-direction: column;
-          }
-
-          .footer-column h4 {
-            color: var(--primary);
-            margin-bottom: 20px;
-            font-weight: 700;
-          }
-
-          .footer-column a {
-            text-decoration: none;
-            color: #64748b;
-            margin-bottom: 10px;
-            transition: 0.3s ease;
-          }
-
-          .footer-column a:hover {
-            color: var(--secondary);
-          }
-
-          /* BOTTOM */
-
-          .footer-bottom {
-            border-top: 1px solid rgba(23, 55, 94, 0.1);
-
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            gap: 16px;
-
-            padding: 22px;
-          }
-
-          .footer-bottom a {
-            text-decoration: none;
-            color: var(--primary);
-            transition: 0.3s ease;
-          }
-
-          .footer-bottom a:hover {
-            color: var(--secondary);
-          }
-
-          .footer-bottom span {
-            color: #94a3b8;
-          }
-
-          /* LARGE DESKTOP */
-
-          @media (min-width: 1600px) {
-            .footer-container {
-              max-width: 1700px;
-            }
-          }
-
-          /* LAPTOP */
-
-          @media (max-width: 1200px) {
-            .footer-container {
-              padding: 60px 40px;
-            }
-
-            .footer-right {
-              gap: 40px;
-            }
-          }
-
-          /* TABLET */
-
-          @media (max-width: 992px) {
-            .footer-container {
-              flex-direction: column;
-              gap: 50px;
-            }
-
-            .footer-left {
-              max-width: 100%;
-            }
-
-            .footer-right {
-              width: 100%;
-              grid-template-columns: repeat(3, 1fr);
-            }
-          }
-
-          /* MOBILE */
-
-          @media (max-width: 768px) {
-            .footer-container {
-              padding: 50px 20px;
-            }
-
-            .footer-right {
-              grid-template-columns: 1fr;
-              gap: 35px;
-            }
-
-            .footer-bottom {
-              flex-wrap: wrap;
-              gap: 10px;
-              text-align: center;
-            }
-
-            .footer-logo {
-              width: 170px;
-            }
-          }
-
-          /* SMALL MOBILE */
-
-          @media (max-width: 480px) {
-            .footer-container {
-              padding: 40px 16px;
-            }
-
-            .footer-logo {
-              width: 150px;
-            }
-
-            .contact-item {
-              font-size: 14px;
-            }
-
-            .footer-column a {
-              font-size: 14px;
-            }
-
-            .footer-bottom {
-              font-size: 13px;
-            }
-          }
-        `}
-      </style>
-
-      <footer className="footer-box">
-        <div className="footer-container">
-          <div className="footer-left">
-            <img src = "assets/logo/payrolllogo.svg"
-              alt="Cedar Payroll"
-              className="footer-logo"
-            />
-
-            <p className="footer-tagline">
-              Your People, Paid Right
-            </p>
-
-            <div className="footer-contact">
-              <div className="contact-item">
-                <img src = "/assets/icons/phone.svg" />
-                <span>+971 50 429 4194</span>
-              </div>
-
-              <div className="contact-item">
-                <img src = "/assets/icons/email.svg" />
-                <span>support@cedarpayroll.com</span>
-              </div>
-
-              <div className="contact-item">
-                <img src = "/assets/icons/location.svg" />
-                <span>United Kingdom</span>
-              </div>
-
-              <div className="contact-item">
-                <img src = "/assets/icons/clock.svg" />
-                <span>
-                  Mon - Fri, 9:00 AM - 5:30 PM
-                </span>
-              </div>
+    <footer className="footer-box">
+      <div className="footer-container">
+        <div className="footer-left">
+          <img
+            src="/assets/logo/payrolllogo.svg"
+            alt="Cedar Payroll"
+            className="footer-logo"
+          />
+          <p className="footer-tagline">Your People, Paid Right</p>
+          <div className="footer-contact">
+            <div className="contact-item">
+              <img src="/assets/icons/phone.svg" alt="" />
+              <span>+971 50 429 4194</span>
             </div>
-          </div>
-
-          <div className="footer-right">
-            <div className="footer-column">
-              <h4>What We Offer</h4>
-
-              <Link to="/services">Services</Link>
-              <Link to="/services">
-                Payroll for Employees
-              </Link>
-              <Link to="/services">
-                How It Works
-              </Link>
-              <Link to="/services">
-                For Growing Businesses
-              </Link>
+            <div className="contact-item">
+              <img src="/assets/icons/email.svg" alt="" />
+              <span>support@cedarpayroll.com</span>
             </div>
-
-            <div className="footer-column">
-              <h4>Who We Serve</h4>
-
-              <Link to="/whoweserve">
-                Industries We Serve
-              </Link>
-              <Link to="/whoweserve">
-                Our Clients
-              </Link>
-              <Link to="/whoweserve">
-                Client Success Stories
-              </Link>
-              <Link to="/whoweserve">
-                Testimonials
-              </Link>
+            <div className="contact-item">
+              <img src="/assets/icons/location.svg" alt="" />
+              <span>United Kingdom</span>
             </div>
-
-            <div className="footer-column">
-              <h4>About Cedar Payroll</h4>
-
-              <Link to="/about">Our Mission</Link>
-              <Link to="/about">Our Vision</Link>
-              <Link to="/about">Core Values</Link>
-              <Link to="/about">Global Presence</Link>
+            <div className="contact-item">
+              <img src="/assets/icons/clock.svg" alt="" />
+              <span>Mon - Fri, 9:00 AM - 5:30 PM</span>
             </div>
           </div>
         </div>
 
-        <div className="footer-bottom">
-          <Link to="/privacy">
-            Privacy Policy
-          </Link>
-
-          <span>|</span>
-
-          <Link to="/cookie">
-            Cookie Policy
-          </Link>
-
-          <span>|</span>
-
-          <Link to="/terms">
-            Terms & Conditions
-          </Link>
+        <div className="footer-right">
+          <div className="footer-column">
+            <h4>What We Offer</h4>
+            <Link to="/services">Services</Link>
+            <Link to="/services">Payroll for Employees</Link>
+            <Link to="/services">How It Works</Link>
+            <Link to="/services">For Growing Businesses</Link>
+          </div>
+          <div className="footer-column">
+            <h4>Who We Serve</h4>
+            <Link to="/whoweserve">Industries We Serve</Link>
+            <Link to="/whoweserve">Our Clients</Link>
+            <Link to="/whoweserve">Client Success Stories</Link>
+            <Link to="/whoweserve">Testimonials</Link>
+          </div>
+          <div className="footer-column">
+            <h4>About Cedar Payroll</h4>
+            <Link to="/about">Our Mission</Link>
+            <Link to="/about">Our Vision</Link>
+            <Link to="/about">Core Values</Link>
+            <Link to="/about">Global Presence</Link>
+          </div>
         </div>
-      </footer>
-    </>
+      </div>
+
+      <div className="footer-bottom">
+        <Link to="/privacy">Privacy Policy</Link>
+        <span>|</span>
+        <Link to="/cookie">Cookie Policy</Link>
+        <span>|</span>
+        <Link to="/terms">Terms & Conditions</Link>
+      </div>
+    </footer>
   );
 };
 

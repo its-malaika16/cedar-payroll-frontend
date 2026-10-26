@@ -4,17 +4,20 @@ const FeatureHeroSection = () => {
   return (
     <section className="feature-hero">
       <div className="feature-hero-container">
-        <h1 className="feature-hero-title main-title">
-          Payroll Infrastructure Built
+        <p className="cedar-kicker">What we offer</p>
+        <h1 className="feature-hero-title">
+          Payroll infrastructure built
           <br />
-          for Global Business
+          for <span>global business</span>
         </h1>
-
-        <p className="feature-hero-description body-3-2 ">
-          Connecting banks, financial institutions and
-          enterprises to our next-generation payment
-          solutions.
+        <p className="feature-hero-description">
+          Connecting businesses to next-generation payroll, payments, and compliance in one platform.
         </p>
+        <div className="features-orbs feature-hero-orbs" aria-hidden="true">
+          <span />
+          <span />
+          <span />
+        </div>
       </div>
     </section>
   );

@@ -1,59 +1,71 @@
 import "./platform-solution-section.css";
-import DashboardDemo from "./DashboardDemo";
 
 const solutions = [
   {
-    title: "Employee Records",
+    title: "Multi-Currency Banking",
     description:
-      "Keep employee information organised and up to date in one secure place.",
+      "Hold, manage, and transfer funds across multiple currencies with instant internal transfers and real-time balance tracking.",
   },
   {
-    title: "Payslip Generation",
+    title: "Global Payment Solutions",
     description:
-       "Create and distribute payslips in just a few clicks.",
+      "Process international payments quickly and securely through trusted global networks.",
   },
   {
-    title: "Holiday & Absence Tracking",
+    title: "Real-Time FX Services",
     description:
-    "Monitor leave, sickness, and attendance alongside payroll processing.",
-      
+      "Access live exchange rates and automate currency conversions globally.",
   },
 ];
 
 const PlatformSolutionsSection = () => {
   return (
     <section className="platform-solutions">
-      <div className="platform-solutions-container">
-        {/* Left Image */}
-
-        <div className="platform-image-wrapper">
-          <img src = "/assets/images/home.svg" className = "platform-image"/>
+      <div className="offer-intro">
+        <div className="offer-intro-copy">
+          <p className="cedar-kicker">What we offer</p>
+          <h2 className="offer-intro-title">
+            Everything you need
+            <br />
+            for <span>payroll</span>
+          </h2>
+          <p className="offer-intro-lead">
+            From timesheets to HMRC submissions, Cedar Payroll keeps your people paid accurately and on time.
+          </p>
         </div>
+        <div className="features-orbs offer-orbs" aria-hidden="true">
+          <span />
+          <span />
+          <span />
+        </div>
+      </div>
 
-        {/* Right Content */}
-
+      <div className="platform-solutions-container">
         <div className="platform-content">
-          <p className="platform-heading subheading">
-            Efficient & Reliable Payroll
-            {/* <br /> */}
-            
+          <p className="cedar-kicker">Our Features</p>
+          <p className="platform-heading">
+            Efficient &amp; Reliable Payroll
           </p>
 
           <div className="solution-list">
             {solutions.map((item, index) => (
-              <div
-                key={index}
-                className={`solution-item ${
-                  index !== solutions.length - 1
-                    ? "with-border"
-                    : ""
-                }`}
-              >
-                <h3 className = "body-4">{item.title}</h3>
-                <p className = "body-5">{item.description}</p>
+              <div className="solution-item" key={item.title}>
+                <span className="solution-index">{String(index + 1).padStart(2, "0")}</span>
+                <div>
+                  <h3>{item.title}</h3>
+                  <p>{item.description}</p>
+                </div>
               </div>
             ))}
           </div>
+        </div>
+
+        <div className="platform-image-wrapper">
+          <img
+            src="/assets/images/home.svg"
+            className="platform-image"
+            alt="Payroll features illustration"
+          />
         </div>
       </div>
     </section>

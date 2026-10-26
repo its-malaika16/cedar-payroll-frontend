@@ -1,228 +1,76 @@
 .contact-cards-section {
   width: 100%;
-  background: var(--primary);
-  padding: 100px 80px;
+  background: var(--background);
+  padding: 20px 24px 80px;
 }
 
 .contact-cards-container {
-  max-width: 1500px;
+  max-width: 1200px;
   margin: 0 auto;
 }
 
-/* ==========================
-   HEADING
-========================== */
-
 .contact-cards-heading {
-  color: #ffffff;
-  margin-bottom: 50px;
+  color: var(--primary);
+  font-size: 32px;
+  font-weight: 800;
+  margin-bottom: 28px;
 }
-
-/* ==========================
-   GRID
-========================== */
 
 .contact-cards-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 20px;
-  align-items: stretch;
+  gap: 18px;
 }
 
-/* ==========================
-   CARD
-========================== */
-
 .contact-card {
-  background: #d9d9d9;
+  background: #ffffff;
   border-radius: 22px;
-
-  width: 100%;
-  height: 100%;
   min-height: 240px;
-
-  padding: 28px;
-
+  padding: 28px 22px;
   display: flex;
   flex-direction: column;
+  box-shadow: 0 12px 32px rgba(23, 55, 94, 0.08);
+  animation: cedar-rise 0.7s ease both;
 }
 
 .contact-icon-circle {
-  width: 60px;
-  height: 60px;
-
+  width: 64px;
+  height: 64px;
   border-radius: 50%;
-  background: #f4f4f4;
-
+  background: var(--primary);
   display: flex;
   justify-content: center;
   align-items: center;
-
-  margin-bottom: 24px;
+  margin-bottom: 22px;
 }
 
 .contact-icon {
-  width: 28px;
-  height: 28px;
+  width: 26px;
+  height: 26px;
   object-fit: contain;
-}
-
-.contact-card-title {
-  color: var(--primary);
-  margin-bottom: 16px;
+  filter: brightness(0) invert(1);
 }
 
 .contact-card-line1 {
   color: var(--primary);
   line-height: 1.4;
+  font-weight: 700;
 }
 
 .contact-card-line2 {
-  color: var(--primary);
-  margin-top: 4px;
-  line-height: 1.4;
+  color: #4a5870;
+  margin-top: 8px;
+  line-height: 1.5;
 }
-
-/* ==========================
-   LARGE DESKTOP
-========================== */
-
-@media (min-width: 1600px) {
-  .contact-cards-container {
-    max-width: 1650px;
-  }
-
-  .contact-cards-grid {
-    gap: 30px;
-  }
-}
-
-/* ==========================
-   DESKTOP
-========================== */
-
-@media (max-width: 1400px) {
-  .contact-cards-section {
-    padding: 90px 60px;
-  }
-
-  .contact-cards-grid {
-    grid-template-columns: repeat(4, 1fr);
-  }
-}
-
-/* ==========================
-   LAPTOP
-========================== */
-
-@media (max-width: 1200px) {
-  .contact-cards-grid {
-    grid-template-columns: repeat(2, 1fr);
-    gap: 24px;
-  }
-
-  .contact-card-title {
-    font-size: 28px;
-  }
-
-  .contact-card-line1 {
-    font-size: 18px;
-  }
-
-  .contact-card-line2 {
-    font-size: 16px;
-  }
-}
-
-/* ==========================
-   TABLET
-========================== */
 
 @media (max-width: 992px) {
-  .contact-cards-section {
-    padding: 80px 40px;
-  }
-
   .contact-cards-grid {
     grid-template-columns: repeat(2, 1fr);
-    gap: 24px;
-  }
-
-  .contact-cards-heading {
-    text-align: center;
-  }
-
-  .contact-card {
-    min-height: 220px;
   }
 }
 
-/* ==========================
-   MOBILE
-========================== */
-
-@media (max-width: 768px) {
-  .contact-cards-section {
-    padding: 70px 20px;
-  }
-
+@media (max-width: 640px) {
   .contact-cards-grid {
     grid-template-columns: 1fr;
-    gap: 20px;
-  }
-
-  .contact-cards-heading {
-    margin-bottom: 35px;
-  }
-
-  .contact-card {
-    min-height: auto;
-    padding: 24px;
-  }
-
-  .contact-card-title {
-    font-size: 24px;
-  }
-
-  .contact-card-line1 {
-    font-size: 16px;
-  }
-
-  .contact-card-line2 {
-    font-size: 15px;
-  }
-}
-
-/* ==========================
-   SMALL MOBILE
-========================== */
-
-@media (max-width: 480px) {
-  .contact-cards-section {
-    padding: 60px 16px;
-  }
-
-  .contact-card {
-    border-radius: 20px;
-    padding: 20px;
-  }
-
-  .contact-icon-circle {
-    width: 52px;
-    height: 52px;
-  }
-
-  .contact-icon {
-    width: 22px;
-    height: 22px;
-  }
-
-  .contact-card-title {
-    font-size: 22px;
-  }
-
-  .contact-card-line1,
-  .contact-card-line2 {
-    font-size: 14px;
   }
 }
