@@ -44,30 +44,17 @@ const HowItWorksSection = () => {
     <section className="how-it-works">
       <div className="how-it-works-container">
         <div className="how-it-works-header">
-          <h2 className="how-it-works-title main-title">
-            How It Works
-          </h2>
-
-          <p className="how-it-works-subtitle body-3-2 ">
-            Get your payroll up and running in six simple steps
-          </p>
+          <p className="cedar-kicker how-it-works-kicker">How it works</p>
+          <h2 className="how-it-works-title">Simple Steps. Seamless Management.</h2>
         </div>
 
         <div className="steps-grid">
-          {steps.map((step, index) => (
-            <div className="step-card" key={index}>
-              <span className="step-number number">
-                {step.number}
-              </span>
-
-              <h3 className="step-title number">
-                {step.title}
-              </h3>
-
-              <p className="step-description lighttext">
-                {step.description}
-              </p>
-            </div>
+          {steps.map((step) => (
+            <article className="step-card" key={step.number}>
+              <span className="step-number">{step.number}</span>
+              <h3 className="step-title">{step.title}</h3>
+              <p className="step-description">{step.description}</p>
+            </article>
           ))}
         </div>
       </div>

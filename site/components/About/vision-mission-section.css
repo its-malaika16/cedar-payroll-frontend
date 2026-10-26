@@ -1,58 +1,61 @@
 .mission-vision {
   width: 100%;
-  background: var(--background);
-  padding: 40px 24px 80px;
+  background: #fff;
 }
 
 .mission-vision-container {
-  max-width: 1100px;
+  width: min(var(--page-max), 100%);
   margin: 0 auto;
+  padding: clamp(48px, 6vw, 80px) var(--page-gutter);
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 28px;
 }
 
 .mission-card {
-  background: #ffffff;
-  border-radius: 24px;
-  padding: 40px 32px;
-  box-shadow: 0 16px 40px rgba(23, 55, 94, 0.08);
-  animation: cedar-rise 0.7s ease both;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 8px clamp(24px, 4vw, 48px);
 }
 
-.mission-icon-wrapper {
-  width: 84px;
-  height: 84px;
-  background: var(--primary);
-  border-radius: 50%;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  margin-bottom: 22px;
+.mission-card:first-child {
+  border-right: 1px solid rgba(23, 55, 94, 0.16);
 }
 
 .mission-icon {
-  width: 40px;
-  height: 40px;
-  object-fit: contain;
-  filter: brightness(0) invert(1);
+  display: block;
+  width: 64px;
+  height: auto;
+  margin-bottom: 22px;
 }
 
 .mission-title {
+  margin: 0 0 16px;
   color: var(--primary);
-  font-size: 32px;
+  font-size: clamp(26px, 2.6vw, 34px);
   font-weight: 800;
-  margin-bottom: 14px;
+  letter-spacing: -0.02em;
 }
 
 .mission-description {
-  color: #4a5870;
-  font-size: 16px;
+  margin: 0 auto;
+  max-width: 28em;
+  color: var(--primary);
+  font-size: clamp(15px, 1.05vw, 17px);
   line-height: 1.65;
+  text-align: left;
 }
 
 @media (max-width: 800px) {
   .mission-vision-container {
     grid-template-columns: 1fr;
+    gap: 36px;
+  }
+
+  .mission-card:first-child {
+    border-right: 0;
+    border-bottom: 1px solid rgba(23, 55, 94, 0.16);
+    padding-bottom: 36px;
   }
 }

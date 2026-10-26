@@ -19,7 +19,7 @@ const Footer = () => {
             </div>
             <div className="contact-item">
               <img src="/assets/icons/email.svg" alt="" />
-              <span>support@cedarpayroll.com</span>
+              <a href="mailto:support@cedarpayroll.com">support@cedarpayroll.com</a>
             </div>
             <div className="contact-item">
               <img src="/assets/icons/location.svg" alt="" />
@@ -33,36 +33,38 @@ const Footer = () => {
         </div>
 
         <div className="footer-right">
-          <div className="footer-column">
-            <h4>What We Offer</h4>
-            <Link to="/services">Services</Link>
-            <Link to="/services">Payroll for Employees</Link>
-            <Link to="/services">How It Works</Link>
-            <Link to="/services">For Growing Businesses</Link>
+          <div className="footer-columns">
+            <div className="footer-column">
+              <h4>What We Offer</h4>
+              <Link to="/services">Services</Link>
+              <Link to="/services">Payroll for Employees</Link>
+              <Link to="/services">How It Works</Link>
+              <Link to="/services">For Growing Businesses</Link>
+            </div>
+            <div className="footer-column">
+              <h4>Who We Serve</h4>
+              <Link to="/whoweserve">Industries We Serve</Link>
+              <Link to="/whoweserve">Our Clients</Link>
+              <Link to="/whoweserve">Client Success Stories</Link>
+              <Link to="/whoweserve">Testimonials</Link>
+            </div>
+            <div className="footer-column">
+              <h4>About Cedar Payroll</h4>
+              <Link to="/about">Our Mission</Link>
+              <Link to="/about">Our Vision</Link>
+              <Link to="/about">Core Values</Link>
+              <Link to="/about">Global Presence</Link>
+            </div>
           </div>
-          <div className="footer-column">
-            <h4>Who We Serve</h4>
-            <Link to="/whoweserve">Industries We Serve</Link>
-            <Link to="/whoweserve">Our Clients</Link>
-            <Link to="/whoweserve">Client Success Stories</Link>
-            <Link to="/whoweserve">Testimonials</Link>
-          </div>
-          <div className="footer-column">
-            <h4>About Cedar Payroll</h4>
-            <Link to="/about">Our Mission</Link>
-            <Link to="/about">Our Vision</Link>
-            <Link to="/about">Core Values</Link>
-            <Link to="/about">Global Presence</Link>
+
+          <div className="footer-legal">
+            <Link to="/privacy">Privacy Policy</Link>
+            <span>|</span>
+            <Link to="/cookie">Cookie Policy</Link>
+            <span>|</span>
+            <Link to="/terms">Terms &amp; Conditions</Link>
           </div>
         </div>
-      </div>
-
-      <div className="footer-bottom">
-        <Link to="/privacy">Privacy Policy</Link>
-        <span>|</span>
-        <Link to="/cookie">Cookie Policy</Link>
-        <span>|</span>
-        <Link to="/terms">Terms & Conditions</Link>
       </div>
     </footer>
   );

@@ -34,6 +34,12 @@
 
   font-size: 34px;
   cursor: pointer;
+  color: var(--primary);
+  transition: color 0.2s ease;
+}
+
+.modal-close:hover {
+  color: var(--secondary);
 }
 
 .modal-title {
@@ -92,6 +98,12 @@
 
   font-weight: 700;
   cursor: pointer;
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+
+.pricing-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 24px rgba(211, 32, 39, 0.28);
 }
 
 .privacy-line{

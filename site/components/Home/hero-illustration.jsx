@@ -3,11 +3,20 @@ import "./hero-illustration.css";
 const HeroIllustration = () => {
   return (
     <div className="hero-illustration">
-      <img
-        src="/assets/redesign/hero-dashboard.png"
-        alt="Cedar Payroll dashboard on a laptop"
+      <svg
         className="hero-illustration-art"
-      />
+        viewBox="0 0 707 472"
+        role="img"
+        aria-label="Cedar Payroll dashboard on a laptop"
+      >
+        <image
+          href="/assets/redesign/hero-dashboard-hi.png"
+          xlinkHref="/assets/redesign/hero-dashboard-hi.png"
+          width="707"
+          height="472"
+          preserveAspectRatio="xMidYMid meet"
+        />
+      </svg>
     </div>
   );
 };

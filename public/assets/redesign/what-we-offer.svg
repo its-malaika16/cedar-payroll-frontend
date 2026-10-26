@@ -1,0 +1,14 @@
+<svg width="434" height="590" viewBox="0 0 434 590" fill="none" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+<g opacity="0.69">
+<use xlink:href="#stroke0_107_13" fill="#17375E"/>
+<mask id="stroke1_107_13" fill="white">
+<use xlink:href="#stroke0_107_13"/>
+</mask>
+<path d="M679 428C679 578.774 559.684 701 412.5 701C265.316 701 146 578.774 146 428C146 277.226 265.316 155 412.5 155C559.684 155 679 277.226 679 428Z" stroke-width="2" stroke="#17375E" mask="url(#stroke1_107_13)"/>
+</g>
+<ellipse opacity="0.69" cx="385.5" cy="99" rx="225.5" ry="223" fill="#D32027"/>
+<ellipse opacity="0.69" cx="160.5" cy="-57" rx="132.5" ry="131" fill="#D9D9D9"/>
+<defs>
+<path id="stroke0_107_13" d="M679 428C679 578.774 559.684 701 412.5 701C265.316 701 146 578.774 146 428C146 277.226 265.316 155 412.5 155C559.684 155 679 277.226 679 428Z"/>
+</defs>
+</svg>

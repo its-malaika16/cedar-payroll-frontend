@@ -1,78 +1,78 @@
 .payroll-cta {
-  padding: 40px 24px 96px;
-  background: var(--background);
-}
-
-.payroll-cta-container {
-  max-width: 1100px;
-  margin: 0 auto;
-}
-
-.cta-card {
   background: var(--primary);
   color: #ffffff;
-  border-radius: 28px;
-  padding: 64px 56px;
-  text-align: center;
-  position: relative;
-  overflow: hidden;
-  animation: cedar-rise 0.7s ease both;
 }
 
-.cta-card::after {
-  content: "";
-  position: absolute;
-  width: 280px;
-  height: 280px;
-  border-radius: 50%;
-  background: rgba(211, 32, 39, 0.28);
-  right: -80px;
-  top: -90px;
+.payroll-cta-split {
+  width: min(var(--page-max), 100%);
+  margin: 0 auto;
+  padding: 0 var(--page-gutter);
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+}
+
+.cta-panel {
+  padding: clamp(48px, 6vw, 80px) clamp(8px, 3vw, 48px) clamp(48px, 6vw, 80px) 0;
+}
+
+.cta-panel-right {
+  border-left: 1px solid rgba(255, 255, 255, 0.22);
+  padding-left: clamp(24px, 4vw, 56px);
+  padding-right: 0;
 }
 
 .cta-title {
-  font-size: clamp(32px, 4vw, 48px);
+  font-size: clamp(28px, 3vw, 44px);
   font-weight: 800;
-  margin: 10px 0 16px;
-}
-
-.cta-description {
-  max-width: 680px;
-  margin: 0 auto 32px;
-  line-height: 1.6;
-  opacity: 0.92;
-}
-
-.cta-actions {
-  display: flex;
-  justify-content: center;
-  gap: 16px;
-  flex-wrap: wrap;
-}
-
-.cta-button,
-.cta-link {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 52px;
-  padding: 0 28px;
-  border-radius: 12px;
-  font-weight: 700;
-}
-
-.cta-button {
-  background: var(--secondary);
+  line-height: 1.15;
+  margin: 14px 0 18px;
   color: #ffffff;
 }
 
-.cta-link {
-  background: #ffffff;
-  color: var(--primary);
+.cta-description {
+  max-width: 460px;
+  line-height: 1.6;
+  font-size: clamp(14px, 0.95vw, 16px);
+  color: rgba(255, 255, 255, 0.86);
+  margin-bottom: 28px;
 }
 
-@media (max-width: 640px) {
-  .cta-card {
-    padding: 40px 22px;
+.cta-link-light {
+  color: #ffffff;
+  font-weight: 700;
+  font-size: 16px;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+.cta-link-red {
+  color: var(--secondary);
+  font-weight: 700;
+  font-size: 16px;
+}
+
+.cta-link-red,
+.cta-link-light {
+  transition: opacity 0.2s ease;
+}
+
+.cta-link-red:hover,
+.cta-link-light:hover {
+  opacity: 0.8;
+}
+
+@media (max-width: 900px) {
+  .payroll-cta-split {
+    grid-template-columns: 1fr;
+  }
+
+  .cta-panel,
+  .cta-panel-right {
+    padding: 40px 0;
+  }
+
+  .cta-panel-right {
+    border-left: none;
+    border-top: 1px solid rgba(255, 255, 255, 0.22);
   }
 }

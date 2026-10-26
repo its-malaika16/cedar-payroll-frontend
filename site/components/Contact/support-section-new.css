@@ -106,7 +106,9 @@
 }
 
 .sales-btn:hover {
-  opacity: 0.9;
+  transform: translateY(-2px);
+  box-shadow: 0 12px 24px rgba(211, 32, 39, 0.28);
+  color: #ffffff;
 }
 
 /* ==========================

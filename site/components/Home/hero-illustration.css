@@ -1,28 +1,62 @@
 .hero-illustration {
   position: relative;
-  width: 100%;
-  max-width: 820px;
+  width: min(128%, 1080px);
+  max-width: none;
   margin-left: auto;
-  aspect-ratio: 707 / 472;
+  margin-right: -8%;
+  background: var(--background);
 }
 
 .hero-illustration-art {
-  position: relative;
-  z-index: 1;
+  display: block;
   width: 100%;
   height: auto;
-  display: block;
+  overflow: visible;
+  animation: hero-art-float 5s ease-in-out infinite;
+  will-change: transform;
+}
+
+@keyframes hero-art-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-illustration-art {
+    animation: none;
+  }
+}
+
+@media (min-width: 1400px) {
+  .hero-illustration {
+    width: min(136%, 1240px);
+    margin-right: -12%;
+  }
+}
+
+@media (min-width: 1800px) {
+  .hero-illustration {
+    width: min(142%, 1360px);
+    margin-right: -14%;
+  }
 }
 
 @media (max-width: 1100px) {
   .hero-illustration {
+    width: min(94vw, 920px);
     margin: 0 auto;
-    max-width: 640px;
   }
 }
 
 @media (max-width: 720px) {
   .hero-illustration {
-    max-width: 100%;
+    width: 100%;
+    max-width: none;
+    margin: 0 auto;
   }
 }

@@ -10,6 +10,7 @@ const ContactSection = () => {
     company: "",
     employees: "",
     country: "United Kingdom",
+    needs: "",
   });
 
   const [loading, setLoading] = useState(false);
@@ -52,6 +53,7 @@ const ContactSection = () => {
           company: "",
           employees: "",
           country: "United Kingdom",
+          needs: "",
         });
       } else {
         alert(result.message);
@@ -249,6 +251,15 @@ const ContactSection = () => {
               <option>Zimbabwe</option>
             </select>
           </div>
+
+          <textarea
+            name="needs"
+            className="contact-needs"
+            placeholder="Tell us about your payroll needs..."
+            value={formData.needs}
+            onChange={handleChange}
+            rows={5}
+          />
 
           <p className="privacy-line">
             By clicking Contact Us, you acknowledge

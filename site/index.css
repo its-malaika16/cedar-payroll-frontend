@@ -39,6 +39,10 @@
   --primary: #17375e;
   --secondary: #d32027;
   --background: #f8f7f4;
+  --card-grey: #e8e9ec;
+  --muted-text: #5b6a7c;
+  --page-max: 1180px;
+  --page-gutter: clamp(20px, 4.2vw, 72px);
 
   /* Font Family */
   --font-primary: "Montserrat", sans-serif;
@@ -211,6 +215,56 @@ img {
   text-transform: uppercase;
 }
 
+.page-wrap {
+  width: min(var(--page-max), 100%);
+  margin-inline: auto;
+  padding-inline: var(--page-gutter);
+}
+
+.home-circle-icon {
+  width: 58px;
+  height: 58px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  color: var(--secondary);
+}
+
+.home-circle-icon svg {
+  width: 26px;
+  height: 26px;
+  display: block;
+}
+
+.home-circle-icon--outline {
+  border: 1.6px solid var(--secondary);
+  background: transparent;
+}
+
+.home-circle-icon--light {
+  background: #ffffff;
+  border: none;
+}
+
+@media (min-width: 1400px) {
+  :root {
+    --page-max: 1320px;
+  }
+}
+
+@media (min-width: 1800px) {
+  :root {
+    --page-max: 1480px;
+  }
+}
+
+@media (min-width: 2400px) {
+  :root {
+    --page-max: 1640px;
+  }
+}
+
 .cedar-blob {
   position: absolute;
   border-radius: 50%;
@@ -251,4 +305,14 @@ img {
   right: 0;
   bottom: 20px;
   background: rgba(211, 32, 39, 0.12);
+}
+
+@media (hover: hover) {
+  .logo img {
+    transition: opacity 0.25s ease;
+  }
+
+  .logo:hover img {
+    opacity: 0.82;
+  }
 }

@@ -1,194 +1,186 @@
 .client-success-section {
   width: 100%;
   background: var(--background);
-  padding: 100px 80px;
 }
 
 .client-success-container {
-  max-width: 1400px;
+  width: min(var(--page-max), 100%);
   margin: 0 auto;
+  padding: clamp(24px, 4vw, 48px) var(--page-gutter) clamp(56px, 7vw, 96px);
 }
 
-/* ======================
-   HEADER
-====================== */
-
 .client-success-header {
-  max-width: 850px;
-  margin-bottom: 60px;
+  max-width: 46em;
+  margin: 0 auto clamp(48px, 6vw, 80px);
+  text-align: center;
+}
+
+.client-success-kicker {
+  margin: 0 0 10px;
+  color: var(--secondary);
+  font-size: clamp(18px, 1.8vw, 22px);
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  line-height: 1.2;
+  text-transform: uppercase;
 }
 
 .client-success-title {
+  margin: 0 0 16px;
   color: var(--primary);
-  margin-bottom: 16px;
-}
-
-.client-success-subtitle {
-  color: var(--secondary);
-  font-weight: 700;
-  margin-bottom: 18px;
+  font-size: clamp(28px, 3.4vw, 42px);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1.15;
 }
 
 .client-success-description {
-  color: var(--primary);
-  line-height: 1.7;
+  margin: 0;
+  color: #7a8796;
+  font-size: clamp(15px, 1.05vw, 17px);
+  line-height: 1.6;
 }
 
-/* ======================
-   CARDS
-====================== */
-
-.success-cards {
+.success-stories {
   display: flex;
   flex-direction: column;
-  gap: 40px;
+  gap: clamp(56px, 7vw, 96px);
 }
 
-.success-card {
-  background: #ffffff;
-
-  border-radius: 24px;
-  border: 1px solid rgba(23, 55, 94, 0.12);
-
-  padding: 35px;
-
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.04);
+.success-story {
+  display: grid;
+  grid-template-columns: minmax(0, 0.92fr) minmax(0, 1.08fr);
+  gap: clamp(20px, 4vw, 56px);
+  align-items: start;
 }
 
-/* ======================
-   CARD HEADER
-====================== */
-
-.card-header {
+.success-visual {
+  min-width: 0;
   display: flex;
-  justify-content: space-between;
   align-items: center;
-
-  gap: 30px;
-
-  margin-bottom: 25px;
 }
 
-.company-name {
-  color: var(--primary);
-  margin-bottom: 8px;
-}
-
-.company-subtitle {
-  color: var(--primary);
-  font-weight: 600;
-}
-
-.company-logo {
-  max-width: 180px;
+.success-mark {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
   width: 100%;
+  height: clamp(260px, 30vw, 320px);
+  overflow: hidden;
+}
+
+.success-moon {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  z-index: 0;
+  width: min(44%, 180px);
+  height: auto;
+  pointer-events: none;
+  overflow: visible;
+}
+
+.success-moon-shape {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: success-moon-pulse 4.2s ease-in-out infinite;
+}
+
+@keyframes success-moon-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.04);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .success-moon-shape {
+    animation: none;
+  }
+}
+
+.success-logo {
+  position: relative;
+  z-index: 1;
+  display: block;
+  width: min(280px, 66%);
+  margin: 24px 8% 0 10%;
   height: auto;
   object-fit: contain;
 }
 
-/* ======================
-   CONTENT
-====================== */
-
-.content-block h4 {
-  color: var(--secondary);
-  margin-bottom: 10px;
+.success-copy {
+  min-width: 0;
+  max-width: 34em;
+  padding-top: 8px;
 }
 
-.content-block p {
+.success-company {
+  margin: 0 0 8px;
+  color: var(--secondary);
+  font-size: clamp(24px, 2.3vw, 32px);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+  text-transform: uppercase;
+}
+
+.success-subtitle {
+  margin: 0 0 28px;
   color: var(--primary);
+  font-size: clamp(20px, 1.8vw, 26px);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.25;
+}
+
+.success-label {
+  margin: 26px 0 10px;
+  color: var(--secondary);
+  font-size: clamp(16px, 1.15vw, 18px);
+  font-weight: 800;
+}
+
+.success-text {
+  margin: 0;
+  color: var(--primary);
+  font-size: 16px;
   line-height: 1.7;
 }
 
-.content-block ul {
-  padding-left: 20px;
-  list-style: circle;
-}
-
-.content-block li {
+.success-results {
+  margin: 0;
+  padding-left: 1.2em;
   color: var(--primary);
-  line-height: 1.8;
+  font-size: 16px;
+  line-height: 1.75;
+  list-style: disc;
 }
 
-.divider {
-  width: 100%;
-  height: 1px;
-
-  background: rgba(23, 55, 94, 0.15);
-
-  margin: 22px 0;
+.success-results li {
+  margin: 0 0 6px;
 }
 
-/* ======================
-   DESKTOP
-====================== */
-
-@media (max-width: 1400px) {
-  .client-success-section {
-    padding: 90px 60px;
-  }
-}
-
-/* ======================
-   TABLET
-====================== */
-
-@media (max-width: 992px) {
-  .client-success-section {
-    padding: 80px 40px;
+@media (max-width: 800px) {
+  .success-story {
+    grid-template-columns: 1fr;
+    gap: 8px;
   }
 
-  .card-header {
-    flex-direction: column;
-    align-items: flex-start;
+  .success-mark {
+    height: 240px;
   }
 
-  .company-logo {
-    max-width: 150px;
-  }
-}
-
-/* ======================
-   MOBILE
-====================== */
-
-@media (max-width: 768px) {
-  .client-success-section {
-    padding: 70px 20px;
+  .success-logo {
+    width: min(240px, 70%);
+    margin: 20px 4% 0 22%;
   }
 
-  .success-card {
-    padding: 24px;
-  }
-
-  .client-success-header {
-    margin-bottom: 40px;
-  }
-
-  .company-logo {
-    max-width: 130px;
-  }
-}
-
-/* ======================
-   SMALL MOBILE
-====================== */
-
-@media (max-width: 480px) {
-  .client-success-section {
-    padding: 60px 16px;
-  }
-
-  .success-card {
-    padding: 20px;
-    border-radius: 20px;
-  }
-
-  .card-header {
-    gap: 16px;
-  }
-
-  .company-logo {
-    max-width: 110px;
+  .success-copy {
+    max-width: none;
   }
 }

@@ -4,20 +4,17 @@ const AboutHeroSection = () => {
   return (
     <section className="about-hero">
       <div className="about-content">
-        <p className="cedar-kicker">About Cedar Payroll</p>
+        <p className="cedar-kicker about-kicker">About Cedar Payroll</p>
         <h1 className="about-title">
-          People First.
+          Your Payroll.
           <br />
-          Payroll Perfected.
+          <span>Perfectly Managed.</span>
         </h1>
         <p className="about-description">
-          We are more than a payroll provider. We are your trusted partner in ensuring your most valuable asset — your people — are paid accurately and on time.
+          Cedar Payroll simplifies payroll management with accurate
+          calculations, secure processes, and seamless solutions that help your
+          business run efficiently.
         </p>
-      </div>
-      <div className="features-orbs about-hero-orbs" aria-hidden="true">
-        <span />
-        <span />
-        <span />
       </div>
     </section>
   );

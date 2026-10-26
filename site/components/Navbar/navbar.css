@@ -9,9 +9,9 @@
 }
 
 .navbar-container {
-  max-width: 1370px;
+  width: min(var(--page-max), 100%);
   margin: 0 auto;
-  padding: 18px 40px;
+  padding: 18px var(--page-gutter);
   display: flex;
   align-items: center;
   gap: 36px;
@@ -137,11 +137,6 @@
   transform: translateY(-8px) rotate(-45deg);
 }
 
-@media (min-width: 1600px) {
-  .navbar-container {
-    max-width: 1500px;
-  }
-}
 
 @media (max-width: 1200px) {
   .nav-links {
