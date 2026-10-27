@@ -55,7 +55,7 @@ const ArrowIcon = () => (
 
 const PayrollFeaturesSection = () => {
   return (
-    <section className="offer-cards">
+    <section className="offer-cards" id="services">
       <div className="offer-cards-container">
         {features.map((feature) => (
           <article className="offer-card" key={feature.title}>

@@ -28,7 +28,7 @@ const LogoRow = ({ hidden }) => (
 
 const ClientsSection = () => {
   return (
-    <section className="clients-section">
+    <section className="clients-section" id="our-clients">
       <div className="clients-container">
         <h2 className="clients-heading">Our Clients</h2>
 

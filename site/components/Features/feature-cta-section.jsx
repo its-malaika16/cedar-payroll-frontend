@@ -3,7 +3,7 @@ import "./feature-cta-section.css";
 
 const ManagedPayrollSection = () => {
   return (
-    <section className="managed-payroll">
+    <section className="managed-payroll" id="growing-businesses">
       <div className="managed-payroll-container">
         <div className="managed-payroll-image-wrapper">
           <svg

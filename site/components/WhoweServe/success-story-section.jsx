@@ -93,7 +93,7 @@ const SuccessMoon = ({ variant }) =>
 
 const ClientSuccessSection = () => {
   return (
-    <section className="client-success-section">
+    <section className="client-success-section" id="success-stories">
       <div className="client-success-container">
         <header className="client-success-header">
           <p className="client-success-kicker">Client Success Stories</p>

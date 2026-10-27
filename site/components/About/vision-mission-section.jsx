@@ -24,7 +24,11 @@ const MissionVisionSection = () => {
     <section className="mission-vision">
       <div className="mission-vision-container">
         {sections.map((item) => (
-          <article className="mission-card" key={item.title}>
+          <article
+              className="mission-card"
+              id={item.title === "Our Mission" ? "mission" : "vision"}
+              key={item.title}
+            >
             <svg
               className="mission-icon"
               viewBox={`0 0 ${item.width} ${item.height}`}

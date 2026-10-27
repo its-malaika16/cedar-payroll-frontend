@@ -41,7 +41,7 @@ const steps = [
 
 const HowItWorksSection = () => {
   return (
-    <section className="how-it-works">
+    <section className="how-it-works" id="how-it-works">
       <div className="how-it-works-container">
         <div className="how-it-works-header">
           <p className="cedar-kicker how-it-works-kicker">How it works</p>

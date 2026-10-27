@@ -36,24 +36,24 @@ const Footer = () => {
           <div className="footer-columns">
             <div className="footer-column">
               <h4>What We Offer</h4>
-              <Link to="/services">Services</Link>
-              <Link to="/services">Payroll for Employees</Link>
-              <Link to="/services">How It Works</Link>
-              <Link to="/services">For Growing Businesses</Link>
+              <Link to="/services#services">Services</Link>
+              <Link to="/services#payroll-for-employees">Payroll for Employees</Link>
+              <Link to="/services#how-it-works">How It Works</Link>
+              <Link to="/services#growing-businesses">For Growing Businesses</Link>
             </div>
             <div className="footer-column">
               <h4>Who We Serve</h4>
-              <Link to="/whoweserve">Industries We Serve</Link>
-              <Link to="/whoweserve">Our Clients</Link>
-              <Link to="/whoweserve">Client Success Stories</Link>
-              <Link to="/whoweserve">Testimonials</Link>
+              <Link to="/whoweserve#industries">Industries We Serve</Link>
+              <Link to="/whoweserve#our-clients">Our Clients</Link>
+              <Link to="/whoweserve#success-stories">Client Success Stories</Link>
+              <Link to="/whoweserve#testimonials">Testimonials</Link>
             </div>
             <div className="footer-column">
               <h4>About Cedar Payroll</h4>
-              <Link to="/about">Our Mission</Link>
-              <Link to="/about">Our Vision</Link>
-              <Link to="/about">Core Values</Link>
-              <Link to="/about">Global Presence</Link>
+              <Link to="/about#mission">Our Mission</Link>
+              <Link to="/about#vision">Our Vision</Link>
+              <Link to="/about#core-values">Core Values</Link>
+              <Link to="/about#global-presence">Global Presence</Link>
             </div>
           </div>
 

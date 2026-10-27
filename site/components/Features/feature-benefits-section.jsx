@@ -59,7 +59,7 @@ const benefits = [
 
 const FeatureBenefitsSection = () => {
   return (
-    <section className="offer-benefits">
+    <section className="offer-benefits" id="payroll-for-employees">
       <div className="offer-benefits-container">
         <div className="offer-benefits-header">
           <p className="cedar-kicker offer-benefits-kicker">

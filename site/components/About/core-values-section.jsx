@@ -33,7 +33,7 @@ const values = [
 
 const CoreValuesSection = () => {
   return (
-    <section className="core-values">
+    <section className="core-values" id="core-values">
       <div className="core-values-container">
         <div className="core-values-header">
           <p className="cedar-kicker core-values-kicker">Our Core Values</p>

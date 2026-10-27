@@ -48,7 +48,7 @@ const locations = [
 
 const GlobalPresenceSection = () => {
   return (
-    <section className="global-presence">
+    <section className="global-presence" id="global-presence">
       <div className="global-presence-container">
         <div className="global-header">
           <p className="cedar-kicker global-kicker">Our Global Presence</p>

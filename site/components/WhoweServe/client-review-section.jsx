@@ -92,7 +92,7 @@ const TestimonialsSection = () => {
   }, [paused, sliding, index]);
 
   return (
-    <section className="testimonials-section">
+    <section className="testimonials-section" id="testimonials">
       <div className="testimonials-container">
         <div
           className="testimonials-carousel"
