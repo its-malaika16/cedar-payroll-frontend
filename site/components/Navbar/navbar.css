@@ -1,12 +1,17 @@
 .cedar-site {
 .navbar {
+  position: fixed;
+  top: 0;
+  left: 0;
   width: 100%;
   background: rgba(248, 247, 244, 0.92);
   backdrop-filter: blur(16px);
   border-bottom: 1px solid rgba(23, 55, 94, 0.08);
-  position: sticky;
-  top: 0;
   z-index: 1000;
+}
+
+.navbar-spacer {
+  height: 94px;
 }
 
 .navbar-container {
@@ -167,6 +172,10 @@
 
   .navbar-container {
     padding: 14px 20px;
+  }
+
+  .navbar-spacer {
+    height: 78px;
   }
 
   .hamburger {

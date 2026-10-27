@@ -8,6 +8,7 @@ const Navbar = () => {
   const closeMenu = () => setMenuOpen(false);
 
   return (
+    <>
     <header className="navbar">
       <div className="navbar-container">
         {/* Logo */}
@@ -99,6 +100,8 @@ const Navbar = () => {
         </button>
       </div>
     </header>
+    <div className="navbar-spacer" aria-hidden="true" />
+    </>
   );
 };
 
