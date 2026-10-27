@@ -1,42 +1,80 @@
 .cedar-site {
 .about-hero {
-  background: var(--background);
+  position: relative;
+  overflow: hidden;
+  background: #f8f7f4;
+  min-height: 460px;
+}
+
+.about-hero-orbs {
+  position: absolute;
+  top: -6%;
+  right: 0;
+  height: 118%;
+  width: auto;
+  pointer-events: none;
+  z-index: 0;
+  user-select: none;
 }
 
 .about-content {
+  position: relative;
+  z-index: 1;
   width: min(var(--page-max), 100%);
   margin: 0 auto;
-  padding: clamp(48px, 6vw, 80px) var(--page-gutter) clamp(40px, 5vw, 64px);
+  padding: clamp(56px, 7vw, 88px) var(--page-gutter) clamp(48px, 6vw, 72px);
 }
 
 .about-kicker {
-  margin: 0 0 16px;
+  font-size: clamp(14px, 1.05vw, 17px);
+  letter-spacing: 0.16em;
+  margin-bottom: 14px;
 }
 
 .about-title {
   margin: 0 0 20px;
-  color: var(--primary);
-  font-size: clamp(36px, 5vw, 64px);
+  font-size: clamp(36px, 4.6vw, 56px);
   font-weight: 800;
-  line-height: 1.08;
+  line-height: 1.12;
   letter-spacing: -0.03em;
+  color: var(--primary);
 }
 
 .about-title span {
   color: var(--secondary);
+  white-space: nowrap;
 }
 
 .about-description {
-  margin: 0;
-  max-width: 34em;
-  color: var(--primary);
-  font-size: clamp(16px, 1.2vw, 20px);
-  line-height: 1.55;
+  max-width: 34.5em;
+  color: #3a4b60;
+  font-size: clamp(16px, 1.15vw, 20px);
+  line-height: 1.5;
+}
+
+@media (max-width: 900px) {
+  .about-hero {
+    min-height: 0;
+  }
+
+  .about-hero-orbs {
+    height: 85%;
+    opacity: 0.7;
+  }
+
+  .about-title span {
+    white-space: normal;
+  }
 }
 
 @media (max-width: 640px) {
   .about-content {
-    padding: 36px var(--page-gutter) 32px;
+    padding: 36px var(--page-gutter) 28px;
+  }
+
+  .about-hero-orbs {
+    height: 220px;
+    opacity: 0.35;
   }
 }
 }

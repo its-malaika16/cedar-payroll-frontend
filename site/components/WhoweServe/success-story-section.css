@@ -73,21 +73,18 @@
 
 .success-mark {
   position: relative;
-  display: flex;
-  align-items: flex-start;
-  justify-content: center;
   width: 100%;
-  height: clamp(260px, 30vw, 320px);
+  height: clamp(280px, 32vw, 360px);
   overflow: hidden;
 }
 
 .success-moon {
   position: absolute;
   left: 0;
-  bottom: 0;
+  top: 0;
   z-index: 0;
-  width: min(44%, 180px);
-  height: auto;
+  height: 100%;
+  width: auto;
   pointer-events: none;
   overflow: visible;
 }
@@ -107,13 +104,32 @@
 }
 
 .success-logo {
-  position: relative;
+  position: absolute;
   z-index: 1;
   display: block;
-  width: min(280px, 66%);
-  margin: 24px 8% 0 10%;
   height: auto;
   object-fit: contain;
+}
+
+.success-story--teachwise .success-logo {
+  top: 50%;
+  left: 38%;
+  width: min(250px, 58%);
+  transform: translateY(-50%);
+}
+
+.success-story--coco .success-logo {
+  top: 50%;
+  left: 34%;
+  width: min(170px, 46%);
+  transform: translateY(-50%);
+}
+
+.success-story--mams .success-logo {
+  top: 50%;
+  left: 36%;
+  width: min(230px, 54%);
+  transform: translateY(-50%);
 }
 
 .success-copy {
@@ -175,12 +191,7 @@
   }
 
   .success-mark {
-    height: 240px;
-  }
-
-  .success-logo {
-    width: min(240px, 70%);
-    margin: 20px 4% 0 22%;
+    height: 260px;
   }
 
   .success-copy {

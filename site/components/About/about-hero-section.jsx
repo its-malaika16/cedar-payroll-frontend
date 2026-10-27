@@ -3,6 +3,12 @@ import "./about-hero-section.css";
 const AboutHeroSection = () => {
   return (
     <section className="about-hero">
+      <img
+        className="about-hero-orbs"
+        src="/assets/redesign/what-we-offer.svg"
+        alt=""
+        aria-hidden="true"
+      />
       <div className="about-content">
         <p className="cedar-kicker about-kicker">About Cedar Payroll</p>
         <h1 className="about-title">

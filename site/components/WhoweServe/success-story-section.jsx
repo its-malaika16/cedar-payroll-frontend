@@ -2,6 +2,7 @@ import "./success-story-section.css";
 
 const successStories = [
   {
+    id: "coco",
     company: "COCO GRILL",
     subtitle: "Multi-Site Hospitality Group",
     logo: "/assets/images/coco-logo.png",
@@ -18,6 +19,7 @@ const successStories = [
     ],
   },
   {
+    id: "teachwise",
     company: "TEACHWISE",
     subtitle: "Professional Services Organisation",
     logo: "/assets/images/teachwise-logo.png",
@@ -34,6 +36,7 @@ const successStories = [
     ],
   },
   {
+    id: "mams",
     company: "MAMS",
     subtitle: "Manufacturing Business",
     logo: "/assets/images/mams-logo.png",
@@ -55,7 +58,7 @@ const SuccessMoon = ({ variant }) =>
   variant === "red" ? (
     <svg
       className="success-moon"
-      viewBox="0 200 204 241"
+      viewBox="0 0 204 441"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
       aria-hidden="true"
@@ -72,7 +75,7 @@ const SuccessMoon = ({ variant }) =>
   ) : (
     <svg
       className="success-moon"
-      viewBox="0 200 191 240"
+      viewBox="0 0 191 440"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
       aria-hidden="true"
@@ -107,7 +110,7 @@ const ClientSuccessSection = () => {
 
         <div className="success-stories">
           {successStories.map((story) => (
-            <article className="success-story" key={story.company}>
+            <article className={`success-story success-story--${story.id}`} key={story.company}>
               <div className="success-visual">
                 <div className="success-mark">
                   <SuccessMoon variant={story.moon} />
