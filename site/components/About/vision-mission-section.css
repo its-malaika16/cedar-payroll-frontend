@@ -26,8 +26,9 @@
 .mission-icon {
   display: block;
   width: 86px;
-  height: auto;
+  height: 86px;
   margin-bottom: 28px;
+  flex-shrink: 0;
 }
 
 .mission-card:last-child .mission-icon {
