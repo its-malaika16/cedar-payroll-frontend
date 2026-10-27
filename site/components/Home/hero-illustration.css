@@ -1,3 +1,14 @@
+@keyframes hero-art-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+.cedar-site {
 .hero-illustration {
   position: relative;
   width: min(128%, 1080px);
@@ -16,15 +27,7 @@
   will-change: transform;
 }
 
-@keyframes hero-art-float {
-  0%,
-  100% {
-    transform: translateY(0);
-  }
-  50% {
-    transform: translateY(-10px);
-  }
-}
+
 
 @media (prefers-reduced-motion: reduce) {
   .hero-illustration-art {
@@ -59,4 +62,5 @@
     max-width: none;
     margin: 0 auto;
   }
+}
 }

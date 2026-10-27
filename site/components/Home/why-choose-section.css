@@ -1,3 +1,4 @@
+.cedar-site {
 .why-choose {
   background: var(--background);
   padding: clamp(48px, 7vw, 96px) 0;
@@ -103,4 +104,5 @@
     max-width: 420px;
     margin: 0 auto;
   }
+}
 }

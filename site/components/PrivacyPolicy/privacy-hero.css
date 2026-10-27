@@ -1,3 +1,4 @@
+.cedar-site {
 .policy-hero {
   background: var(--background);
 }
@@ -25,4 +26,5 @@
   font-size: clamp(16px, 1.15vw, 20px);
   font-weight: 600;
   line-height: 1.5;
+}
 }

@@ -1,3 +1,4 @@
+.cedar-site {
 .offer-benefits {
   background: #f8f7f4;
   padding: clamp(48px, 7vw, 88px) 0;
@@ -116,4 +117,5 @@
     max-width: 420px;
     margin: 0 auto;
   }
+}
 }

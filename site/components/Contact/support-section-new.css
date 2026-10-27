@@ -1,3 +1,4 @@
+.cedar-site {
 .support-section {
   padding: 100px 80px;
   background: var(--background);
@@ -179,4 +180,5 @@
   .sales-btn {
     width: 100%;
   }
+}
 }

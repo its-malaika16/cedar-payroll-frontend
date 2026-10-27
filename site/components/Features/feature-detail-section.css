@@ -1,3 +1,4 @@
+.cedar-site {
 .offer-cards {
   background: #f8f7f4;
   padding: clamp(20px, 3vw, 36px) 0 clamp(40px, 6vw, 72px);
@@ -97,4 +98,5 @@
   .offer-card h2 {
     max-width: none;
   }
+}
 }

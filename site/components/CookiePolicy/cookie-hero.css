@@ -1,3 +1,4 @@
+.cedar-site {
 .services-hero {
   position: relative;
   padding: 88px 20px 64px;
@@ -135,4 +136,5 @@
   .hero-card h1 {
     font-size: 36px;
   }
+}
 }

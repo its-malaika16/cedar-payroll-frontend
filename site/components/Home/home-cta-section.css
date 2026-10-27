@@ -1,3 +1,4 @@
+.cedar-site {
 .payroll-cta {
   background: var(--primary);
   color: #ffffff;
@@ -75,4 +76,5 @@
     border-left: none;
     border-top: 1px solid rgba(255, 255, 255, 0.22);
   }
+}
 }

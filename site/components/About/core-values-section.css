@@ -1,3 +1,4 @@
+.cedar-site {
 .core-values {
   width: 100%;
   background: var(--primary);
@@ -118,4 +119,5 @@
   .value-card:nth-child(-n + 2) {
     padding-bottom: 28px;
   }
+}
 }

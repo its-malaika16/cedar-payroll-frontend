@@ -1,3 +1,4 @@
+.cedar-site {
 .payroll-features-hero {
   background: var(--background);
   padding: 72px 24px 0;
@@ -75,4 +76,5 @@
   .features-orbs {
     height: 180px;
   }
+}
 }

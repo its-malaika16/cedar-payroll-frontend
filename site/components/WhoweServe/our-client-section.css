@@ -1,3 +1,14 @@
+@keyframes clients-marquee {
+  from {
+    transform: translateX(0);
+  }
+
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+.cedar-site {
 .clients-section {
   width: 100%;
   background: var(--background);
@@ -62,15 +73,7 @@
   object-fit: contain;
 }
 
-@keyframes clients-marquee {
-  from {
-    transform: translateX(0);
-  }
 
-  to {
-    transform: translateX(-50%);
-  }
-}
 
 @media (prefers-reduced-motion: reduce) {
   .clients-marquee {
@@ -91,4 +94,5 @@
   .clients-marquee {
     animation-duration: 22s;
   }
+}
 }

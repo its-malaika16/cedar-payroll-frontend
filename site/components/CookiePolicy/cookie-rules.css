@@ -1,3 +1,4 @@
+.cedar-site {
 .privacy-section {
   width: 100%;
   background: var(--background);
@@ -138,4 +139,5 @@
   .last-updated {
     font-size: 12px;
   }
+}
 }

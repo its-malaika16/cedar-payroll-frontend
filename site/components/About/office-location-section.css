@@ -1,3 +1,4 @@
+.cedar-site {
 .global-presence {
   width: 100%;
   background: var(--background);
@@ -46,4 +47,5 @@
   width: 100%;
   height: auto;
   overflow: visible;
+}
 }

@@ -1,3 +1,4 @@
+.cedar-site {
 .industries-section {
   width: 100%;
   background: var(--background);
@@ -110,4 +111,5 @@
   .industry-number {
     font-size: 32px;
   }
+}
 }

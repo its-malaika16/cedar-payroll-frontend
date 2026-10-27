@@ -1,3 +1,4 @@
+.cedar-site {
 .navbar {
   width: 100%;
   background: rgba(248, 247, 244, 0.92);
@@ -205,4 +206,5 @@
   .logo img {
     width: 128px;
   }
+}
 }

@@ -1,3 +1,14 @@
+@keyframes success-moon-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.04);
+  }
+}
+
+.cedar-site {
 .client-success-section {
   width: 100%;
   background: var(--background);
@@ -87,15 +98,7 @@
   animation: success-moon-pulse 4.2s ease-in-out infinite;
 }
 
-@keyframes success-moon-pulse {
-  0%,
-  100% {
-    transform: scale(1);
-  }
-  50% {
-    transform: scale(1.04);
-  }
-}
+
 
 @media (prefers-reduced-motion: reduce) {
   .success-moon-shape {
@@ -183,4 +186,5 @@
   .success-copy {
     max-width: none;
   }
+}
 }

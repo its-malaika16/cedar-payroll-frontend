@@ -1,3 +1,4 @@
+.cedar-site {
 .features-page {
   background: #f8f7f4;
 }
@@ -79,4 +80,5 @@
     height: 220px;
     opacity: 0.35;
   }
+}
 }

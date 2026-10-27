@@ -1,3 +1,14 @@
+@keyframes managed-orb-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.08);
+  }
+}
+
+.cedar-site {
 .managed-payroll {
   background: var(--background);
   padding: clamp(24px, 5vw, 72px) 0 clamp(56px, 7vw, 96px);
@@ -58,15 +69,7 @@
   animation-duration: 4.8s;
 }
 
-@keyframes managed-orb-pulse {
-  0%,
-  100% {
-    transform: scale(1);
-  }
-  50% {
-    transform: scale(1.08);
-  }
-}
+
 
 @media (prefers-reduced-motion: reduce) {
   .managed-orb {
@@ -140,4 +143,5 @@
     width: 100%;
     max-width: 240px;
   }
+}
 }

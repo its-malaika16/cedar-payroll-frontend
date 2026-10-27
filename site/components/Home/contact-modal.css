@@ -1,3 +1,4 @@
+.cedar-site {
 .modal-overlay {
   position: fixed;
   inset: 0;
@@ -135,4 +136,5 @@
   .pricing-btn {
     width: 100%;
   }
+}
 }

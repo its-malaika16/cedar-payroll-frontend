@@ -1,3 +1,11 @@
+@keyframes fillLoop {
+  0% { width: 0%; }
+  70% { width: 95%; }
+  90% { width: 95%; }
+  100% { width: 0%; }
+}
+
+.cedar-site {
 /* ✅ WRAPPER BACKGROUND */
 
 .dashboard-wrapper {
@@ -64,12 +72,7 @@
   animation: fillLoop 3s ease-in-out infinite;
 }
 
-@keyframes fillLoop {
-  0% { width: 0%; }
-  70% { width: 95%; }
-  90% { width: 95%; }
-  100% { width: 0%; }
-}
+
 
 /* ✅ USERS CONTAINER */
 .users {
@@ -186,4 +189,5 @@
 
 .footer strong.gold {
   color:  var(--secondary);
+}
 }

@@ -1,3 +1,4 @@
+.cedar-site {
 /* ==========================
    SECTION BACKGROUND
 ========================== */
@@ -155,4 +156,5 @@
     padding: 24px 20px;
     border-radius: 16px;
   }
+}
 }

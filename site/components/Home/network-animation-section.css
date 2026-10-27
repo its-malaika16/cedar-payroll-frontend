@@ -1,4 +1,14 @@
-:root {
+@keyframes pulse {
+  0%, 100% {
+    transform: translateX(-50%) scale(1);
+  }
+  50% {
+    transform: translateX(-50%) scale(1.05);
+  }
+}
+
+.cedar-site {
+& {
   /* Colors aligned with Screenshot 2026-07-25 133335.png */
   --primary: #173b5e; 
   --secondary: #e31b23; 
@@ -124,14 +134,7 @@
 }
 
 /* PULSE */
-@keyframes pulse {
-  0%, 100% {
-    transform: translateX(-50%) scale(1);
-  }
-  50% {
-    transform: translateX(-50%) scale(1.05);
-  }
-}
+
 
 /* TABLET */
 @media (max-width: 992px) {
@@ -152,4 +155,5 @@
   .logo-circle::before { width: 95px; height: 95px; }
   .logo-circle img { width: 60px; }
   .arrow { bottom: 30px; border-left-width: 15px; border-right-width: 15px; border-top-width: 20px; }
+}
 }

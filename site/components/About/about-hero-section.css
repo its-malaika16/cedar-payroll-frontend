@@ -1,3 +1,4 @@
+.cedar-site {
 .about-hero {
   background: var(--background);
 }
@@ -37,4 +38,5 @@
   .about-content {
     padding: 36px var(--page-gutter) 32px;
   }
+}
 }

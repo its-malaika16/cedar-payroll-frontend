@@ -1,3 +1,4 @@
+.cedar-site {
 .payroll-features {
   width: 100%;
   background: var(--background);
@@ -77,4 +78,5 @@
   .feature-item span {
     font-size: 18px;
   }
+}
 }

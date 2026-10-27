@@ -1,3 +1,14 @@
+@keyframes banking-orb-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+}
+
+.cedar-site {
 .payroll-banking {
   background: var(--background);
   padding: clamp(24px, 4vw, 56px) 0 clamp(48px, 6vw, 88px);
@@ -82,15 +93,7 @@
   animation-duration: 3.5s;
 }
 
-@keyframes banking-orb-pulse {
-  0%,
-  100% {
-    transform: scale(1);
-  }
-  50% {
-    transform: scale(1.05);
-  }
-}
+
 
 .banking-service p {
   max-width: none;
@@ -151,4 +154,5 @@
   .banking-title {
     margin-bottom: 28px;
   }
+}
 }

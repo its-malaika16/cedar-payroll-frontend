@@ -34,7 +34,7 @@
    ROOT VARIABLES
 ========================= */
 
-:root {
+.cedar-site {
   /* Colors */
   --primary: #17375e;
   --secondary: #d32027;
@@ -71,35 +71,35 @@
 }
 
 /* =========================
-   GLOBAL RESET
+   GLOBAL RESET (scoped to the marketing site)
 ========================= */
 
-* {
-  margin: 0;
-  padding: 0;
+.cedar-site,
+.cedar-site :where(*) {
   box-sizing: border-box;
 }
 
-html {
-  scroll-behavior: smooth;
+.cedar-site :where(*) {
+  margin: 0;
+  padding: 0;
 }
 
-body {
+.cedar-site {
   font-family: var(--font-primary);
   background-color: var(--background);
   color: var(--primary);
   overflow-x: hidden;
 }
 
-a {
+.cedar-site a {
   text-decoration: none;
 }
 
-ul {
+.cedar-site ul {
   list-style: none;
 }
 
-img {
+.cedar-site img {
   max-width: 100%;
   display: block;
 }
@@ -108,85 +108,85 @@ img {
    TYPOGRAPHY SYSTEM
 ========================= */
 
-.main-title {
+.cedar-site .main-title {
   font-size: var(--main-title);
   font-weight: var(--extra-bold);
   line-height: 1.1;
 }
 
-.subtitle-1 {
+.cedar-site .subtitle-1 {
   font-size: var(--subtitle-1);
   font-weight: var(--bold);
   line-height: 1.2;
 }
 
-.subtitle-2 {
+.cedar-site .subtitle-2 {
   font-size: var(--subtitle-2);
   font-weight: var(--semi-bold);
   line-height: 1.2;
 }
 
-.body-1 {
+.cedar-site .body-1 {
   font-size: var(--body-1);
   font-weight: var(--semi-bold);
   line-height: 1.4;
 }
 
-.body-2 {
+.cedar-site .body-2 {
   font-size: var(--body-2);
   font-weight: var(--medium);
   line-height: 1.4;
 }
 
-.body-3 {
+.cedar-site .body-3 {
   font-size: var(--body-3);
   font-weight: var(--medium);
   line-height: 1.5;
 }
 
-.body-3-2 {
+.cedar-site .body-3-2 {
   font-size: var(--body-3-2);
   font-weight: var(--semi-bold);
   line-height: 1.5;
 }
 
-.body-4{
+.cedar-site .body-4{
   font-size: var(--body-3);
   font-weight: var(--semi-bold);
   line-height: 1.4;
 }
 
-.body-5{
+.cedar-site .body-5{
   font-size: var(--body-4);
   font-weight: var(--medium);
   line-height: 1.3;
 }
 
-.body-6{
+.cedar-site .body-6{
   font-size: var(--body-4);
   font-weight: var(--semi-bold);
   line-height: 1.4;
 }
 
-.subheading{
+.cedar-site .subheading{
    font-size: 48px;
    font-weight: var(--extra-bold);
    line-height: 1.5;
 }
 
-.number{
+.cedar-site .number{
   font-size: var(--number);
   font-weight: var(--semi-bold);
   line-height: 1.5;
 }
 
-.lighttext{
+.cedar-site .lighttext{
   font-size: var(--light);
   font-weight: var(--medium);
   line-height: 1.2;
 }
 
-.CTAheading{
+.cedar-site .CTAheading{
   font-size: var(--body-1);
   font-weight: var(--extra-bold);
   line-height: 1.5;
@@ -207,7 +207,7 @@ img {
   50% { transform: scale(1.08) translate(12px, -8px); }
 }
 
-.cedar-kicker {
+.cedar-site .cedar-kicker {
   color: var(--secondary);
   font-size: 13px;
   font-weight: 800;
@@ -215,13 +215,13 @@ img {
   text-transform: uppercase;
 }
 
-.page-wrap {
+.cedar-site .page-wrap {
   width: min(var(--page-max), 100%);
   margin-inline: auto;
   padding-inline: var(--page-gutter);
 }
 
-.home-circle-icon {
+.cedar-site .home-circle-icon {
   width: 58px;
   height: 58px;
   border-radius: 50%;
@@ -231,59 +231,59 @@ img {
   color: var(--secondary);
 }
 
-.home-circle-icon svg {
+.cedar-site .home-circle-icon svg {
   width: 26px;
   height: 26px;
   display: block;
 }
 
-.home-circle-icon--outline {
+.cedar-site .home-circle-icon--outline {
   border: 1.6px solid var(--secondary);
   background: transparent;
 }
 
-.home-circle-icon--light {
+.cedar-site .home-circle-icon--light {
   background: #ffffff;
   border: none;
 }
 
 @media (min-width: 1400px) {
-  :root {
+  .cedar-site {
     --page-max: 1320px;
   }
 }
 
 @media (min-width: 1800px) {
-  :root {
+  .cedar-site {
     --page-max: 1480px;
   }
 }
 
 @media (min-width: 2400px) {
-  :root {
+  .cedar-site {
     --page-max: 1640px;
   }
 }
 
-.cedar-blob {
+.cedar-site .cedar-blob {
   position: absolute;
   border-radius: 50%;
   pointer-events: none;
   animation: cedar-blob 9s ease-in-out infinite;
 }
 
-.features-orbs {
+.cedar-site .features-orbs {
   position: relative;
   height: 280px;
 }
 
-.features-orbs span {
+.cedar-site .features-orbs span {
   position: absolute;
   border-radius: 50%;
   animation: cedar-blob 8s ease-in-out infinite;
 }
 
-.features-orbs span:nth-child(1) {
+.cedar-site .features-orbs span:nth-child(1) {
   width: 220px;
   height: 220px;
   right: 40px;
@@ -291,7 +291,7 @@ img {
   background: rgba(211, 32, 39, 0.18);
 }
 
-.features-orbs span:nth-child(2) {
+.cedar-site .features-orbs span:nth-child(2) {
   width: 180px;
   height: 180px;
   right: 140px;
@@ -299,7 +299,7 @@ img {
   background: rgba(23, 55, 94, 0.16);
 }
 
-.features-orbs span:nth-child(3) {
+.cedar-site .features-orbs span:nth-child(3) {
   width: 140px;
   height: 140px;
   right: 0;
@@ -308,11 +308,11 @@ img {
 }
 
 @media (hover: hover) {
-  .logo img {
+  .cedar-site .logo img {
     transition: opacity 0.25s ease;
   }
 
-  .logo:hover img {
+  .cedar-site .logo:hover img {
     opacity: 0.82;
   }
 }

@@ -1,3 +1,14 @@
+@keyframes serve-orb-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.08);
+  }
+}
+
+.cedar-site {
 .serve-hero {
   background: #f8f7f4;
   overflow: hidden;
@@ -86,15 +97,7 @@
   animation-duration: 4.8s;
 }
 
-@keyframes serve-orb-pulse {
-  0%,
-  100% {
-    transform: scale(1);
-  }
-  50% {
-    transform: scale(1.08);
-  }
-}
+
 
 @media (prefers-reduced-motion: reduce) {
   .serve-orb {
@@ -121,4 +124,5 @@
   .serve-hero-container {
     padding: 36px var(--page-gutter) 40px;
   }
+}
 }

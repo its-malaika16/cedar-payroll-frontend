@@ -1,3 +1,4 @@
+.cedar-site {
 .contact-cards-section {
   width: 100%;
   background: var(--background);
@@ -117,4 +118,5 @@
   .contact-card {
     min-height: 0;
   }
+}
 }
