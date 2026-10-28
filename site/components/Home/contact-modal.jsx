@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 import { useState } from "react";
-import { submitWebsiteEnquiry } from "../../lib/website-enquiry";
+import { hasSubmittedWebsiteEnquiry, submitWebsiteEnquiry } from "../../lib/website-enquiry";
 
 
 
@@ -16,6 +16,8 @@ const ContactModal = ({ onClose, initialEmail = "" }) => {
 
     const [loading, setLoading] = useState(false);
     const [errors, setErrors] = useState({});
+    const [submitted, setSubmitted] = useState(() => hasSubmittedWebsiteEnquiry(initialEmail));
+    const [formError, setFormError] = useState("");
 
     const handleChange = (e) => {
       const { name, value } = e.target;
@@ -53,24 +55,15 @@ const ContactModal = ({ onClose, initialEmail = "" }) => {
       }
 
       setLoading(true);
-
+      setFormError("");
 
       try {
         await submitWebsiteEnquiry(formData);
-        alert("Form submitted successfully!");
         setErrors({});
-        setFormData({
-          firstname: "",
-          email: "",
-          phone: "",
-          company: "",
-          employees: "",
-          country: "United Kingdom",
-        });
-        onClose();
+        setSubmitted(true);
       } catch (error) {
         console.error(error);
-        alert(error instanceof Error ? error.message : "Something went wrong.");
+        setFormError(error instanceof Error ? error.message : "Something went wrong.");
       } finally {
         setLoading(false);
       }
@@ -221,6 +214,30 @@ const ContactModal = ({ onClose, initialEmail = "" }) => {
             cursor: pointer;
           }
 
+          .modal-success {
+            text-align: center;
+            color: var(--primary);
+          }
+
+          .modal-success p {
+            font-size: 16px;
+            font-weight: 500;
+            line-height: 1.7;
+            margin: 0 0 16px;
+          }
+
+          .modal-success a {
+            font-weight: 700;
+          }
+
+          .modal-form-error {
+            margin: 16px 0 0;
+            text-align: center;
+            color: #9b1d24;
+            font-size: 14px;
+            font-weight: 500;
+          }
+
           /* ===== Large Desktop ===== */
 
           @media (min-width: 1600px) {
@@ -356,9 +373,27 @@ const ContactModal = ({ onClose, initialEmail = "" }) => {
             </h2>
 
             <p className="modal-subtitle">
-              Get pricing specific to your business.
+              {submitted
+                ? "Thank you for getting in touch!"
+                : "Get pricing specific to your business."}
             </p>
 
+            {submitted ? (
+              <div className="modal-success" role="status">
+                <p>
+                  Your request has been submitted successfully, and our support team will contact you as soon as possible.
+                </p>
+                <p>
+                  If you need to contact us, please email us at{" "}
+                  <a href="mailto:support@cedarpayroll.com" className="highlight-red">
+                    support@cedarpayroll.com
+                  </a>
+                </p>
+                <button type="button" className="contact-btn" onClick={onClose}>
+                  Close
+                </button>
+              </div>
+            ) : (
             <form className="modal-form" onSubmit={handleSubmit} noValidate>
               <div className="modal-row">
                 <div className="modal-field">
@@ -573,6 +608,10 @@ const ContactModal = ({ onClose, initialEmail = "" }) => {
                 .
               </p>
 
+              {formError ? (
+                <p className="modal-form-error" role="alert">{formError}</p>
+              ) : null}
+
               <button
                 type="submit"
                 className="contact-btn"
@@ -581,6 +620,7 @@ const ContactModal = ({ onClose, initialEmail = "" }) => {
                 {loading ? "Submitting..." : "Contact Us"}
               </button>
             </form>
+            )}
           </div>
         </div>
       </>

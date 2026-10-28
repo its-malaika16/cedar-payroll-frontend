@@ -156,6 +156,32 @@
   box-shadow: 0 12px 24px rgba(211, 32, 39, 0.28);
 }
 
+.contact-success {
+  max-width: 640px;
+  margin: 0 auto;
+  text-align: center;
+  color: var(--primary);
+}
+
+.contact-success p {
+  font-size: 18px;
+  font-weight: 500;
+  line-height: 1.7;
+  margin: 0 0 16px;
+}
+
+.contact-success a {
+  font-weight: 700;
+}
+
+.contact-form-error {
+  margin: 16px 0 0;
+  text-align: center;
+  color: #9b1d24;
+  font-size: 14px;
+  font-weight: 500;
+}
+
 @media (max-width: 700px) {
   .contact-container {
     padding: 32px 18px;

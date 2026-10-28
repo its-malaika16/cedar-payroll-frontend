@@ -114,6 +114,11 @@ if ($stmt->execute()) {
 
         <p><strong>Country:</strong></p>
         <p>{$country}</p>
+
+        <p>Kind regards,<br />
+        Cedar Payroll Team<br />
+        <a href="mailto:support@cedarpayroll.com">support@cedarpayroll.com</a><br />
+        <a href="https://www.cedarpayroll.com">www.cedarpayroll.com</a></p>
     </body>
     </html>
     ";

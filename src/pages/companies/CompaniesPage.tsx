@@ -313,15 +313,15 @@ function OnboardingSection({
   onOpen: (id: string) => void
 }) {
   return (
-    <section className="mb-5 overflow-hidden rounded-[16px] border border-[#e6eaf0] bg-white shadow-[0_1px_8px_rgba(23,55,94,0.04)]">
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#eef1f5] px-5 py-4">
-        <div>
+    <section className="mb-5 shrink-0 overflow-hidden rounded-[16px] border border-[#e6eaf0] bg-white shadow-[0_1px_8px_rgba(23,55,94,0.04)]">
+      <div className="flex flex-col gap-3 border-b border-[#eef1f5] px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">
+        <div className="min-w-0">
           <h2 className="text-lg font-semibold text-navy">Onboarding</h2>
           <p className="mt-1 text-sm text-muted">
-            Companies invited by the bureau. Review details and signed contracts before they can use the software.
+            Review details and signed contracts before a company can use the software.
           </p>
         </div>
-        <Link to="/companies/onboard">
+        <Link to="/companies/onboard" className="shrink-0">
           <Button variant="secondary">
             <FileText size={15} />
             Onboard company
@@ -329,7 +329,7 @@ function OnboardingSection({
         </Link>
       </div>
       {companies.length === 0 ? (
-        <p className="px-5 py-6 text-sm text-muted">No companies are completing onboarding at the moment.</p>
+        <p className="px-4 py-5 text-sm text-muted sm:px-5">No companies are completing onboarding at the moment.</p>
       ) : (
         <ul className="divide-y divide-[#eef1f5]">
           {companies.map((company) => {
@@ -338,7 +338,7 @@ function OnboardingSection({
               <li key={id}>
                 <button
                   type="button"
-                  className="flex w-full items-center justify-between gap-3 px-5 py-4 text-left hover:bg-cream/70"
+                  className="flex w-full items-center justify-between gap-3 px-4 py-4 text-left hover:bg-cream/70 sm:px-5"
                   onClick={() => onOpen(id)}
                 >
                   <div className="min-w-0">
@@ -366,40 +366,123 @@ function EnquirySection({
   onOpen: (id: string) => void
 }) {
   return (
-    <section className="mb-5 overflow-hidden rounded-[16px] border border-[#e6eaf0] bg-white shadow-[0_1px_8px_rgba(23,55,94,0.04)]">
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#eef1f5] px-5 py-4">
-        <div>
+    <section className="mb-5 shrink-0 overflow-hidden rounded-[16px] border border-[#e6eaf0] bg-white shadow-[0_1px_8px_rgba(23,55,94,0.04)]">
+      <div className="border-b border-[#eef1f5] px-4 py-4 sm:px-5">
+        <div className="flex flex-wrap items-center gap-2">
           <h2 className="text-lg font-semibold text-navy">Onboard company requests</h2>
-          <p className="mt-1 text-sm text-muted">
-            Enquiries from the Cedar Payroll website. Onboard the company to send a signup email, or decline the request.
-          </p>
+          {requests.length > 0 ? (
+            <span className="rounded-full bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-900">
+              {requests.length} new
+            </span>
+          ) : null}
         </div>
+        <p className="mt-1 text-sm text-muted">Website enquiries waiting for you to onboard or decline.</p>
       </div>
       {requests.length === 0 ? (
-        <p className="px-5 py-6 text-sm text-muted">No companies are requesting onboarding at the moment.</p>
+        <p className="px-4 py-5 text-sm text-muted sm:px-5">No companies are requesting onboarding at the moment.</p>
       ) : (
-        <ul className="divide-y divide-[#eef1f5]">
-          {requests.map((request) => (
-            <li key={request.id}>
-              <button
-                type="button"
-                className="flex w-full items-center justify-between gap-3 px-5 py-4 text-left hover:bg-cream/70"
-                onClick={() => onOpen(request.id)}
-              >
-                <div className="min-w-0">
-                  <p className="font-semibold text-navy">{request.company_name}</p>
-                  <p className="truncate text-xs text-muted">
-                    {request.enquiry?.full_name || '—'} · {request.enquiry?.email || '—'}
-                    {request.enquiry?.phone ? ` · ${request.enquiry.phone}` : ''}
-                  </p>
-                </div>
-                <span className="shrink-0 rounded-full bg-[#fff4e5] px-2.5 py-1 text-xs font-semibold text-[#b76a00]">
-                  New request
-                </span>
-              </button>
-            </li>
-          ))}
-        </ul>
+        <>
+          <ul className="divide-y divide-[#eef1f5] lg:hidden">
+            {requests.map((request) => {
+              const contact =
+                request.enquiry?.full_name ||
+                [request.owner?.first_name, request.owner?.last_name].filter(Boolean).join(' ') ||
+                '—'
+              const email = request.enquiry?.email || request.owner?.email || '—'
+              const phone = request.enquiry?.phone || request.office_number || '—'
+              return (
+                <li key={request.id}>
+                  <button
+                    type="button"
+                    className="flex w-full flex-col gap-2 px-4 py-4 text-left hover:bg-cream/70"
+                    onClick={() => onOpen(request.id)}
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex min-w-0 items-center gap-3">
+                        <span
+                          className={`flex size-9 shrink-0 items-center justify-center rounded-full text-[11px] font-semibold text-white ${avatarTone(request.id)}`}
+                        >
+                          {initials(request.company_name)}
+                        </span>
+                        <div className="min-w-0">
+                          <p className="font-semibold text-navy">{request.company_name}</p>
+                          <p className="truncate text-xs text-muted">{contact}</p>
+                        </div>
+                      </div>
+                      <span className="shrink-0 rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-900">
+                        New
+                      </span>
+                    </div>
+                    <p className="truncate text-xs text-muted">{email}</p>
+                    <div className="flex items-center justify-between text-xs text-muted">
+                      <span>{phone}</span>
+                      <span className="font-semibold text-navy">Review</span>
+                    </div>
+                  </button>
+                </li>
+              )
+            })}
+          </ul>
+          <div className="hidden overflow-x-auto lg:block">
+            <table className="w-full min-w-[860px] text-left text-sm">
+              <thead>
+                <tr className="border-b border-[#eceae6] text-xs font-semibold uppercase tracking-[0.08em] text-muted">
+                  <th className="px-5 py-3">Company</th>
+                  <th className="px-5 py-3">Contact</th>
+                  <th className="px-5 py-3">Email</th>
+                  <th className="px-5 py-3">Phone</th>
+                  <th className="px-5 py-3">Employees</th>
+                  <th className="px-5 py-3">Received</th>
+                  <th className="px-5 py-3 text-right">Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {requests.map((request) => {
+                  const contact =
+                    request.enquiry?.full_name ||
+                    [request.owner?.first_name, request.owner?.last_name].filter(Boolean).join(' ') ||
+                    '—'
+                  const email = request.enquiry?.email || request.owner?.email || '—'
+                  const phone = request.enquiry?.phone || request.office_number || '—'
+                  return (
+                    <tr
+                      key={request.id}
+                      className="cursor-pointer border-b border-[#eceae6] last:border-b-0 hover:bg-cream/70"
+                      onClick={() => onOpen(request.id)}
+                    >
+                      <td className="px-5 py-4">
+                        <div className="flex items-center gap-3">
+                          <span
+                            className={`flex size-9 shrink-0 items-center justify-center rounded-full text-[11px] font-semibold text-white ${avatarTone(request.id)}`}
+                          >
+                            {initials(request.company_name)}
+                          </span>
+                          <div className="min-w-0">
+                            <p className="font-semibold text-navy">{request.company_name}</p>
+                            <p className="text-xs text-muted">{request.enquiry?.country || request.country || 'Website enquiry'}</p>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-5 py-4 font-medium text-navy">{contact}</td>
+                      <td className="px-5 py-4 text-navy">{email}</td>
+                      <td className="px-5 py-4 text-navy">{phone}</td>
+                      <td className="px-5 py-4 text-navy">{request.enquiry?.employees || '—'}</td>
+                      <td className="px-5 py-4 text-navy">{createdLabel(request.created_at)}</td>
+                      <td className="px-5 py-4 text-right">
+                        <span className="inline-flex items-center gap-2">
+                          <span className="rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-900">
+                            New request
+                          </span>
+                          <span className="text-sm font-semibold text-navy">Review</span>
+                        </span>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        </>
       )}
     </section>
   )
@@ -563,13 +646,13 @@ export function CompaniesPage() {
   }
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col overflow-y-auto pb-6">
+    <div className="pb-6">
       <PageHeader
         title="Organisations"
         subtitle="Client companies in your bureau and the modules assigned to each."
         actions={
           canManageOrganizations ? (
-            <div className="flex flex-wrap gap-2">
+            <div className="flex w-full flex-wrap gap-2 sm:w-auto">
               <Link to="/companies/onboard">
                 <Button variant="secondary">
                   <FileText size={16} />
@@ -589,7 +672,7 @@ export function CompaniesPage() {
 
       {statusError ? <Alert className="mb-4">{statusError}</Alert> : null}
 
-      <div className="mb-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+      <div className="mb-5 grid grid-cols-1 gap-4 sm:grid-cols-3">
         <StatCard
           icon={<Building2 size={20} />}
           iconClass="bg-[#e8eef5] text-navy"
@@ -654,8 +737,8 @@ export function CompaniesPage() {
       />
 
       <Card className="shadow-[0_8px_24px_rgba(23,55,94,0.04)]">
-        <div className="flex items-center gap-3 overflow-x-auto border-b border-[#eceae6] px-4 py-3">
-          <label className="relative min-w-[240px] flex-1">
+        <div className="flex flex-col gap-3 border-b border-[#eceae6] px-3 py-3 sm:px-4 lg:flex-row lg:items-center">
+          <label className="relative min-w-0 flex-1">
             <Search size={16} className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-muted" />
             <input
               value={search}
@@ -663,12 +746,13 @@ export function CompaniesPage() {
                 setSearch(event.target.value)
                 resetPage()
               }}
-              className={`${filterClass} w-full min-w-[240px] pl-9`}
+              className={`${filterClass} w-full pl-9`}
               placeholder="Search by company name, PAYE, owner..."
             />
           </label>
+          <div className="flex min-w-0 flex-wrap items-center gap-2">
           <select
-            className={`${filterClass} w-[148px] shrink-0`}
+            className={`${filterClass} min-w-[140px] flex-1 sm:flex-none sm:w-[148px]`}
             value={statusFilter}
             onChange={(event) => {
               setStatusFilter(event.target.value as StatusFilter)
@@ -682,7 +766,7 @@ export function CompaniesPage() {
             <option value="PENDING_REVIEW">Pending review</option>
           </select>
           <select
-            className={`${filterClass} w-[148px] shrink-0`}
+            className={`${filterClass} min-w-[140px] flex-1 sm:flex-none sm:w-[148px]`}
             value={moduleFilter}
             onChange={(event) => {
               setModuleFilter(event.target.value as ModuleFilter)
@@ -695,7 +779,7 @@ export function CompaniesPage() {
             <option value="INVOICE">Invoice</option>
           </select>
           <select
-            className={`${filterClass} w-[168px] shrink-0`}
+            className={`${filterClass} min-w-[140px] flex-1 sm:flex-none sm:w-[168px]`}
             value={sortKey}
             onChange={(event) => setSortKey(event.target.value as SortKey)}
           >
@@ -704,7 +788,7 @@ export function CompaniesPage() {
             <option value="employees">Employees</option>
             <option value="created">Date created</option>
           </select>
-          <div className="ml-auto flex shrink-0 rounded-[10px] border border-[#e4e2de] p-0.5">
+          <div className="ml-auto hidden shrink-0 rounded-[10px] border border-[#e4e2de] p-0.5 lg:flex">
             <button
               type="button"
               className={`rounded-[8px] p-2 ${view === 'list' ? 'bg-navy text-white' : 'text-navy hover:bg-cream'}`}
@@ -721,6 +805,7 @@ export function CompaniesPage() {
             >
               <LayoutGrid size={16} />
             </button>
+          </div>
           </div>
         </div>
 
@@ -790,7 +875,62 @@ export function CompaniesPage() {
             })}
           </div>
         ) : (
-          <div className="overflow-x-auto">
+          <>
+          <div className="grid gap-3 p-3 sm:grid-cols-2 lg:hidden">
+            {paged.map((company) => {
+              const id = idOf(company)
+              const status = displayStatus(company)
+              return (
+                <div
+                  key={`card-${id}`}
+                  className="relative rounded-[16px] border border-[#eceae6] bg-white p-4 text-left"
+                >
+                  <button
+                    type="button"
+                    className="absolute top-3 right-3 inline-flex size-8 items-center justify-center rounded-[8px] text-navy hover:bg-cream"
+                    aria-label={`Actions for ${company.company_name}`}
+                    aria-expanded={menuId === id}
+                    onClick={(event) => {
+                      event.stopPropagation()
+                      toggleMenu(id, event.currentTarget)
+                    }}
+                  >
+                    <MoreHorizontal size={16} />
+                  </button>
+                  <button type="button" className="w-full text-left" onClick={() => navigate(companyPath(company))}>
+                    <div className="flex items-start justify-between gap-3 pr-8">
+                      <div className="flex min-w-0 items-center gap-3">
+                        <span
+                          className={`flex size-10 shrink-0 items-center justify-center rounded-full text-xs font-semibold text-white ${avatarTone(id)}`}
+                        >
+                          {initials(company.company_name)}
+                        </span>
+                        <div className="min-w-0">
+                          <p className="truncate font-semibold text-navy">{company.company_name}</p>
+                          <p className="truncate text-xs text-muted">{company.sector || '—'}</p>
+                        </div>
+                      </div>
+                      <StatusPill status={status} />
+                    </div>
+                    <div className="mt-3 flex flex-wrap gap-1">
+                      {activeModules(company).length === 0 ? (
+                        <span className="text-xs text-muted">No modules</span>
+                      ) : (
+                        activeModules(company).map((module) => <ModuleTag key={module} module={module} />)
+                      )}
+                    </div>
+                    <div className="mt-3 flex items-center justify-between text-xs text-muted">
+                      <span className="inline-flex items-center gap-1">
+                        <Users size={13} /> {company._count?.employees ?? 0}
+                      </span>
+                      <span className="truncate pl-2">{ownerName(company)}</span>
+                    </div>
+                  </button>
+                </div>
+              )
+            })}
+          </div>
+          <div className="hidden overflow-x-auto lg:block">
             <table className="w-full min-w-[1100px] text-left text-sm">
               <thead>
                 <tr className="border-b border-[#eceae6] text-xs font-semibold uppercase tracking-[0.08em] text-muted">
@@ -881,6 +1021,7 @@ export function CompaniesPage() {
               </tbody>
             </table>
           </div>
+          </>
         )}
 
         {filtered.length > 0 ? (

@@ -17,6 +17,8 @@ const ContactSection = () => {
 
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
+  const [submitted, setSubmitted] = useState(false);
+  const [formError, setFormError] = useState("");
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -54,24 +56,15 @@ const ContactSection = () => {
     }
 
     setLoading(true);
-
+    setFormError("");
 
     try {
       await submitWebsiteEnquiry(formData);
-      alert("Form submitted successfully!");
       setErrors({});
-      setFormData({
-        firstname: "",
-        email: "",
-        phone: "",
-        company: "",
-        employees: "",
-        country: "United Kingdom",
-        needs: "",
-      });
+      setSubmitted(true);
     } catch (error) {
       console.error(error);
-      alert(error instanceof Error ? error.message : "Something went wrong.");
+      setFormError(error instanceof Error ? error.message : "Something went wrong.");
     } finally {
       setLoading(false);
     }
@@ -85,9 +78,24 @@ const ContactSection = () => {
         </h2>
 
         <p className="contact-subtitle">
-          Get pricing specific to your business.
+          {submitted
+            ? "Thank you for getting in touch!"
+            : "Get pricing specific to your business."}
         </p>
 
+        {submitted ? (
+          <div className="contact-success" role="status">
+            <p>
+              Your request has been submitted successfully, and our support team will contact you as soon as possible.
+            </p>
+            <p>
+              If you need to contact us, please email us at{" "}
+              <a href="mailto:support@cedarpayroll.com" className="highlight-red">
+                support@cedarpayroll.com
+              </a>
+            </p>
+          </div>
+        ) : (
         <form
           className="contact-form"
           onSubmit={handleSubmit}
@@ -315,6 +323,10 @@ const ContactSection = () => {
             .
           </p>
 
+          {formError ? (
+            <p className="contact-form-error" role="alert">{formError}</p>
+          ) : null}
+
           <button
             type="submit"
             className="contact-btn"
@@ -323,6 +335,7 @@ const ContactSection = () => {
             {loading ? "Submitting..." : "Contact Us"}
           </button>
         </form>
+        )}
       </div>
     </ScrollReveal>
   );

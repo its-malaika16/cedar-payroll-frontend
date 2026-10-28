@@ -225,6 +225,7 @@ export type OnboardingCompany = {
   pension_provider?: string | null
   pension_employer_id?: string | null
   status: string
+  created_at?: string | null
   onboarding_submitted_at?: string | null
   onboarding_approved_at?: string | null
   onboarding_review_note?: string | null
