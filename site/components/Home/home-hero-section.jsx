@@ -29,9 +29,20 @@ const ticker = [
 const HeroBanner = () => {
   const [showModal, setShowModal] = useState(false);
   const [email, setEmail] = useState("");
+  const [emailError, setEmailError] = useState("");
 
   const openQuote = (event) => {
     event.preventDefault();
+    const value = email.trim();
+    if (!value) {
+      setEmailError("Please enter your business email.");
+      return;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
+      setEmailError("Please enter a valid email address.");
+      return;
+    }
+    setEmailError("");
     setShowModal(true);
   };
 
@@ -53,18 +64,29 @@ const HeroBanner = () => {
               for businesses of every size
             </p>
 
-            <form className="hero-cta-row" onSubmit={openQuote}>
-              <input
-                type="email"
-                required
-                placeholder="Enter your business email"
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
-                aria-label="Business email"
-              />
-              <button className="hero-btn" type="submit">
-                Get Started
-              </button>
+            <form className="hero-cta" onSubmit={openQuote} noValidate>
+              <div className="hero-cta-row">
+                <div className="hero-cta-field">
+                  <input
+                    type="email"
+                    placeholder="Enter your business email"
+                    value={email}
+                    onChange={(event) => {
+                      setEmail(event.target.value);
+                      if (emailError) setEmailError("");
+                    }}
+                    className={emailError ? "has-error" : ""}
+                    aria-invalid={Boolean(emailError)}
+                    aria-label="Business email"
+                  />
+                  {emailError ? (
+                    <p className="hero-cta-error" role="alert">{emailError}</p>
+                  ) : null}
+                </div>
+                <button className="hero-btn" type="submit">
+                  Get Started
+                </button>
+              </div>
             </form>
           </div>
 
@@ -91,7 +113,10 @@ const HeroBanner = () => {
       </section>
 
       {showModal && (
-        <ContactModal onClose={() => setShowModal(false)} />
+        <ContactModal
+          onClose={() => setShowModal(false)}
+          initialEmail={email.trim()}
+        />
       )}
     </>
   );

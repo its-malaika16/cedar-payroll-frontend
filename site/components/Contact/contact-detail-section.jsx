@@ -1,3 +1,4 @@
+import ScrollReveal from "../ScrollReveal";
 import "./contact-detail-section.css";
 
 const contacts = [
@@ -37,7 +38,7 @@ const contacts = [
 
 const ContactCardsSection = () => {
   return (
-    <section className="contact-cards-section">
+    <ScrollReveal className="contact-cards-section">
       <div className="contact-cards-container">
         <div className="contact-cards-header">
           <p className="cedar-kicker contact-cards-kicker">Let’s talk business</p>
@@ -74,7 +75,7 @@ const ContactCardsSection = () => {
           ))}
         </div>
       </div>
-    </section>
+    </ScrollReveal>
   );
 };
 

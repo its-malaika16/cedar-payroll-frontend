@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import ScrollReveal from "../ScrollReveal";
 import "./feature-detail-section.css";
 
 const features = [
@@ -55,7 +56,7 @@ const ArrowIcon = () => (
 
 const PayrollFeaturesSection = () => {
   return (
-    <section className="offer-cards" id="services">
+    <ScrollReveal className="offer-cards" id="services">
       <div className="offer-cards-container">
         {features.map((feature) => (
           <article className="offer-card" key={feature.title}>
@@ -70,7 +71,7 @@ const PayrollFeaturesSection = () => {
           </article>
         ))}
       </div>
-    </section>
+    </ScrollReveal>
   );
 };
 

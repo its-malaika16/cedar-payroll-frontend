@@ -1,9 +1,10 @@
 import { Link } from "react-router-dom";
+import ScrollReveal from "../ScrollReveal";
 import "./feature-cta-section.css";
 
 const ManagedPayrollSection = () => {
   return (
-    <section className="managed-payroll" id="growing-businesses">
+    <ScrollReveal className="managed-payroll" id="growing-businesses">
       <div className="managed-payroll-container">
         <div className="managed-payroll-image-wrapper">
           <svg
@@ -67,7 +68,7 @@ const ManagedPayrollSection = () => {
           </Link>
         </div>
       </div>
-    </section>
+    </ScrollReveal>
   );
 };
 

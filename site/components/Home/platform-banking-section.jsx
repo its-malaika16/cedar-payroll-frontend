@@ -1,3 +1,4 @@
+import ScrollReveal from "../ScrollReveal";
 import { CircleIcon } from "./home-icons";
 import "./platform-banking-section.css";
 
@@ -21,7 +22,7 @@ const services = [
 
 const PayrollBankingSection = () => {
   return (
-    <section className="payroll-banking">
+    <ScrollReveal className="payroll-banking">
       <div className="payroll-banking-container">
         <div className="banking-image-wrapper">
           <svg
@@ -89,7 +90,7 @@ const PayrollBankingSection = () => {
           </div>
         </div>
       </div>
-    </section>
+    </ScrollReveal>
   );
 };
 

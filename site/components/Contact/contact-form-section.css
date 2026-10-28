@@ -78,6 +78,46 @@
   background: #ffffff;
 }
 
+.contact-field {
+  width: 100%;
+  min-width: 0;
+}
+
+.contact-form input.has-error,
+.contact-form select.has-error {
+  border-color: #e8b4b6;
+  background: #fffbfb;
+  box-shadow: inset 3px 0 0 #d32027;
+}
+
+.contact-field-error {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 8px 0 0;
+  padding: 0;
+  background: transparent;
+  color: #9b1d24;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.45;
+}
+
+.contact-field-error::before {
+  content: "!";
+  flex: 0 0 18px;
+  width: 18px;
+  height: 18px;
+  margin-top: 1px;
+  border-radius: 50%;
+  background: #d32027;
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 18px;
+  text-align: center;
+}
+
 .privacy-line {
   max-width: 700px;
   margin: 24px auto 0;

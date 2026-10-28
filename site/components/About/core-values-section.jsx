@@ -1,3 +1,4 @@
+import ScrollReveal from "../ScrollReveal";
 import "./core-values-section.css";
 
 const values = [
@@ -33,7 +34,7 @@ const values = [
 
 const CoreValuesSection = () => {
   return (
-    <section className="core-values" id="core-values">
+    <ScrollReveal className="core-values" id="core-values">
       <div className="core-values-container">
         <div className="core-values-header">
           <p className="cedar-kicker core-values-kicker">Our Core Values</p>
@@ -68,7 +69,7 @@ const CoreValuesSection = () => {
           ))}
         </div>
       </div>
-    </section>
+    </ScrollReveal>
   );
 };
 

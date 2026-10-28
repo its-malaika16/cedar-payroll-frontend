@@ -1,3 +1,4 @@
+import ScrollReveal from "../ScrollReveal";
 import "./vision-mission-section.css";
 
 const sections = [
@@ -21,7 +22,7 @@ const sections = [
 
 const MissionVisionSection = () => {
   return (
-    <section className="mission-vision">
+    <ScrollReveal className="mission-vision">
       <div className="mission-vision-container">
         {sections.map((item) => (
           <article
@@ -47,7 +48,7 @@ const MissionVisionSection = () => {
           </article>
         ))}
       </div>
-    </section>
+    </ScrollReveal>
   );
 };
 

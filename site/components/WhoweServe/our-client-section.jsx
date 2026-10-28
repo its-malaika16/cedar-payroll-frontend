@@ -1,3 +1,4 @@
+import ScrollReveal from "../ScrollReveal";
 import "./our-client-section.css";
 
 const logos = [
@@ -28,7 +29,7 @@ const LogoRow = ({ hidden }) => (
 
 const ClientsSection = () => {
   return (
-    <section className="clients-section" id="our-clients">
+    <ScrollReveal className="clients-section" id="our-clients">
       <div className="clients-container">
         <h2 className="clients-heading">Our Clients</h2>
 
@@ -39,7 +40,7 @@ const ClientsSection = () => {
           </div>
         </div>
       </div>
-    </section>
+    </ScrollReveal>
   );
 };
 

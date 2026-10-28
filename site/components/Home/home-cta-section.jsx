@@ -1,9 +1,10 @@
 import { Link } from "react-router-dom";
+import ScrollReveal from "../ScrollReveal";
 import "./home-cta-section.css";
 
 const PayrollCtaSection = () => {
   return (
-    <section className="payroll-cta">
+    <ScrollReveal className="payroll-cta">
       <div className="payroll-cta-split">
         <div className="cta-panel">
           <p className="cedar-kicker">Let&apos;s get started</p>
@@ -31,7 +32,7 @@ const PayrollCtaSection = () => {
           </Link>
         </div>
       </div>
-    </section>
+    </ScrollReveal>
   );
 };
 

@@ -25,7 +25,6 @@
 
 .testimonials-track {
   display: flex;
-  will-change: transform;
 }
 
 .testimonials-track.is-sliding {
@@ -33,7 +32,8 @@
 }
 
 .testimonials-card {
-  flex: 0 0 100%;
+  flex: 1 0 0;
+  min-width: 0;
   min-height: 280px;
   padding: clamp(36px, 4vw, 48px) clamp(36px, 5vw, 64px) 32px;
   background: #ececec;

@@ -1,3 +1,6 @@
+import { useRef } from "react";
+import ScrollReveal from "../ScrollReveal";
+import { useDirectedReveal } from "../useDirectedReveal";
 import "./success-story-section.css";
 
 const successStories = [
@@ -92,10 +95,13 @@ const SuccessMoon = ({ variant }) =>
   );
 
 const ClientSuccessSection = () => {
+  const listRef = useRef(null);
+  useDirectedReveal(listRef, ".success-story", { once: true });
+
   return (
     <section className="client-success-section" id="success-stories">
       <div className="client-success-container">
-        <header className="client-success-header">
+        <ScrollReveal as="header" className="client-success-header">
           <p className="client-success-kicker">Client Success Stories</p>
           <h2 className="client-success-title">
             Real Impact. Proven Results.
@@ -106,9 +112,9 @@ const ClientSuccessSection = () => {
             team is committed to delivering tailored solutions that improve
             efficiency, ensure compliance, and enhance the employee experience.
           </p>
-        </header>
+        </ScrollReveal>
 
-        <div className="success-stories">
+        <div className="success-stories" ref={listRef}>
           {successStories.map((story) => (
             <article className={`success-story success-story--${story.id}`} key={story.company}>
               <div className="success-visual">

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import "./client-review-section.css";
 
 const testimonials = [
@@ -56,20 +56,28 @@ const TestimonialsSection = () => {
   const [index, setIndex] = useState(1);
   const [sliding, setSliding] = useState(true);
   const [paused, setPaused] = useState(false);
+  const [inView, setInView] = useState(false);
+  const rootRef = useRef(null);
   const last = slides.length - 1;
+  const step = 100 / slides.length;
 
   const go = (dir) => {
     setIndex((current) => current + dir);
   };
 
-  const onSlideEnd = () => {
-    if (index === last) {
+  const snapIfClone = (current) => {
+    if (current === last) {
       setSliding(false);
       setIndex(1);
-    } else if (index === 0) {
+    } else if (current === 0) {
       setSliding(false);
       setIndex(testimonials.length);
     }
+  };
+
+  const onSlideEnd = (event) => {
+    if (event.target !== event.currentTarget) return;
+    snapIfClone(index);
   };
 
   useEffect(() => {
@@ -81,18 +89,52 @@ const TestimonialsSection = () => {
   }, [sliding]);
 
   useEffect(() => {
-    if (paused || !sliding) return undefined;
-    const reduce = window.matchMedia(
-      "(prefers-reduced-motion: reduce)",
-    ).matches;
-    if (reduce) return undefined;
+    const node = rootRef.current;
+    if (!node) return undefined;
 
-    const timer = window.setInterval(() => go(1), 4000);
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        setInView(entry.isIntersecting);
+        if (entry.isIntersecting) {
+          node.classList.add("is-visible");
+        }
+      },
+      { threshold: 0.2, rootMargin: "40px 0px" },
+    );
+
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    if (!inView) {
+      setIndex(1);
+      setSliding(false);
+    }
+  }, [inView]);
+
+  useEffect(() => {
+    if (!inView || paused || !sliding) return undefined;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      return undefined;
+    }
+
+    const timer = window.setInterval(() => go(1), 2500);
     return () => window.clearInterval(timer);
-  }, [paused, sliding, index]);
+  }, [inView, paused, sliding, index]);
+
+  useEffect(() => {
+    if (index !== last && index !== 0) return undefined;
+    const timer = window.setTimeout(() => snapIfClone(index), 580);
+    return () => window.clearTimeout(timer);
+  }, [index, last]);
 
   return (
-    <section className="testimonials-section" id="testimonials">
+    <section
+      ref={rootRef}
+      className="testimonials-section"
+      id="testimonials"
+    >
       <div className="testimonials-container">
         <div
           className="testimonials-carousel"
@@ -111,7 +153,10 @@ const TestimonialsSection = () => {
           <div className="testimonials-viewport">
             <div
               className={`testimonials-track${sliding ? " is-sliding" : ""}`}
-              style={{ transform: `translateX(-${index * 100}%)` }}
+              style={{
+                width: `${slides.length * 100}%`,
+                transform: `translate3d(-${index * step}%, 0, 0)`,
+              }}
               onTransitionEnd={onSlideEnd}
             >
               {slides.map((item, slideIndex) => (

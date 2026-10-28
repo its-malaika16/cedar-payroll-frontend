@@ -1,5 +1,7 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
+import ScrollReveal from "../ScrollReveal";
+import { submitWebsiteEnquiry } from "../../lib/website-enquiry";
 import "./contact-form-section.css";
 
 const ContactSection = () => {
@@ -14,60 +16,69 @@ const ContactSection = () => {
   });
 
   const [loading, setLoading] = useState(false);
+  const [errors, setErrors] = useState({});
 
   const handleChange = (e) => {
+    const { name, value } = e.target;
     setFormData((prev) => ({
       ...prev,
-      [e.target.name]: e.target.value,
+      [name]: value,
     }));
+    if (errors[name]) {
+      setErrors((prev) => {
+        const next = { ...prev };
+        delete next[name];
+        return next;
+      });
+    }
+  };
+
+  const validate = () => {
+    const next = {};
+    if (!formData.firstname.trim()) next.firstname = "Please enter your full name.";
+    if (!formData.email.trim()) next.email = "Please enter your email.";
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email.trim())) {
+      next.email = "Please enter a valid email address.";
+    }
+    if (!formData.phone.trim()) next.phone = "Please enter your phone number.";
+    if (!formData.company.trim()) next.company = "Please enter your business name.";
+    return next;
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    const nextErrors = validate();
+    if (Object.keys(nextErrors).length) {
+      setErrors(nextErrors);
+      return;
+    }
 
     setLoading(true);
 
 
     try {
-
-      const response = await fetch(
-        "https://cedarpayroll.co.uk/api/contact.php",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(formData),
-        }
-      );
-
-      const result = await response.json();
-
-      if (result.success) {
-        alert("Form submitted successfully!");
-
-        setFormData({
-          firstname: "",
-          email: "",
-          phone: "",
-          company: "",
-          employees: "",
-          country: "United Kingdom",
-          needs: "",
-        });
-      } else {
-        alert(result.message);
-      }
+      await submitWebsiteEnquiry(formData);
+      alert("Form submitted successfully!");
+      setErrors({});
+      setFormData({
+        firstname: "",
+        email: "",
+        phone: "",
+        company: "",
+        employees: "",
+        country: "United Kingdom",
+        needs: "",
+      });
     } catch (error) {
       console.error(error);
-      alert("Something went wrong.");
+      alert(error instanceof Error ? error.message : "Something went wrong.");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <section className="contact-section">
+    <ScrollReveal className="contact-section">
       <div className="contact-container">
         <h2 className="contact-title">
           Get Started
@@ -80,45 +91,70 @@ const ContactSection = () => {
         <form
           className="contact-form"
           onSubmit={handleSubmit}
+          noValidate
         >
           <div className="contact-row">
-            <input
-              type="text"
-              name="firstname"
-              placeholder="Full Name"
-              value={formData.firstname}
-              onChange={handleChange}
-              required
-            />
+            <div className="contact-field">
+              <input
+                type="text"
+                name="firstname"
+                placeholder="Full Name"
+                value={formData.firstname}
+                onChange={handleChange}
+                className={errors.firstname ? "has-error" : ""}
+                aria-invalid={Boolean(errors.firstname)}
+              />
+              {errors.firstname ? (
+                <p className="contact-field-error" role="alert">{errors.firstname}</p>
+              ) : null}
+            </div>
 
-            <input
-              type="email"
-              name="email"
-              placeholder="Email"
-              value={formData.email}
-              onChange={handleChange}
-              required
-            />
+            <div className="contact-field">
+              <input
+                type="email"
+                name="email"
+                placeholder="Email"
+                value={formData.email}
+                onChange={handleChange}
+                className={errors.email ? "has-error" : ""}
+                aria-invalid={Boolean(errors.email)}
+              />
+              {errors.email ? (
+                <p className="contact-field-error" role="alert">{errors.email}</p>
+              ) : null}
+            </div>
           </div>
 
           <div className="contact-row">
-            <input
-              type="tel"
-              name="phone"
-              placeholder="Phone Number"
-              value={formData.phone}
-              onChange={handleChange}
-              required
-            />
+            <div className="contact-field">
+              <input
+                type="tel"
+                name="phone"
+                placeholder="Phone Number"
+                value={formData.phone}
+                onChange={handleChange}
+                className={errors.phone ? "has-error" : ""}
+                aria-invalid={Boolean(errors.phone)}
+              />
+              {errors.phone ? (
+                <p className="contact-field-error" role="alert">{errors.phone}</p>
+              ) : null}
+            </div>
 
-            <input
-              type="text"
-              name="company"
-              placeholder="Business Name"
-              value={formData.company}
-              onChange={handleChange}
-              required
-            />
+            <div className="contact-field">
+              <input
+                type="text"
+                name="company"
+                placeholder="Business Name"
+                value={formData.company}
+                onChange={handleChange}
+                className={errors.company ? "has-error" : ""}
+                aria-invalid={Boolean(errors.company)}
+              />
+              {errors.company ? (
+                <p className="contact-field-error" role="alert">{errors.company}</p>
+              ) : null}
+            </div>
           </div>
 
           <div className="contact-row">
@@ -134,7 +170,6 @@ const ContactSection = () => {
               name="country"
               value={formData.country}
               onChange={handleChange}
-              required
             >
               <option>United States</option>
               <option>United Kingdom</option>
@@ -289,7 +324,7 @@ const ContactSection = () => {
           </button>
         </form>
       </div>
-    </section>
+    </ScrollReveal>
   );
 };
 

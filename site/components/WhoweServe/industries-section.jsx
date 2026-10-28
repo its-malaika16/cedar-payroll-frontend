@@ -1,3 +1,6 @@
+import { useRef } from "react";
+import ScrollReveal from "../ScrollReveal";
+import { useDirectedReveal } from "../useDirectedReveal";
 import "./industries-section.css";
 
 const industries = [
@@ -40,16 +43,21 @@ const industries = [
 ];
 
 const IndustriesSection = () => {
+  const listRef = useRef(null);
+  useDirectedReveal(listRef, ".industry-row");
+
   return (
     <section className="industries-section" id="industries">
       <div className="industries-container">
-        <h2 className="industries-heading">Industries we serve</h2>
-        <p className="industries-lead">
-          Every industry has unique payroll needs. Our flexible solutions adapt
-          to your business, ensuring compliance, efficiency, and peace of mind.
-        </p>
+        <ScrollReveal as="div" className="industries-intro">
+          <h2 className="industries-heading">Industries we serve</h2>
+          <p className="industries-lead">
+            Every industry has unique payroll needs. Our flexible solutions adapt
+            to your business, ensuring compliance, efficiency, and peace of mind.
+          </p>
+        </ScrollReveal>
 
-        <ol className="industries-list">
+        <ol className="industries-list" ref={listRef}>
           {industries.map((industry, index) => (
             <li className="industry-row" key={industry.title}>
               <span className="industry-number" aria-hidden="true">

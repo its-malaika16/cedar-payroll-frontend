@@ -236,6 +236,14 @@ export type OnboardingCompany = {
     email: string
     is_registered?: boolean
   } | null
+  enquiry?: {
+    full_name?: string | null
+    email?: string | null
+    phone?: string | null
+    employees?: string | null
+    country?: string | null
+    needs?: string | null
+  } | null
   contracts: OnboardingContract[]
 }
 

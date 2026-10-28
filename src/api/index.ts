@@ -80,6 +80,11 @@ export const companiesApi = {
 
 export const onboardingApi = {
   list: () => get<OnboardingCompany[]>('/onboarding/companies'),
+  enquiries: () => get<OnboardingCompany[]>('/onboarding/enquiries'),
+  acceptEnquiry: (companyId: string) =>
+    post<OnboardingCompany>(`/onboarding/enquiries/${companyId}/accept`),
+  rejectEnquiry: (companyId: string, note?: string) =>
+    post<OnboardingCompany>(`/onboarding/enquiries/${companyId}/reject`, { note }),
   get: (companyId: string) => get<OnboardingCompany>(`/onboarding/companies/${companyId}`),
   start: (body: Record<string, unknown>) => post<OnboardingCompany>('/onboarding/companies', body),
   mine: () => get<OnboardingCompany>('/onboarding/me'),

@@ -1,3 +1,4 @@
+import ScrollReveal from "../ScrollReveal";
 import "./office-location-section.css";
 
 const MAP_W = 1628;
@@ -48,7 +49,7 @@ const locations = [
 
 const GlobalPresenceSection = () => {
   return (
-    <section className="global-presence" id="global-presence">
+    <ScrollReveal className="global-presence" id="global-presence">
       <div className="global-presence-container">
         <div className="global-header">
           <p className="cedar-kicker global-kicker">Our Global Presence</p>
@@ -105,7 +106,7 @@ const GlobalPresenceSection = () => {
           </svg>
         </div>
       </div>
-    </section>
+    </ScrollReveal>
   );
 };
 

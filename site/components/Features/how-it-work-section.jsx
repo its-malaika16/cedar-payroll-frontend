@@ -1,3 +1,4 @@
+import ScrollReveal from "../ScrollReveal";
 import "./how-it-work-section.css";
 
 const steps = [
@@ -41,7 +42,7 @@ const steps = [
 
 const HowItWorksSection = () => {
   return (
-    <section className="how-it-works" id="how-it-works">
+    <ScrollReveal className="how-it-works" id="how-it-works">
       <div className="how-it-works-container">
         <div className="how-it-works-header">
           <p className="cedar-kicker how-it-works-kicker">How it works</p>
@@ -58,7 +59,7 @@ const HowItWorksSection = () => {
           ))}
         </div>
       </div>
-    </section>
+    </ScrollReveal>
   );
 };
 

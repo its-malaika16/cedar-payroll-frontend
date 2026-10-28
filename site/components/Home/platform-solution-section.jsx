@@ -1,3 +1,4 @@
+import ScrollReveal from "../ScrollReveal";
 import { CircleIcon } from "./home-icons";
 import "./platform-solution-section.css";
 
@@ -24,7 +25,7 @@ const solutions = [
 
 const PlatformSolutionsSection = () => {
   return (
-    <section className="platform-solutions">
+    <ScrollReveal className="platform-solutions">
       <div className="platform-solutions-container">
         <div className="platform-content">
           <p className="cedar-kicker platform-kicker">Our Features</p>
@@ -89,7 +90,7 @@ const PlatformSolutionsSection = () => {
           </svg>
         </div>
       </div>
-    </section>
+    </ScrollReveal>
   );
 };
 

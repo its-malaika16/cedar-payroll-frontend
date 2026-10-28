@@ -18,11 +18,11 @@ import {
   Search,
   Users,
 } from 'lucide-react'
-import { companiesApi } from '../../api'
+import { companiesApi, onboardingApi } from '../../api'
 import { useAuth } from '../../auth/AuthContext'
 import { Alert, Button, Card, EmptyState, Loading, PageHeader } from '../../components/ui'
 import { idOf } from '../../lib/format'
-import type { Company } from '../../types'
+import type { Company, OnboardingCompany } from '../../types'
 
 type StatusFilter = 'ALL' | 'ACTIVE' | 'INACTIVE' | 'ONBOARDING' | 'PENDING_REVIEW'
 type ModuleFilter = 'ALL' | 'PAYROLL' | 'HR' | 'INVOICE'
@@ -329,7 +329,7 @@ function OnboardingSection({
         </Link>
       </div>
       {companies.length === 0 ? (
-        <p className="px-5 py-6 text-sm text-muted">No companies are onboarding at the moment.</p>
+        <p className="px-5 py-6 text-sm text-muted">No companies are completing onboarding at the moment.</p>
       ) : (
         <ul className="divide-y divide-[#eef1f5]">
           {companies.map((company) => {
@@ -358,6 +358,53 @@ function OnboardingSection({
   )
 }
 
+function EnquirySection({
+  requests,
+  onOpen,
+}: {
+  requests: OnboardingCompany[]
+  onOpen: (id: string) => void
+}) {
+  return (
+    <section className="mb-5 overflow-hidden rounded-[16px] border border-[#e6eaf0] bg-white shadow-[0_1px_8px_rgba(23,55,94,0.04)]">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#eef1f5] px-5 py-4">
+        <div>
+          <h2 className="text-lg font-semibold text-navy">Onboard company requests</h2>
+          <p className="mt-1 text-sm text-muted">
+            Enquiries from the Cedar Payroll website. Onboard the company to send a signup email, or decline the request.
+          </p>
+        </div>
+      </div>
+      {requests.length === 0 ? (
+        <p className="px-5 py-6 text-sm text-muted">No companies are requesting onboarding at the moment.</p>
+      ) : (
+        <ul className="divide-y divide-[#eef1f5]">
+          {requests.map((request) => (
+            <li key={request.id}>
+              <button
+                type="button"
+                className="flex w-full items-center justify-between gap-3 px-5 py-4 text-left hover:bg-cream/70"
+                onClick={() => onOpen(request.id)}
+              >
+                <div className="min-w-0">
+                  <p className="font-semibold text-navy">{request.company_name}</p>
+                  <p className="truncate text-xs text-muted">
+                    {request.enquiry?.full_name || '—'} · {request.enquiry?.email || '—'}
+                    {request.enquiry?.phone ? ` · ${request.enquiry.phone}` : ''}
+                  </p>
+                </div>
+                <span className="shrink-0 rounded-full bg-[#fff4e5] px-2.5 py-1 text-xs font-semibold text-[#b76a00]">
+                  New request
+                </span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  )
+}
+
 export function CompaniesPage() {
   const auth = useAuth()
   const { canManageOrganizations } = auth
@@ -367,7 +414,13 @@ export function CompaniesPage() {
     queryKey: ['companies'],
     queryFn: () => companiesApi.list(),
   })
+  const enquiryQuery = useQuery({
+    queryKey: ['onboarding-enquiries'],
+    queryFn: () => onboardingApi.enquiries(),
+    enabled: canManageOrganizations,
+  })
   const companies = (query.data?.data ?? []) as Company[]
+  const enquiries = (enquiryQuery.data?.data ?? []) as OnboardingCompany[]
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('ALL')
   const [moduleFilter, setModuleFilter] = useState<ModuleFilter>('ALL')
@@ -589,6 +642,11 @@ export function CompaniesPage() {
           }
         />
       </div>
+
+      <EnquirySection
+        requests={enquiries}
+        onOpen={(id) => navigate(`/companies/${id}/onboarding`)}
+      />
 
       <OnboardingSection
         companies={companies.filter(isOnboardingCompany)}

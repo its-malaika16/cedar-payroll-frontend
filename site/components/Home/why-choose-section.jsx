@@ -1,3 +1,4 @@
+import ScrollReveal from "../ScrollReveal";
 import { CircleIcon } from "./home-icons";
 import "./why-choose-section.css";
 
@@ -24,7 +25,7 @@ const benefits = [
 
 const WhyChooseSection = () => {
   return (
-    <section className="why-choose">
+    <ScrollReveal className="why-choose">
       <div className="why-choose-container">
         <div className="why-choose-header">
           <p className="cedar-kicker why-choose-kicker">Why choose Cedar Payroll</p>
@@ -47,7 +48,7 @@ const WhyChooseSection = () => {
           ))}
         </div>
       </div>
-    </section>
+    </ScrollReveal>
   );
 };
 

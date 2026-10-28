@@ -1,12 +1,13 @@
 import { Link } from "react-router-dom";
 import { useState } from "react";
+import { submitWebsiteEnquiry } from "../../lib/website-enquiry";
 
 
 
-const ContactModal = ({ onClose }) => {
+const ContactModal = ({ onClose, initialEmail = "" }) => {
     const [formData, setFormData] = useState({
       firstname: "",
-      email: "",
+      email: initialEmail,
       phone: "",
       company: "",
       employees: "",
@@ -14,52 +15,62 @@ const ContactModal = ({ onClose }) => {
     });
 
     const [loading, setLoading] = useState(false);
+    const [errors, setErrors] = useState({});
 
     const handleChange = (e) => {
+      const { name, value } = e.target;
       setFormData((prev) => ({
         ...prev,
-        [e.target.name]: e.target.value,
+        [name]: value,
       }));
+      if (errors[name]) {
+        setErrors((prev) => {
+          const next = { ...prev };
+          delete next[name];
+          return next;
+        });
+      }
+    };
+
+    const validate = () => {
+      const next = {};
+      if (!formData.firstname.trim()) next.firstname = "Please enter your full name.";
+      if (!formData.email.trim()) next.email = "Please enter your email.";
+      else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email.trim())) {
+        next.email = "Please enter a valid email address.";
+      }
+      if (!formData.phone.trim()) next.phone = "Please enter your phone number.";
+      if (!formData.company.trim()) next.company = "Please enter your business name.";
+      return next;
     };
 
     const handleSubmit = async (e) => {
       e.preventDefault();
+      const nextErrors = validate();
+      if (Object.keys(nextErrors).length) {
+        setErrors(nextErrors);
+        return;
+      }
 
       setLoading(true);
 
 
       try {
-
-        const response = await fetch(
-          "https://cedarpayroll.co.uk/api/contact.php",
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify(formData),
-          }
-        );
-
-        const result = await response.json();
-
-        if (result.success) {
-          alert("Form submitted successfully!");
-
-          setFormData({
-            firstname: "",
-            email: "",
-            phone: "",
-            company: "",
-            employees: "",
-            country: "United Kingdom",
-          });
-        } else {
-          alert(result.message);
-        }
+        await submitWebsiteEnquiry(formData);
+        alert("Form submitted successfully!");
+        setErrors({});
+        setFormData({
+          firstname: "",
+          email: "",
+          phone: "",
+          company: "",
+          employees: "",
+          country: "United Kingdom",
+        });
+        onClose();
       } catch (error) {
         console.error(error);
-        alert("Something went wrong.");
+        alert(error instanceof Error ? error.message : "Something went wrong.");
       } finally {
         setLoading(false);
       }
@@ -141,6 +152,45 @@ const ContactModal = ({ onClose }) => {
           .modal-form input:focus,
           .modal-form select:focus {
             border-color: var(--secondary);
+          }
+
+          .modal-field {
+            width: 100%;
+          }
+
+          .modal-form input.has-error,
+          .modal-form select.has-error {
+            border-color: #e8b4b6;
+            background: #fffbfb;
+            box-shadow: inset 3px 0 0 #d32027;
+          }
+
+          .modal-field-error {
+            display: flex;
+            align-items: flex-start;
+            gap: 8px;
+            margin: 6px 0 0;
+            padding: 0;
+            background: transparent;
+            color: #9b1d24;
+            font-size: 13px;
+            font-weight: 500;
+            line-height: 1.45;
+          }
+
+          .modal-field-error::before {
+            content: "!";
+            flex: 0 0 18px;
+            width: 18px;
+            height: 18px;
+            margin-top: 1px;
+            border-radius: 50%;
+            background: #d32027;
+            color: #ffffff;
+            font-size: 11px;
+            font-weight: 700;
+            line-height: 18px;
+            text-align: center;
           }
 
           .privacy-line {
@@ -309,45 +359,69 @@ const ContactModal = ({ onClose }) => {
               Get pricing specific to your business.
             </p>
 
-            <form className="modal-form" onSubmit={handleSubmit}>
+            <form className="modal-form" onSubmit={handleSubmit} noValidate>
               <div className="modal-row">
-                <input
-                  type="text"
-                  name="firstname"
-                  placeholder="Full Name"
-                  value={formData.firstname}
-                  onChange={handleChange}
-                  required
-                />
+                <div className="modal-field">
+                  <input
+                    type="text"
+                    name="firstname"
+                    placeholder="Full Name"
+                    value={formData.firstname}
+                    onChange={handleChange}
+                    className={errors.firstname ? "has-error" : ""}
+                    aria-invalid={Boolean(errors.firstname)}
+                  />
+                  {errors.firstname ? (
+                    <p className="modal-field-error" role="alert">{errors.firstname}</p>
+                  ) : null}
+                </div>
 
-                <input
-                  type="email"
-                  name="email"
-                  placeholder="Email"
-                  value={formData.email}
-                  onChange={handleChange}
-                  required
-                />
+                <div className="modal-field">
+                  <input
+                    type="email"
+                    name="email"
+                    placeholder="Email"
+                    value={formData.email}
+                    onChange={handleChange}
+                    className={errors.email ? "has-error" : ""}
+                    aria-invalid={Boolean(errors.email)}
+                  />
+                  {errors.email ? (
+                    <p className="modal-field-error" role="alert">{errors.email}</p>
+                  ) : null}
+                </div>
               </div>
 
               <div className="modal-row">
-                <input
-                  type="tel"
-                  name="phone"
-                  placeholder="Phone Number"
-                  value={formData.phone}
-                  onChange={handleChange}
-                  required
-                />
+                <div className="modal-field">
+                  <input
+                    type="tel"
+                    name="phone"
+                    placeholder="Phone Number"
+                    value={formData.phone}
+                    onChange={handleChange}
+                    className={errors.phone ? "has-error" : ""}
+                    aria-invalid={Boolean(errors.phone)}
+                  />
+                  {errors.phone ? (
+                    <p className="modal-field-error" role="alert">{errors.phone}</p>
+                  ) : null}
+                </div>
 
-                <input
-                  type="text"
-                  name="company"
-                  placeholder="Business Name"
-                  value={formData.company}
-                  onChange={handleChange}
-                  required
-                />
+                <div className="modal-field">
+                  <input
+                    type="text"
+                    name="company"
+                    placeholder="Business Name"
+                    value={formData.company}
+                    onChange={handleChange}
+                    className={errors.company ? "has-error" : ""}
+                    aria-invalid={Boolean(errors.company)}
+                  />
+                  {errors.company ? (
+                    <p className="modal-field-error" role="alert">{errors.company}</p>
+                  ) : null}
+                </div>
               </div>
 
               <div className="modal-row">
@@ -363,7 +437,6 @@ const ContactModal = ({ onClose }) => {
                   name="country"
                   value={formData.country}
                   onChange={handleChange}
-                  required
                 >
                   <option>United States</option>
                   <option>United Kingdom</option>

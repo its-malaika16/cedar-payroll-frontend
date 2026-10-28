@@ -1,0 +1,39 @@
+.scroll-reveal,
+.cedar-site .scroll-reveal {
+  opacity: 0;
+  transform: translate3d(0, 48px, 0) scale(0.98);
+  transition:
+    opacity 0.8s ease,
+    transform 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.scroll-reveal.from-above,
+.cedar-site .scroll-reveal.from-above {
+  transform: translate3d(0, -48px, 0) scale(0.98);
+}
+
+.scroll-reveal.from-below,
+.cedar-site .scroll-reveal.from-below {
+  transform: translate3d(0, 48px, 0) scale(0.98);
+}
+
+.scroll-reveal.is-inview,
+.cedar-site .scroll-reveal.is-inview {
+  opacity: 1;
+  transform: translate3d(0, 0, 0) scale(1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .scroll-reveal,
+  .scroll-reveal.from-above,
+  .scroll-reveal.from-below,
+  .scroll-reveal.is-inview,
+  .cedar-site .scroll-reveal,
+  .cedar-site .scroll-reveal.from-above,
+  .cedar-site .scroll-reveal.from-below,
+  .cedar-site .scroll-reveal.is-inview {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+}

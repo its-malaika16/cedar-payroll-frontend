@@ -24,8 +24,10 @@ function moduleLabel(value: string) {
 }
 
 function statusCopy(status: string) {
+  if (status === 'ENQUIRY') return 'Website request — onboard or decline'
   if (status === 'PENDING_REVIEW') return 'Submitted — waiting for your review'
   if (status === 'ACTIVE') return 'Approved'
+  if (status === 'REJECTED') return 'Request declined'
   return 'Onboarding in progress'
 }
 
@@ -55,7 +57,12 @@ export function CompanyOnboardingReviewPage() {
   if (query.isLoading) return <Loading />
   if (!company) return <Alert>Onboarding record not found.</Alert>
 
-  const refresh = () => queryClient.invalidateQueries({ queryKey: ['onboarding-company', companyId] })
+  const refresh = () => {
+    queryClient.invalidateQueries({ queryKey: ['onboarding-company', companyId] })
+    queryClient.invalidateQueries({ queryKey: ['onboarding-enquiries'] })
+    queryClient.invalidateQueries({ queryKey: ['companies'] })
+  }
+  const isEnquiry = company.status === 'ENQUIRY'
   const canApprove = company.status === 'PENDING_REVIEW'
 
   return (
@@ -105,19 +112,89 @@ export function CompanyOnboardingReviewPage() {
             ))}
           </dl>
           <div className="mt-5 rounded-[12px] bg-[#f7f9fc] px-4 py-3 text-sm">
-            <p className="font-semibold text-navy">Administrator</p>
+            <p className="font-semibold text-navy">{isEnquiry ? 'Website contact' : 'Administrator'}</p>
             <p className="mt-1 text-navy">
-              {fullName(company.owner?.first_name, company.owner?.last_name) || '—'}
+              {company.enquiry?.full_name ||
+                fullName(company.owner?.first_name, company.owner?.last_name) ||
+                '—'}
             </p>
-            <p className="text-muted">{company.owner?.email}</p>
-            <p className="mt-1 text-xs text-muted">
-              {company.owner?.is_registered ? 'Has created their account' : 'Has not signed up yet'}
-            </p>
+            <p className="text-muted">{company.enquiry?.email || company.owner?.email || '—'}</p>
+            {company.enquiry?.phone ? <p className="text-muted">{company.enquiry.phone}</p> : null}
+            {company.enquiry?.employees ? (
+              <p className="mt-1 text-xs text-muted">{company.enquiry.employees} employees</p>
+            ) : null}
+            {company.enquiry?.needs ? (
+              <p className="mt-2 text-sm text-navy">{company.enquiry.needs}</p>
+            ) : null}
+            {!isEnquiry ? (
+              <p className="mt-1 text-xs text-muted">
+                {company.owner?.is_registered ? 'Has created their account' : 'Has not signed up yet'}
+              </p>
+            ) : null}
           </div>
         </section>
 
         <section className="rounded-[16px] border border-[#e6eaf0] bg-white p-6 shadow-[0_1px_8px_rgba(23,55,94,0.04)]">
           <h2 className="text-lg font-semibold text-navy">Review</h2>
+          {isEnquiry ? (
+            <>
+              <p className="mt-1 text-sm text-muted">
+                Onboard this company to email them a signup link and contracts to review. Decline to close the request.
+              </p>
+              <div className="mt-5 space-y-3">
+                <Button
+                  type="button"
+                  disabled={busy}
+                  onClick={async () => {
+                    setBusy(true)
+                    setError(null)
+                    try {
+                      await onboardingApi.acceptEnquiry(company.id)
+                      await auth.refresh()
+                      await refresh()
+                      setMessage('Company invited to complete onboarding')
+                    } catch (err) {
+                      setError(err instanceof Error ? err.message : 'Could not onboard this company')
+                    } finally {
+                      setBusy(false)
+                    }
+                  }}
+                >
+                  Onboard company
+                </Button>
+                <Field label="Decline with a note">
+                  <Input
+                    variant="outline"
+                    value={note}
+                    onChange={(event) => setNote(event.target.value)}
+                    placeholder="Optional reason"
+                  />
+                </Field>
+                <Button
+                  variant="secondary"
+                  type="button"
+                  disabled={busy}
+                  onClick={async () => {
+                    setBusy(true)
+                    setError(null)
+                    try {
+                      await onboardingApi.rejectEnquiry(company.id, note)
+                      await refresh()
+                      setMessage('Request declined')
+                      navigate('/companies')
+                    } catch (err) {
+                      setError(err instanceof Error ? err.message : 'Could not decline this request')
+                    } finally {
+                      setBusy(false)
+                    }
+                  }}
+                >
+                  Decline request
+                </Button>
+              </div>
+            </>
+          ) : (
+            <>
           <p className="mt-1 text-sm text-muted">
             Approve once the details and signed contracts look correct. The company can then use Cedar Payroll.
           </p>
@@ -178,9 +255,12 @@ export function CompanyOnboardingReviewPage() {
               The company still needs to complete details and sign every contract.
             </p>
           )}
+            </>
+          )}
         </section>
       </div>
 
+      {isEnquiry ? null : (
       <section className="mt-6 rounded-[16px] border border-[#e6eaf0] bg-white p-6 shadow-[0_1px_8px_rgba(23,55,94,0.04)]">
         <h2 className="text-lg font-semibold text-navy">Contracts</h2>
         <ul className="mt-4 space-y-3">
@@ -377,6 +457,7 @@ export function CompanyOnboardingReviewPage() {
           </div>
         ) : null}
       </section>
+      )}
       {preview ? (
         <DocumentPreviewModal
           title={preview.title}

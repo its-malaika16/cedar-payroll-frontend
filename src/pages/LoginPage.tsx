@@ -163,7 +163,8 @@ export function LoginPage() {
     location.pathname === '/register' ? 'signup' : 'login',
   )
   const [resetStep, setResetStep] = useState<ResetStep | null>(null)
-  const [email, setEmail] = useState('')
+  const invitedEmail = new URLSearchParams(location.search).get('email')?.trim() || ''
+  const [email, setEmail] = useState(invitedEmail)
   const [password, setPassword] = useState('')
   const [confirm, setConfirm] = useState('')
   const [code, setCode] = useState('')
