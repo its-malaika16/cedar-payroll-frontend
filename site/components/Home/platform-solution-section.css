@@ -104,6 +104,19 @@
   overflow: visible;
 }
 
+.platform-photo {
+  position: absolute;
+  left: 0;
+  top: 2%;
+  width: 100%;
+  height: 96%;
+  object-fit: contain;
+  object-position: center;
+  pointer-events: none;
+  z-index: 1;
+  image-rendering: auto;
+}
+
 .platform-orb {
   transform-box: fill-box;
   transform-origin: center;
