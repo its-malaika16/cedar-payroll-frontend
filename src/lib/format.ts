@@ -274,23 +274,20 @@ export function isWeek1Month1Basis(value: unknown) {
   return value === true || value === 1 || value === '1' || value === 'true'
 }
 
-/** Payslip tax code with W1 (weekly) or M1 (monthly) when Week 1/Month 1 is set. */
+/** Payslip tax code with W1M1 when Week 1/Month 1 is set. */
 export function formatTaxCodeWithBasis(
   taxCode: string | null | undefined,
   week1month1: unknown,
-  payFrequency?: string | null,
+  _payFrequency?: string | null,
 ) {
   const raw = String(taxCode ?? '').trim().toUpperCase()
   if (!raw) return '—'
   const compact = raw.replace(/\s+/g, '')
-  const base = compact.replace(/[WM]1$/, '') || compact
+  const base = compact.replace(/(W1M1|[WM]1)$/, '') || compact
   const spaced = base.replace(/^(\d+)([A-Z]+)$/i, '$1 $2')
-  const flagged = isWeek1Month1Basis(week1month1) || /[WM]1$/.test(compact)
+  const flagged = isWeek1Month1Basis(week1month1) || /(W1M1|[WM]1)$/.test(compact)
   if (!flagged) return spaced
-  const freq = String(payFrequency ?? '').toUpperCase()
-  const suffix =
-    freq === 'MONTHLY' || freq === 'QUARTERLY' || freq === 'YEARLY' ? 'M1' : 'W1'
-  return `${spaced} ${suffix}`
+  return `${spaced} W1M1`
 }
 
 export function statusTone(status?: string | null) {

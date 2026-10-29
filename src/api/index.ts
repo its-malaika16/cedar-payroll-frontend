@@ -291,6 +291,8 @@ export const payrollApi = {
     get<PayrollSchedule[]>(`/companies/${companyId}/payroll/schedules`),
   createSchedule: (companyId: string, body: Record<string, unknown>) =>
     post<PayrollSchedule>(`/companies/${companyId}/payroll/schedules`, body),
+  updateSchedule: (companyId: string, scheduleId: string, body: Record<string, unknown>) =>
+    patch<PayrollSchedule>(`/companies/${companyId}/payroll/schedules/${scheduleId}`, body),
   updateScheduleStatus: (companyId: string, scheduleId: string, is_active: boolean) =>
     patch(`/companies/${companyId}/payroll/schedules/${scheduleId}/status`, { is_active }),
   deleteSchedule: (companyId: string, scheduleId: string) =>

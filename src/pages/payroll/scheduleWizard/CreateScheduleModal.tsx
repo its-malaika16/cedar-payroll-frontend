@@ -60,7 +60,7 @@ function scheduleIdOf(employee: Employee) {
   return ''
 }
 
-function PayDateSelect({
+export function PayDateSelect({
   value,
   groups,
   onChange,

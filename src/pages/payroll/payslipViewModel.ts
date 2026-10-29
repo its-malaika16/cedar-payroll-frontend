@@ -77,11 +77,6 @@ function firstRecord(value: unknown): Record<string, unknown> {
   return (value as Record<string, unknown>) ?? {}
 }
 
-function hoursFromAmount(value: number, rate: number) {
-  if (value <= 0 || rate <= 0) return null
-  return amount(value / rate)
-}
-
 function payLineAmount(line: PayrollPayLine) {
   if (line.kind === 'daily') return amount((line.qty ?? 0) * (line.rate ?? 0))
   return amount(line.amount)
@@ -155,16 +150,18 @@ export function buildPayslipViewModel(
     if (!display.benefitDescriptions && line.kind === 'benefit') continue
     const n = payLineAmount(line)
     if (n === 0) continue
+    const description = payLineLabel(line)
+    const isHolidayPay = description.trim().toLowerCase() === 'holiday pay'
     earnings.push({
-      description: payLineLabel(line),
-      hours: line.qty && line.qty > 0 ? line.qty : null,
-      rate: line.rate && line.rate > 0 ? line.rate : null,
+      description,
+      hours: !isHolidayPay && line.qty && line.qty > 0 ? line.qty : null,
+      rate: !isHolidayPay && line.rate && line.rate > 0 ? line.rate : null,
       amount: n,
     })
   }
 
   const named: Array<[string, unknown, number | null, number | null]> = [
-    ['Holiday Pay', record.holiday_pay, hoursFromAmount(amount(record.holiday_pay), hourlyRate), hourlyRate],
+    ['Holiday Pay', record.holiday_pay, null, null],
     ['Overtime', record.overtime_1, null, null],
     ['Overtime 1.5', record.overtime_1_5, null, null],
     ['Overtime 2', record.overtime_2, null, null],

@@ -1,12 +1,13 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { CirclePlus, LayoutGrid, Trash2 } from 'lucide-react'
+import { CirclePlus, LayoutGrid, Pencil, Trash2 } from 'lucide-react'
 import { payrollApi } from '../../api'
 import { useAuth } from '../../auth/AuthContext'
 import { Alert, Button } from '../../components/ui'
 import { idOf, labelize } from '../../lib/format'
 import { menuItemClass, menuPanel, toolbarBtn, useMenuOpen } from './CreateSendMenu'
 import { CreateScheduleModal } from './scheduleWizard/CreateScheduleModal'
+import { EditScheduleModal } from './scheduleWizard/EditScheduleModal'
 import type { PayFrequency } from './scheduleWizard/payDateRules'
 import type { PayrollSchedule } from '../../types'
 
@@ -111,6 +112,7 @@ export function PayrollSchedulesMenu() {
   const queryClient = useQueryClient()
   const { ref, open, setOpen } = useMenuOpen()
   const [frequency, setFrequency] = useState<PayFrequency | null>(null)
+  const [editing, setEditing] = useState(false)
   const [deleting, setDeleting] = useState(false)
 
   const schedulesQuery = useQuery({
@@ -149,6 +151,17 @@ export function PayrollSchedulesMenu() {
             className={menuItemClass}
             onClick={() => {
               setOpen(false)
+              setEditing(true)
+            }}
+          >
+            <Pencil size={14} className="shrink-0" />
+            Edit Schedule...
+          </button>
+          <button
+            type="button"
+            className={menuItemClass}
+            onClick={() => {
+              setOpen(false)
               setDeleting(true)
             }}
           >
@@ -168,6 +181,19 @@ export function PayrollSchedulesMenu() {
           onCreated={() => {
             void queryClient.invalidateQueries({ queryKey: ['schedules', companyId] })
             void queryClient.invalidateQueries({ queryKey: ['payroll-runs', companyId] })
+          }}
+        />
+      ) : null}
+
+      {companyId && editing ? (
+        <EditScheduleModal
+          companyId={companyId}
+          schedules={schedules}
+          onClose={() => setEditing(false)}
+          onSaved={() => {
+            void queryClient.invalidateQueries({ queryKey: ['schedules', companyId] })
+            void queryClient.invalidateQueries({ queryKey: ['payroll-runs', companyId] })
+            setEditing(false)
           }}
         />
       ) : null}

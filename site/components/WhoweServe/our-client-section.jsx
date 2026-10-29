@@ -2,15 +2,16 @@ import ScrollReveal from "../ScrollReveal";
 import "./our-client-section.css";
 
 const logos = [
-  { src: "/assets/images/ark-logo.png", alt: "Ark", height: 58 },
-  { src: "/assets/images/bunzl-logo.png", alt: "Bunzl", height: 70 },
+  { src: "/assets/images/ark-logo.png", alt: "Ark", height: 72 },
+  { src: "/assets/images/bunzl-logo.png", alt: "Bunzl", height: 88 },
   { src: "/assets/images/Harris-logo.png", alt: "Harris Federation", height: 178 },
   { src: "/assets/images/mams-logo.png", alt: "Mams", height: 58 },
   { src: "/assets/images/hats-logo.png", alt: "Haberdashers’ Academies Trust South", height: 102 },
   { src: "/assets/images/teachwise-logo.png", alt: "Teachwise", height: 122 },
+  { src: "/assets/images/papa-johns-logo.png", alt: "Papa John's", height: 88 },
   { src: "/assets/images/thinkgroup-logo.png", alt: "THINK!", height: 96 },
   { src: "/assets/images/showcase-logo.jpg", alt: "Showcase Cinemas", height: 96 },
-  { src: "/assets/images/coco-logo.png", alt: "Coco Grill", height: 112 },
+  { src: "/assets/images/coco-logo.png", alt: "Coco Grill", height: 88 },
 ];
 
 const LogoRow = ({ hidden }) => (
