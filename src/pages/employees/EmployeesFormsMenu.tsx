@@ -7,7 +7,7 @@ import iconForms from '../../assets/brand/icon-forms.png'
 import { FORM_TYPES, type FormType } from './formsOptions'
 
 const subItem =
-  'flex w-full items-center px-3 py-2.5 text-left text-xs font-medium text-navy hover:bg-[#f0f5fe]'
+  'flex w-full items-start px-3 py-2.5 text-left text-xs font-medium leading-snug text-navy hover:bg-[#f0f5fe]'
 
 export function EmployeesFormsMenu({
   employeeId,
@@ -27,7 +27,7 @@ export function EmployeesFormsMenu({
   }
 
   return (
-    <div className="relative" ref={ref}>
+    <div className={`relative print:hidden ${open ? 'z-50' : ''}`} ref={ref}>
       <button
         type="button"
         className={`inline-flex h-[47px] min-w-[137px] items-center justify-center gap-2 rounded-[8px] border-[0.5px] px-4 text-sm font-medium ${
@@ -47,8 +47,8 @@ export function EmployeesFormsMenu({
         Forms
       </button>
       {open ? (
-        <div className={`${menuPanel} left-0 z-40 flex`}>
-          <div className="w-[180px] py-1">
+        <div className={`${menuPanel} right-0 z-50 flex overflow-hidden bg-white`}>
+          <div className="w-[168px] shrink-0 py-1">
             {FORM_TYPES.map((item) => (
               <button
                 key={item.value}
@@ -66,7 +66,7 @@ export function EmployeesFormsMenu({
             ))}
           </div>
           {hover ? (
-            <div className="w-[280px] border-l border-[#d9d9d9] py-1">
+            <div className="w-[300px] shrink-0 border-l border-[#d9d9d9] py-1">
               <button
                 type="button"
                 className={`${subItem} bg-[#f0f5fe]`}
@@ -78,7 +78,7 @@ export function EmployeesFormsMenu({
                   )
                 }
               >
-                {formLabel(hover)} for Current Employee
+                {formLabel(hover)} for current employee
               </button>
               <button
                 type="button"

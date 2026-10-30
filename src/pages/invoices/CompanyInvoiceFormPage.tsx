@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { companyInvoicesApi } from '../../api'
@@ -25,9 +25,11 @@ export function CompanyInvoiceFormPage() {
   const [amount, setAmount] = useState('')
   const [dueDate, setDueDate] = useState('')
   const [file, setFile] = useState<File | null>(null)
+  const [removeStored, setRemoveStored] = useState(false)
   const [reason, setReason] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [preview, setPreview] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const existing = useQuery({
     queryKey: ['company-invoice', companyId, invoiceId],
@@ -54,6 +56,7 @@ export function CompanyInvoiceFormPage() {
       if (dueDate) form.append('due_date', dueDate)
       form.append('send', send ? 'true' : 'false')
       if (file) form.append('file', file)
+      else if (removeStored) form.append('remove_file', 'true')
       return companyInvoicesApi.save(companyId, form, invoiceId)
     },
     onSuccess: async () => {
@@ -81,6 +84,7 @@ export function CompanyInvoiceFormPage() {
   const needsReason = status === 'REASON_REQUESTED'
   const invoiceDirty =
     Boolean(file) ||
+    removeStored ||
     isFormDirty(
       {
         title: title.trim(),
@@ -173,25 +177,56 @@ export function CompanyInvoiceFormPage() {
                 />
               </Field>
             </div>
-            <Field label="Attachment">
+            <div>
+              <span className="mb-2 block text-sm font-medium text-navy">Attachment</span>
               {canEdit ? (
                 <div className="rounded-[14px] border border-dashed border-[#d9d9d9] bg-[#faf9f7] px-4 py-4">
                   <input
+                    ref={fileInputRef}
                     type="file"
                     accept={ACCEPT}
-                    className="block w-full text-sm text-navy file:mr-3 file:rounded-[8px] file:border-0 file:bg-navy file:px-3 file:py-2 file:text-sm file:font-medium file:text-white"
-                    onChange={(event) => setFile(event.target.files?.[0] ?? null)}
+                    className="sr-only"
+                    onChange={(event) => {
+                      setFile(event.target.files?.[0] ?? null)
+                      setRemoveStored(false)
+                    }}
                   />
-                  <p className="mt-2 text-xs text-muted">Excel, Word, PDF, PNG or JPG.</p>
-                  {file ? <p className="mt-2 text-sm font-semibold text-navy">{file.name}</p> : null}
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Button type="button" onClick={() => fileInputRef.current?.click()}>
+                      Choose file
+                    </Button>
+                    <p className="text-xs text-muted">Excel, Word, PDF, PNG or JPG.</p>
+                  </div>
                 </div>
               ) : null}
-              {invoice?.has_file ? (
+              {file ? (
                 <div className="mt-3">
-                  <FileChip name={invoice.file_name || 'Attachment'} onClick={() => setPreview(true)} />
+                  <FileChip
+                    name={file.name}
+                    onRemove={() => {
+                      setFile(null)
+                      if (fileInputRef.current) fileInputRef.current.value = ''
+                    }}
+                  />
+                </div>
+              ) : invoice?.has_file && !removeStored ? (
+                <div className="mt-3">
+                  <FileChip
+                    name={invoice.file_name || 'Attachment'}
+                    onClick={() => setPreview(true)}
+                    onRemove={
+                      canEdit
+                        ? () => {
+                            setRemoveStored(true)
+                            setFile(null)
+                            if (fileInputRef.current) fileInputRef.current.value = ''
+                          }
+                        : undefined
+                    }
+                  />
                 </div>
               ) : null}
-            </Field>
+            </div>
 
             {canEdit ? (
               <div className="flex flex-wrap gap-2 border-t border-[#f0efec] pt-5">

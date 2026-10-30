@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { CalendarDays, Check, Clock, FileText, Paperclip, Wallet } from 'lucide-react'
+import { CalendarDays, Check, Clock, FileText, Paperclip, Wallet, X } from 'lucide-react'
 import { formatLongDate, money } from '../../lib/format'
 import { invoiceStatusClass, invoiceStatusLabel } from './invoiceTypes'
 
@@ -56,9 +56,11 @@ export function MetaTile({
 export function FileChip({
   name,
   onClick,
+  onRemove,
 }: {
   name: string
   onClick?: () => void
+  onRemove?: () => void
 }) {
   const content = (
     <>
@@ -73,11 +75,30 @@ export function FileChip({
   )
   const className =
     'flex w-full min-w-0 items-center gap-3 rounded-[14px] border border-[#eceae6] bg-white px-3 py-2.5 text-left'
-  if (!onClick) return <div className={className}>{content}</div>
   return (
-    <button type="button" className={`${className} transition hover:border-navy/30 hover:bg-cream`} onClick={onClick}>
-      {content}
-    </button>
+    <div className={`${className} ${onRemove ? 'pr-2' : ''}`}>
+      {onClick ? (
+        <button
+          type="button"
+          className="flex min-w-0 flex-1 items-center gap-3 text-left transition hover:opacity-80"
+          onClick={onClick}
+        >
+          {content}
+        </button>
+      ) : (
+        <div className="flex min-w-0 flex-1 items-center gap-3">{content}</div>
+      )}
+      {onRemove ? (
+        <button
+          type="button"
+          className="flex size-9 shrink-0 items-center justify-center rounded-[10px] text-muted transition hover:bg-navy/8 hover:text-navy"
+          aria-label="Remove attachment"
+          onClick={onRemove}
+        >
+          <X size={16} />
+        </button>
+      ) : null}
+    </div>
   )
 }
 
