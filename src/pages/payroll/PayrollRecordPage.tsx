@@ -35,6 +35,7 @@ import {
   pensionAppliesToPeriod,
   sortByEmployeeName,
 } from '../../lib/format'
+import { assessHourlyMinimumWage } from '../../lib/minimumWage'
 import type { Employee, PayrollPayLine, PayrollRecord, PayrollRun, PayrollSchedule, PayrollYearToDate } from '../../types'
 import iconPerson from '../../assets/brand/icon-person.png'
 import {
@@ -539,6 +540,24 @@ export function PayrollRecordPage() {
   const pension = asRecord(employee?.employee_pension_details)
   const hasBank = Boolean(employee?.bank_details?.length)
   const payTotal = Number(hours || 0) * Number(rate || 0)
+  const minWageWarning = useMemo(() => {
+    if (!showHourlyPay && !(Number(record?.wage_per_hour ?? 0) > 0)) return null
+    return assessHourlyMinimumWage({
+      dateOfBirth: employee?.dob,
+      profile: String(employment.min_wage_profile ?? ''),
+      payDate: run?.pay_date,
+      periodStart: run?.period_start_date,
+      hourlyRate: rate || record?.wage_per_hour,
+    }).warning
+  }, [
+    showHourlyPay,
+    record?.wage_per_hour,
+    employee?.dob,
+    employment.min_wage_profile,
+    run?.period_start_date,
+    run?.pay_date,
+    rate,
+  ])
   const statutoryItems = [
     ['Statutory sick pay (SSP)', record?.ssp],
     ['Statutory maternity pay (SMP)', record?.smp],
@@ -1483,6 +1502,11 @@ export function PayrollRecordPage() {
           <Alert tone="success">{message}</Alert>
         </div>
       ) : null}
+      {minWageWarning ? (
+        <div className="mt-4">
+          <Alert tone="warning">{minWageWarning}</Alert>
+        </div>
+      ) : null}
 
       <div className="mt-6 flex flex-wrap items-center justify-between gap-4 rounded-[16px] bg-white px-6 py-[18px]">
         <p className="min-w-0 flex-1 truncate text-left text-[18px] leading-none text-navy">
@@ -1783,9 +1807,9 @@ export function PayrollRecordPage() {
                 {Number(record?.employee_pension ?? 0) === 0 &&
                 Number(record?.employer_pension ?? 0) === 0 ? (
                   <p className="text-[11px] text-[#607080]">
-                    Pension is £0 this period because earnings are not above the trigger (£192 a week / £768 every four
-                    weeks / £833 a month / £10,000 a year). When they are, 5% employee and 3% employer apply to
-                    qualifying earnings between the lower and upper limits.
+                    Pension is £0 this period because qualifying earnings are £0. Employee 5% and employer 3% apply to
+                    pay between the lower and upper qualifying limits (£120 a week / £240 a fortnight / £480 every four
+                    weeks / £520 a month).
                   </p>
                 ) : null}
               </PayLineGroup>

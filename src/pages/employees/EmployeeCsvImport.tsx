@@ -15,6 +15,7 @@ import {
   parseCsvBoolean,
   parseCsvDate,
   parseCsvGender,
+  ageFromDobUtc,
   parseCsvNiCategory,
   parseCsvNumber,
   parseCsvPaymentMethod,
@@ -27,6 +28,7 @@ import {
   DEFAULT_CSV_TAX_CODE,
   type ParsedCsv,
 } from './csvImport'
+import { isAllowedNiCategory } from './niCategories'
 
 export function EmployeeCsvImport({
   file,
@@ -200,6 +202,7 @@ export function EmployeeCsvImport({
         }
         const recommendedNi = recommendedNiCategoryFromDob(dob) ?? 'A'
         const csvNi = parseCsvNiCategory(value('ni_category'))
+        const csvAge = ageFromDobUtc(dob)
         const taxCode = value('tax_code').replace(/\s+/g, '').toUpperCase() || DEFAULT_CSV_TAX_CODE
         const niNumber = value('ni_number').replace(/\s+/g, '').toUpperCase()
         const week1 = parseCsvBoolean(value('week1month1'))
@@ -208,7 +211,10 @@ export function EmployeeCsvImport({
         const director = parseCsvBoolean(value('is_director'))
         await employeesApi.updateTax(companyId, employeeId, {
           tax_code: taxCode,
-          ni_category: csvNi && csvNi === recommendedNi ? csvNi : recommendedNi,
+          ni_category:
+            csvNi && csvAge != null && isAllowedNiCategory(csvNi, csvAge)
+              ? csvNi
+              : recommendedNi,
           ...(niNumber && /^(?!BG|GB|KN|NK|NT|TN|ZZ)[A-CEGHJ-PR-TW-Z][A-CEGHJ-NPR-TW-Z]\d{6}[A-D]$/.test(niNumber)
             ? { ni_number: niNumber }
             : {}),

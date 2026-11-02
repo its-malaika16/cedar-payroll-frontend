@@ -129,6 +129,8 @@ export type AuthPayload = {
 
 export type EmployerDefaults = {
   typical_pay_frequency?: string
+  typical_pay_basis?: string
+  typical_pay_method?: string
   leave_year_starts?: string
   leave_calculation_method?: string
   leave_entitlement_days?: number
@@ -142,6 +144,7 @@ export type EmployerDefaults = {
   do_not_pay_ssp?: boolean
   opt_out_credit_check?: boolean
   rti_gateway_preference?: 'NONE' | 'PAYE'
+  payroll_start_mode?: 'BEGINNING' | 'START_PARTWAY' | 'CONTINUE_PARTWAY' | string
   rti_contact?: {
     title?: string
     first_name?: string
@@ -221,6 +224,10 @@ export type OnboardingCompany = {
   sector?: string | null
   paye_reference?: string | null
   accounts_office_reference?: string | null
+  small_employers_relief?: boolean | null
+  expenses_benefits_method?: string | null
+  payroll_start_mode?: string | null
+  employer_defaults?: EmployerDefaults | null
   company_registration_number?: string | null
   pension_provider?: string | null
   pension_employer_id?: string | null
@@ -462,6 +469,18 @@ export type PayrollRecord = {
   calendar_leave_summary?: CalendarLeaveSummary | null
   pay_lines?: PayrollPayLine[] | null
   deduction_lines?: PayrollDeductionLine[] | null
+  minimum_wage?: {
+    entitled: boolean
+    belowMinimum: boolean
+    hourlyRate: number | null
+    requiredRate: number | null
+    band: string | null
+    bandLabel: string | null
+    ratesFrom: string | null
+    age: number | null
+    profile?: string | null
+    warning: string | null
+  } | null
   status?: string | null
   finalised_at?: string | null
   employees?: Employee

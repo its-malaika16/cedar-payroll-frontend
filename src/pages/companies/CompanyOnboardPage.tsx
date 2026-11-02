@@ -5,6 +5,7 @@ import { onboardingApi } from '../../api'
 import { useAuth } from '../../auth/AuthContext'
 import { DocumentPreviewModal } from '../../components/DocumentPreviewModal'
 import { Alert, Button, Field, Input, PageHeader, Select, onSubmit } from '../../components/ui'
+import { joinPaye } from '../settings/employerSettings'
 import {
   ONBOARDING_CONTRACT_TEMPLATES,
   appendOnboardingContract,
@@ -12,6 +13,13 @@ import {
   onboardingTemplatePreviewPath,
   type OnboardingContractSource,
 } from './onboardingContracts'
+import {
+  CompanyPayrollSetupFields,
+  emptyCompanyPayrollSetup,
+  employerDefaultsFromSetup,
+  TypicalEmployeeFields,
+  type CompanyPayrollSetupValues,
+} from './companySetupFields'
 
 const MODULES = [
   { value: 'PAYROLL', label: 'Payroll' },
@@ -50,6 +58,7 @@ export function CompanyOnboardPage() {
   const auth = useAuth()
   const navigate = useNavigate()
   const [companyName, setCompanyName] = useState('')
+  const [setup, setSetup] = useState<CompanyPayrollSetupValues>(emptyCompanyPayrollSetup)
   const [sector, setSector] = useState('')
   const [modules, setModules] = useState<string[]>(['PAYROLL'])
   const [firstName, setFirstName] = useState('')
@@ -112,6 +121,18 @@ export function CompanyOnboardPage() {
           const created = await onboardingApi.start({
             company_name: companyName.trim(),
             sector: sector.trim() || undefined,
+            address_line_1: setup.address_line_1.trim() || undefined,
+            address_line_2: setup.address_line_2.trim() || undefined,
+            address_line_3: setup.address_line_3.trim() || undefined,
+            address_line_4: setup.address_line_4.trim() || undefined,
+            postcode: setup.postcode.trim() || undefined,
+            country: setup.country.trim() || undefined,
+            paye_reference: joinPaye(setup.paye_office, setup.paye_reference) || undefined,
+            accounts_office_reference: setup.accounts_office_reference.trim() || undefined,
+            expenses_benefits_method: setup.expenses_benefits_method || undefined,
+            small_employers_relief: setup.small_employers_relief,
+            payroll_start_mode: setup.payroll_start_mode,
+            employer_defaults: employerDefaultsFromSetup(setup),
             modules,
             owner: {
               first_name: firstName.trim(),
@@ -140,6 +161,20 @@ export function CompanyOnboardPage() {
             <Field label="Sector">
               <Input variant="outline" value={sector} onChange={(event) => setSector(event.target.value)} placeholder="Optional" />
             </Field>
+            <div className="md:col-span-2">
+              <CompanyPayrollSetupFields
+                companyName={companyName}
+                values={setup}
+                onChange={(next) => setSetup((current) => ({ ...current, ...next }))}
+              />
+            </div>
+            <div className="md:col-span-2">
+              <TypicalEmployeeFields
+                companyName={companyName}
+                values={setup}
+                onChange={(next) => setSetup((current) => ({ ...current, ...next }))}
+              />
+            </div>
           </div>
           <p className="mt-5 mb-2 text-sm font-medium text-navy">Modules</p>
           <div className="flex flex-wrap gap-3">

@@ -1,3 +1,5 @@
+import { isNiCategoryLetter, recommendedNiCategory } from './niCategories'
+
 export type CsvFieldGroup = 'Personal' | 'Address' | 'Employment' | 'Payment' | 'Pay & tax' | 'Pension'
 
 export type CsvField = {
@@ -320,9 +322,10 @@ export function isValidEmail(value: string) {
 
 export const DEFAULT_CSV_TAX_CODE = '1257L'
 
-export function parseCsvNiCategory(value: string): 'A' | 'C' | 'M' | 'X' | undefined {
-  const match = value.trim().toUpperCase().match(/\b([ACMX])\b/)
-  return match ? (match[1] as 'A' | 'C' | 'M' | 'X') : undefined
+export function parseCsvNiCategory(value: string): string | undefined {
+  const match = value.trim().toUpperCase().match(/\b([A-Z])\b/)
+  const letter = match?.[1]
+  return letter && isNiCategoryLetter(letter) ? letter : undefined
 }
 
 export function parseCsvBoolean(value: string) {
@@ -388,15 +391,18 @@ export function parseCsvRate(value: string) {
   return amount > 1 ? amount / 100 : amount
 }
 
-export function recommendedNiCategoryFromDob(dob: string): 'A' | 'C' | 'M' | 'X' | null {
+export function ageFromDobUtc(dob: string): number | null {
   const date = new Date(`${dob}T00:00:00Z`)
   if (Number.isNaN(date.getTime())) return null
   const now = new Date()
   let years = now.getUTCFullYear() - date.getUTCFullYear()
   const month = now.getUTCMonth() - date.getUTCMonth()
   if (month < 0 || (month === 0 && now.getUTCDate() < date.getUTCDate())) years -= 1
-  if (years < 16) return 'X'
-  if (years < 21) return 'M'
-  if (years >= 66) return 'C'
-  return 'A'
+  return years
+}
+
+export function recommendedNiCategoryFromDob(dob: string) {
+  const years = ageFromDobUtc(dob)
+  if (years == null) return null
+  return recommendedNiCategory(years)
 }

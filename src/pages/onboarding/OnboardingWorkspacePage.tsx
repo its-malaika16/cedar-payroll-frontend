@@ -4,9 +4,16 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ArrowLeft, Check, Clock, Download, FileText, Upload, X } from 'lucide-react'
 import { onboardingApi } from '../../api'
 import { useAuth } from '../../auth/AuthContext'
-import { Alert, Button, Field, Input, Loading, PageHeader, Select, onSubmit } from '../../components/ui'
-import { joinPaye, splitPaye, EMPLOYER_COUNTRIES } from '../settings/employerSettings'
+import { Alert, Button, Field, Input, Loading, PageHeader, onSubmit } from '../../components/ui'
+import { joinPaye, splitPaye, EXPENSES_BENEFITS_METHODS } from '../settings/employerSettings'
 import type { OnboardingCompany } from '../../types'
+import {
+  CompanyPayrollSetupFields,
+  emptyCompanyPayrollSetup,
+  employerDefaultsFromSetup,
+  typicalEmployeeFromDefaults,
+  TypicalEmployeeFields,
+} from '../companies/companySetupFields'
 
 function moduleLabel(value: string) {
   if (value === 'HR') return 'HR'
@@ -29,6 +36,18 @@ type DetailsForm = {
   paye_office: string
   paye_reference: string
   accounts_office_reference: string
+  expenses_benefits_method: string
+  small_employers_relief: boolean
+  payroll_start_mode: string
+  typical_pay_frequency: string
+  typical_pay_basis: string
+  typical_pay_method: string
+  leave_year_starts: string
+  leave_calculation_method: string
+  leave_entitlement_days: string
+  leave_entitlement_weeks: string
+  carry_over_leave: boolean
+  working_days: string[]
   company_registration_number: string
   pension_provider: string
   pension_employer_id: string
@@ -38,6 +57,7 @@ type WizardStep = 1 | 2 | 3 | 4
 
 function formFrom(company: OnboardingCompany): DetailsForm {
   const paye = splitPaye(company.paye_reference)
+  const setup = emptyCompanyPayrollSetup()
   return {
     company_name: company.company_name ?? '',
     trading_name: company.trading_name ?? '',
@@ -47,11 +67,15 @@ function formFrom(company: OnboardingCompany): DetailsForm {
     address_line_3: company.address_line_3 ?? '',
     address_line_4: company.address_line_4 ?? '',
     postcode: company.postcode ?? '',
-    country: company.country || 'England',
+    country: company.country || setup.country,
     sector: company.sector ?? '',
     paye_office: paye.office,
     paye_reference: paye.reference,
     accounts_office_reference: company.accounts_office_reference ?? '',
+    expenses_benefits_method: company.expenses_benefits_method || EXPENSES_BENEFITS_METHODS[0],
+    small_employers_relief: Boolean(company.small_employers_relief),
+    payroll_start_mode: company.payroll_start_mode || setup.payroll_start_mode,
+    ...typicalEmployeeFromDefaults(company.employer_defaults),
     company_registration_number: company.company_registration_number ?? '',
     pension_provider: company.pension_provider ?? '',
     pension_employer_id: company.pension_employer_id ?? '',
@@ -328,6 +352,10 @@ export function OnboardingWorkspacePage() {
                 sector: form.sector.trim() || null,
                 paye_reference: joinPaye(form.paye_office, form.paye_reference) || null,
                 accounts_office_reference: form.accounts_office_reference.trim() || null,
+                expenses_benefits_method: form.expenses_benefits_method || null,
+                small_employers_relief: form.small_employers_relief,
+                payroll_start_mode: form.payroll_start_mode,
+                employer_defaults: employerDefaultsFromSetup(form),
                 company_registration_number: form.company_registration_number.trim() || null,
                 pension_provider: form.pension_provider.trim() || null,
                 pension_employer_id: form.pension_employer_id.trim() || null,
@@ -342,44 +370,40 @@ export function OnboardingWorkspacePage() {
             <Field label="Trading name">
               <Input variant="outline" value={form.trading_name} disabled={locked} onChange={(e) => patch({ trading_name: e.target.value })} />
             </Field>
+            <div className="md:col-span-2">
+              <CompanyPayrollSetupFields
+                companyName={form.company_name}
+                disabled={locked}
+                values={{
+                  payroll_start_mode: form.payroll_start_mode,
+                  address_line_1: form.address_line_1,
+                  address_line_2: form.address_line_2,
+                  address_line_3: form.address_line_3,
+                  address_line_4: form.address_line_4,
+                  postcode: form.postcode,
+                  country: form.country,
+                  paye_office: form.paye_office,
+                  paye_reference: form.paye_reference,
+                  accounts_office_reference: form.accounts_office_reference,
+                  expenses_benefits_method: form.expenses_benefits_method,
+                  small_employers_relief: form.small_employers_relief,
+                }}
+                onChange={(next) => patch(next)}
+              />
+            </div>
+            <div className="md:col-span-2">
+              <TypicalEmployeeFields
+                companyName={form.company_name}
+                disabled={locked}
+                values={form}
+                onChange={(next) => patch(next)}
+              />
+            </div>
             <Field label="Office number">
               <Input variant="outline" value={form.office_number} disabled={locked} onChange={(e) => patch({ office_number: e.target.value })} />
             </Field>
             <Field label="Sector">
               <Input variant="outline" value={form.sector} disabled={locked} onChange={(e) => patch({ sector: e.target.value })} />
-            </Field>
-            <Field label="Address line 1">
-              <Input variant="outline" value={form.address_line_1} disabled={locked} onChange={(e) => patch({ address_line_1: e.target.value })} />
-            </Field>
-            <Field label="Address line 2">
-              <Input variant="outline" value={form.address_line_2} disabled={locked} onChange={(e) => patch({ address_line_2: e.target.value })} />
-            </Field>
-            <Field label="Address line 3">
-              <Input variant="outline" value={form.address_line_3} disabled={locked} onChange={(e) => patch({ address_line_3: e.target.value })} />
-            </Field>
-            <Field label="Address line 4">
-              <Input variant="outline" value={form.address_line_4} disabled={locked} onChange={(e) => patch({ address_line_4: e.target.value })} />
-            </Field>
-            <Field label="Postcode">
-              <Input variant="outline" value={form.postcode} disabled={locked} onChange={(e) => patch({ postcode: e.target.value })} />
-            </Field>
-            <Field label="Country">
-              <Select variant="outline" value={form.country} disabled={locked} onChange={(e) => patch({ country: e.target.value })}>
-                {EMPLOYER_COUNTRIES.map((country) => (
-                  <option key={country} value={country}>
-                    {country}
-                  </option>
-                ))}
-              </Select>
-            </Field>
-            <Field label="PAYE office number">
-              <Input variant="outline" value={form.paye_office} disabled={locked} onChange={(e) => patch({ paye_office: e.target.value })} />
-            </Field>
-            <Field label="PAYE reference">
-              <Input variant="outline" value={form.paye_reference} disabled={locked} onChange={(e) => patch({ paye_reference: e.target.value })} />
-            </Field>
-            <Field label="Accounts office reference">
-              <Input variant="outline" value={form.accounts_office_reference} disabled={locked} onChange={(e) => patch({ accounts_office_reference: e.target.value })} />
             </Field>
             <Field label="Company registration number">
               <Input variant="outline" value={form.company_registration_number} disabled={locked} onChange={(e) => patch({ company_registration_number: e.target.value })} />

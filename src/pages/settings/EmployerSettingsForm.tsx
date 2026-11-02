@@ -9,6 +9,7 @@ import {
   LEAVE_CALCULATION_METHODS,
   LEAVE_YEAR_STARTS,
   MIN_WAGE_PROFILES,
+  minWageProfileHelp,
   TITLE_OPTIONS,
   WEEKDAYS,
 } from '../employees/employeeOptions'
@@ -24,6 +25,12 @@ import {
   type EmployerForm,
   type SettingsTab,
 } from './employerSettings'
+import {
+  currentTaxYearLabel,
+  payrollStartOptions,
+  TYPICAL_PAY_BASIS_OPTIONS,
+  TYPICAL_PAY_METHOD_OPTIONS,
+} from '../companies/companySetupFields'
 
 function Input(props: ComponentProps<typeof UiInput>) {
   return <UiInput variant="outline" {...props} />
@@ -336,9 +343,32 @@ export function EmployerSettingsForm({ company }: { company: Company }) {
               />
             </Field>
           </Section>
+          <Section title="Payroll start">
+            <fieldset className="space-y-3">
+              <legend className="text-sm font-medium text-navy">
+                How should payroll for {form.company_name.trim() || 'this company'} be handled in the{' '}
+                {currentTaxYearLabel()} tax year?
+              </legend>
+              {payrollStartOptions().map((option) => (
+                <label key={option.value} className="flex cursor-pointer gap-3 text-sm text-navy">
+                  <input
+                    type="radio"
+                    name="payroll_start_mode"
+                    className="mt-1 accent-navy"
+                    checked={form.payroll_start_mode === option.value}
+                    onChange={() => patchForm({ payroll_start_mode: option.value })}
+                  />
+                  <span>
+                    <span className="block font-semibold">{option.title}</span>
+                    <span className="mt-0.5 block text-xs text-muted">{option.hint}</span>
+                  </span>
+                </label>
+              ))}
+            </fieldset>
+          </Section>
           <Section title="Profile">
             <CheckRow
-              label="Employer qualifies for Small Employers’ Relief"
+              label="Company qualifies for Small Employers’ Relief"
               checked={form.small_employers_relief}
               onChange={(checked) => patchForm({ small_employers_relief: checked })}
             />
@@ -369,6 +399,30 @@ export function EmployerSettingsForm({ company }: { company: Company }) {
                 onChange={(event) => patchForm({ typical_pay_frequency: event.target.value })}
               >
                 {PAY_FREQUENCY_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+            <Field label="Typical pay basis">
+              <Select
+                value={form.typical_pay_basis}
+                onChange={(event) => patchForm({ typical_pay_basis: event.target.value })}
+              >
+                {TYPICAL_PAY_BASIS_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+            <Field label="Typical pay method">
+              <Select
+                value={form.typical_pay_method}
+                onChange={(event) => patchForm({ typical_pay_method: event.target.value })}
+              >
+                {TYPICAL_PAY_METHOD_OPTIONS.map((option) => (
                   <option key={option.value} value={option.value}>
                     {option.label}
                   </option>
@@ -461,6 +515,9 @@ export function EmployerSettingsForm({ company }: { company: Company }) {
                   ))}
                 </Select>
               </Field>
+              <p className="text-xs leading-5 text-muted">
+                {minWageProfileHelp(form.min_wage_profile)}
+              </p>
               <CheckRow
                 label="Flag where employees are paid below minimum wage (hourly paid only)"
                 checked={form.flag_below_min_wage}

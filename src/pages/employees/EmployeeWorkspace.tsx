@@ -23,6 +23,7 @@ import { assetUrl } from '../../api/client'
 import { useAuth } from '../../auth/AuthContext'
 import { Alert, Button, Loading } from '../../components/ui'
 import { fullName, idOf, toDateInput } from '../../lib/format'
+import { taxYearLabel, taxYearStartFromDate } from '../../lib/hmrcTaxCalendar'
 import { ComplianceDocumentsPanel } from '../hr/compliance/ComplianceDocumentsPanel'
 import type { ComplianceFile } from '../hr/compliance/documentTypes'
 import type { Company, Employee, PayrollSchedule } from '../../types'
@@ -37,17 +38,35 @@ import {
   LEAVE_CALCULATION_METHODS,
   LEAVE_YEAR_STARTS,
   MIN_WAGE_PROFILES,
+  minWageProfileHelp,
   NEW_PAY_SCHEDULES,
   NI_CATEGORIES,
   PAYMENT_METHODS,
   PAYROLL_ID_CHANGE_OPTIONS,
   POSTGRADUATE_LOAN_PLANS,
-  REPORTED_PAY_FREQUENCIES,
+  keepReportedFrequencyOverride,
+  normalizeReportedPayFrequency,
+  reportedFrequencyFromNewSchedule,
+  reportedPayFrequencyOptions,
   STARTER_DECLARATIONS,
   STUDENT_LOAN_PLANS,
   TITLE_OPTIONS,
   type EmployeeTab,
 } from './employeeOptions'
+import {
+  isAllowedNiCategory,
+  recommendedNiCategory as recommendedNiFromAge,
+  niCategoryLabel,
+} from './niCategories'
+import {
+  draftFromMidYear,
+  emptyMidYearDraft,
+  emptyNiRow,
+  isContinuePartway,
+  midYearPayload,
+  MID_YEAR_NI_LETTERS,
+  type MidYearTotalsDraft,
+} from './midYearTotals'
 
 type Contact = { type: string; value: string }
 
@@ -126,6 +145,7 @@ type Draft = {
   flexible_drawdown: boolean
   off_payroll_worker: boolean
   portal_access: boolean
+  mid_year: MidYearTotalsDraft
 }
 
 const emptyDraft = (company?: Company | null): Draft => {
@@ -203,7 +223,8 @@ const emptyDraft = (company?: Company | null): Draft => {
   workplace_postcode: '',
   payroll_id_change: 'AUTO',
   contracted_hours_per_week: DEFAULT_CONTRACTED_HOURS,
-  reported_pay_frequency: DEFAULT_REPORTED_PAY_FREQUENCY,
+  reported_pay_frequency:
+    normalizeReportedPayFrequency(defaults?.typical_pay_frequency) || DEFAULT_REPORTED_PAY_FREQUENCY,
   irregular_payment_pattern: false,
   exclude_from_fps_if_zero: false,
   payments_to_body: false,
@@ -211,6 +232,7 @@ const emptyDraft = (company?: Company | null): Draft => {
   flexible_drawdown: false,
   off_payroll_worker: false,
   portal_access: false,
+  mid_year: emptyMidYearDraft(),
   }
 }
 
@@ -240,7 +262,9 @@ export function EmployeeWorkspace() {
   const [postcodeError, setPostcodeError] = useState<string | null>(null)
   const [postcodeChecking, setPostcodeChecking] = useState(false)
   const [confirmingDelete, setConfirmingDelete] = useState(false)
+  const [createdEmployeeId, setCreatedEmployeeId] = useState<string | null>(null)
   const postcodeRequest = useRef(0)
+  const hydratedEmployeeId = useRef<string | null>(null)
 
   const employeeQuery = useQuery({
     queryKey: ['employee', companyId, employeeId],
@@ -255,7 +279,7 @@ export function EmployeeWorkspace() {
   const companyQuery = useQuery({
     queryKey: ['company', companyId],
     queryFn: () => companiesApi.get(companyId!),
-    enabled: Boolean(companyId) && isNew,
+    enabled: Boolean(companyId),
   })
   const complianceQuery = useQuery({
     queryKey: ['my-compliance', companyId, employeeId],
@@ -267,44 +291,86 @@ export function EmployeeWorkspace() {
   const schedules = (schedulesQuery.data?.data ?? []) as PayrollSchedule[]
   const company = companyQuery.data?.data as Company | undefined
   const complianceDocuments = (complianceQuery.data?.data as ComplianceFile[] | undefined) ?? []
+  const showMidYearTotals = isContinuePartway(company)
+  const visibleTabs = EMPLOYEE_TABS.filter(
+    (item) => item !== 'Mid Year Totals' || showMidYearTotals,
+  )
   const assignedScheduleId = str(asRecord(employee?.employment_details).pay_schedule_id)
   const needsSchedule = !isNew && Boolean(employeeId) && !assignedScheduleId
   const activeSchedules = schedules.filter((schedule) => schedule.is_active !== false)
   const selectedExistingScheduleId = parsePaySchedule(draft.pay_schedule).id
 
   useEffect(() => {
+    if (tab === 'Mid Year Totals' && company && !showMidYearTotals) {
+      setTab('Personal')
+    }
+  }, [tab, company, showMidYearTotals])
+
+  useEffect(() => {
     if (isNew) {
+      if (hydratedEmployeeId.current === 'new') return
+      if (!company && companyQuery.isLoading) return
       const next = emptyDraft(company)
       setDraft(next)
       setSavedSnapshot(JSON.stringify(next))
+      hydratedEmployeeId.current = 'new'
       if (!searchParams.get('tab')) setTab('Personal')
       return
     }
-    if (employee) {
-      const next = draftFromEmployee(employee)
-      setDraft(next)
-      setSavedSnapshot(JSON.stringify(next))
-      setPhotoFile(null)
-    }
-  }, [employeeId, employeeQuery.dataUpdatedAt, isNew, companyQuery.dataUpdatedAt, schedulesQuery.dataUpdatedAt])
+    if (!employee) return
+    if (schedulesQuery.isLoading) return
+    if (hydratedEmployeeId.current === employeeId) return
+    const next = draftFromEmployee(employee, schedules)
+    setDraft(next)
+    setSavedSnapshot(JSON.stringify(next))
+    setPhotoFile(null)
+    hydratedEmployeeId.current = employeeId ?? null
+  }, [
+    company,
+    companyQuery.isLoading,
+    employee,
+    employeeId,
+    isNew,
+    schedules,
+    schedulesQuery.isLoading,
+    searchParams,
+  ])
 
+  const fpsScheduleFrequency =
+    reportedFrequencyFromPaySchedule(draft.pay_schedule, schedules) ||
+    DEFAULT_REPORTED_PAY_FREQUENCY
+  const fpsFrequencyOptions = reportedPayFrequencyOptions(fpsScheduleFrequency)
+  const fpsFrequencyValue = fpsFrequencyOptions.some(
+    (item) => item.value === draft.reported_pay_frequency,
+  )
+    ? draft.reported_pay_frequency
+    : fpsScheduleFrequency
   const age = ageFromDob(draft.dob)
   const recommendedNi = recommendedNiCategory(draft.dob)
   const niNumberError =
     draft.ni_number.trim() && !isValidNiNumber(draft.ni_number)
       ? 'Enter a valid National Insurance number'
       : null
+  const ageYears = Number(age)
   const niCategoryError = !draft.dob
     ? 'Save the employee date of birth before setting an NI category'
-    : recommendedNi && draft.ni_category !== recommendedNi
-      ? `This category does not match the employee's age (${age}). Use ${niCategoryLabel(recommendedNi)}.`
+    : Number.isFinite(ageYears) &&
+        draft.ni_category &&
+        !isAllowedNiCategory(draft.ni_category, ageYears)
+      ? `Category ${draft.ni_category} is not valid for this employee's age (${age}). Usual category: ${niCategoryLabel(recommendedNi ?? 'A')}.`
+      : null
+  const niCategoryHint =
+    !niCategoryError &&
+    recommendedNi &&
+    draft.ni_category &&
+    draft.ni_category !== recommendedNi
+      ? `Usual category for this age is ${niCategoryLabel(recommendedNi)}.`
       : null
   const photoPreview = useMemo(() => {
     if (photoFile) return URL.createObjectURL(photoFile)
     return assetUrl(draft.photo_url)
   }, [photoFile, draft.photo_url])
 
-  const locked = isNew && tab !== 'Personal'
   const isDirty = Boolean(savedSnapshot) && (JSON.stringify(draft) !== savedSnapshot || Boolean(photoFile))
 
   useEffect(() => {
@@ -380,9 +446,9 @@ export function EmployeeWorkspace() {
         pay_schedule_id: schedule.id,
         pay_schedule_request: null,
       })
-      await queryClient.invalidateQueries({ queryKey: ['employee', companyId, employeeId] })
       await queryClient.invalidateQueries({ queryKey: ['employees', companyId] })
       await queryClient.invalidateQueries({ queryKey: ['payroll-runs', companyId] })
+      setSavedSnapshot(JSON.stringify(draft))
       setMessage('Pay schedule assigned to this employee')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not assign a pay schedule')
@@ -409,230 +475,222 @@ export function EmployeeWorkspace() {
     }
   }
 
-  async function saveCurrentTab() {
+  async function saveEmployee() {
     if (!companyId) throw new Error('Select a company first')
-    if (locked) throw new Error('Save personal details before completing other tabs')
 
-    if (tab === 'Personal') {
-      const primaryEmail = draft.emails[0]
-      const extraEmails = draft.emails.slice(1).filter((row) => row.value.trim())
-      const primaryPhone = draft.phones[0]
-      const extraPhones = draft.phones.slice(1).filter((row) => row.value.trim())
-      if (!draft.first_name.trim() || !draft.last_name.trim() || !draft.dob) {
-        throw new Error('First name, last name and date of birth are required')
-      }
-      const invalidEmail = draft.emails.find(
-        (row) => row.value.trim() && !isValidEmail(row.value),
-      )
-      if (invalidEmail) {
-        throw new Error('Enter a valid email address')
-      }
-      let postcode = draft.postcode.trim()
-      if (postcode) {
-        const postcodeResult = await lookupsApi.validatePostcode(postcode, draft.country)
-        if (!postcodeResult.data.valid) {
-          setPostcodeError('Enter a valid postcode')
-          throw new Error('Enter a valid postcode')
-        }
-        postcode = postcodeResult.data.formatted || postcode
-        if (postcode !== draft.postcode) {
-          setDraft((current) => ({ ...current, postcode }))
-        }
-      }
-      const personalBody = {
-        title: draft.title,
-        first_name: draft.first_name,
-        middle_name: draft.middle_name || undefined,
-        last_name: draft.last_name,
-        gender: draft.gender,
-        dob: draft.dob,
-        email: primaryEmail?.value.trim() || null,
-        email_type: primaryEmail?.type ?? 'Work',
-        extra_emails: extraEmails.map((row) => ({ type: row.type, address: row.value })),
-        phone: primaryPhone?.value || undefined,
-        phone_type: primaryPhone?.type ?? 'Mobile',
-        extra_phones: extraPhones.map((row) => ({ type: row.type, number: row.value })),
-        portal_access: draft.portal_access,
-      }
-
-      let savedId = employeeId
-      if (isNew) {
-        const created = await employeesApi.create(companyId, personalBody)
-        savedId = idOf(created.data)
-      } else {
-        await employeesApi.update(companyId, employeeId, personalBody)
-      }
-
-      await employeesApi.updateAddress(companyId, savedId!, {
-        address_line_1: draft.address_line_1,
-        address_line_2: draft.address_line_2,
-        address_line_3: draft.address_line_3,
-        address_line_4: draft.address_line_4,
-        postcode,
-        country: draft.country,
-      })
-
-      if (photoFile) {
-        const form = new FormData()
-        form.append('file', photoFile)
-        form.append('title', 'Employee photo')
-        form.append('file_type', 'image')
-        const uploaded = (await employeesApi.uploadDocument(companyId, savedId!, form)) as {
-          data?: { file_path?: string }
-        }
-        const filePath = String(uploaded.data?.file_path ?? '')
-        if (filePath) {
-          await employeesApi.update(companyId, savedId!, { photo_url: filePath })
-        }
-        setPhotoFile(null)
-      }
-
-      void queryClient.invalidateQueries({ queryKey: ['employees', companyId] })
-      if (isNew) {
-        navigate(`/employees/${savedId}`)
-        return
-      }
-      void queryClient.invalidateQueries({ queryKey: ['employee', companyId, employeeId] })
-      setSavedSnapshot(JSON.stringify({ ...draft, postcode }))
-      return
+    const primaryEmail = draft.emails[0]
+    const extraEmails = draft.emails.slice(1).filter((row) => row.value.trim())
+    const primaryPhone = draft.phones[0]
+    const extraPhones = draft.phones.slice(1).filter((row) => row.value.trim())
+    if (!draft.first_name.trim() || !draft.last_name.trim() || !draft.dob) {
+      throw new Error('First name, last name and date of birth are required')
+    }
+    const invalidEmail = draft.emails.find(
+      (row) => row.value.trim() && !isValidEmail(row.value),
+    )
+    if (invalidEmail) {
+      throw new Error('Enter a valid email address')
+    }
+    if (niNumberError) {
+      throw new Error(niNumberError)
+    }
+    if (draft.dob && niCategoryError) {
+      throw new Error(niCategoryError)
     }
 
-    if (!employeeId) throw new Error('Save personal details first')
-
-    if (tab === 'Employment') {
-      await employeesApi.updateEmployment(companyId, employeeId, {
-        department: draft.departments.map((item) => item.trim()).filter(Boolean).join(', '),
-        usual_working_days: draft.working_days.join(','),
-        min_wage_profile: draft.min_wage_profile,
-        typical_hours_per_week: toNumber(draft.typical_hours_per_week),
-        leave_year_starts: draft.leave_year_starts,
-        leave_calculation_method: draft.leave_calculation_method,
-        annual_leave_entitlement: toNumber(draft.annual_leave_days),
-        leave_entitlement_weeks: toNumber(draft.annual_leave_weeks),
-        carry_over_leave: draft.carry_over_leave,
-        carry_over_days: draft.carry_over_leave ? toNumber(draft.carry_over_days) : 0,
-        additional_leave: draft.additional_leave,
-        additional_leave_days: draft.additional_leave ? toNumber(draft.additional_leave_days) : 0,
-      })
-    }
-
-    if (tab === 'Starter/Leaver') {
-      const schedule = assignedScheduleId
-        ? { id: assignedScheduleId, request: null as string | null }
-        : parsePaySchedule(draft.pay_schedule)
-      await employeesApi.updateStarterLeaver(companyId, employeeId, {
-        start_date: draft.start_date || null,
-        starter_declaration: draft.starter_declaration || null,
-        previous_gross_taxable_pay: showsPreviousEmployment(draft.starter_declaration)
-          ? toNumber(draft.previous_gross_taxable_pay)
-          : null,
-        previous_gross_tax: showsPreviousEmployment(draft.starter_declaration)
-          ? toNumber(draft.previous_gross_tax)
-          : null,
-        overseas_secondment: draft.overseas_secondment,
-        tupe_protected: draft.tupe_protected,
-        pre_transfer_start_date: draft.pre_transfer_start_date || null,
-        leave_date: draft.leave_date || null,
-      })
-      await employeesApi.updateEmployment(companyId, employeeId, {
-        pay_schedule_id: schedule.id,
-        pay_schedule_request: schedule.request,
-        pay_basis_type: draft.pay_basis_type,
-      })
-    }
-
-    if (tab === 'Payment') {
-      const schedule = assignedScheduleId
-        ? { id: assignedScheduleId, request: null as string | null }
-        : parsePaySchedule(draft.pay_schedule)
-      await employeesApi.updateEmployment(companyId, employeeId, {
-        pay_schedule_id: schedule.id,
-        pay_schedule_request: schedule.request,
-        pay_basis_type: draft.pay_basis_type,
-        period_rate: toNumber(draft.period_rate),
-        annual_salary: toNumber(draft.annual_salary),
-        basic_rate_per_hour: toNumber(draft.hourly_rate),
-        daily_rate: toNumber(draft.daily_rate),
-        extra_hourly_rates: draft.extra_hourly_rates
-          .map((value) => Number(value))
-          .filter((value) => !Number.isNaN(value)),
-        extra_daily_rates: draft.extra_daily_rates
-          .map((value) => Number(value))
-          .filter((value) => !Number.isNaN(value)),
-      })
-      const sortCode = compactSortCode(draft.bank_sort_code)
-      const accountNumber = draft.bank_account_number.replace(/\D/g, '')
-      if (needsBankAccount(draft.payment_method) && (sortCode || accountNumber || draft.bank_account_name.trim())) {
-        if (!/^\d{6}$/.test(sortCode)) {
-          throw new Error('Enter a 6-digit sort code')
-        }
-        if (!/^\d{8}$/.test(accountNumber)) {
-          throw new Error('Enter an 8-digit account number')
-        }
-        if (!draft.bank_account_name.trim()) {
-          throw new Error('Enter the bank account name')
-        }
+    let postcode = draft.postcode.trim()
+    if (postcode) {
+      const postcodeResult = await lookupsApi.validatePostcode(postcode, draft.country)
+      if (!postcodeResult.data.valid) {
+        setPostcodeError('Enter a valid postcode')
+        throw new Error('Enter a valid postcode')
       }
-      await employeesApi.updateBank(companyId, employeeId, {
-        payment_method: draft.payment_method,
-        bank_name: draft.bank_name.trim() || null,
-        account_name: draft.bank_account_name.trim() || null,
-        account_number: accountNumber || null,
-        sort_code: sortCode ? formatSortCode(sortCode) : null,
-        bank_reference: draft.bank_reference.trim() || null,
-      })
+      postcode = postcodeResult.data.formatted || postcode
     }
 
-    if (tab === 'Tax, NICs, RTI') {
-      if (niNumberError) {
-        throw new Error(niNumberError)
+    const sortCode = compactSortCode(draft.bank_sort_code)
+    const accountNumber = draft.bank_account_number.replace(/\D/g, '')
+    if (needsBankAccount(draft.payment_method) && (sortCode || accountNumber || draft.bank_account_name.trim())) {
+      if (!/^\d{6}$/.test(sortCode)) {
+        throw new Error('Enter a 6-digit sort code')
       }
-      if (niCategoryError) {
-        throw new Error(niCategoryError)
+      if (!/^\d{8}$/.test(accountNumber)) {
+        throw new Error('Enter an 8-digit account number')
       }
-      const compactNiNumber = draft.ni_number.trim()
-        ? draft.ni_number.replace(/\s+/g, '').toUpperCase()
-        : undefined
-      await employeesApi.updateTax(companyId, employeeId, {
-        tax_code: draft.tax_code || undefined,
-        week1month1: draft.week1month1,
-        ni_number: compactNiNumber,
-        ni_category: draft.ni_category || undefined,
-        is_director: draft.is_director,
-        secondary_nics_not_due: draft.secondary_nics_not_due,
-        student_loan_plan: draft.student_loan_plan,
-        student_loan_start_date:
-          draft.student_loan_plan === 'NONE' ? null : draft.student_loan_start_date || null,
-        student_loan_stop_date:
-          draft.student_loan_plan === 'NONE' ? null : draft.student_loan_stop_date || null,
-        postgraduate_loan_plan: draft.postgraduate_loan_plan,
-        postgraduate_loan_start_date:
-          draft.postgraduate_loan_plan === 'NONE'
-            ? null
-            : draft.postgraduate_loan_start_date || null,
-        postgraduate_loan_stop_date:
-          draft.postgraduate_loan_plan === 'NONE'
-            ? null
-            : draft.postgraduate_loan_stop_date || null,
-        payroll_id: draft.payroll_id || undefined,
-        workplace_postcode: draft.workplace_postcode || undefined,
-        payroll_id_change: draft.payroll_id_change,
-        contracted_hours_per_week:
-          draft.contracted_hours_per_week || DEFAULT_CONTRACTED_HOURS,
-        reported_pay_frequency:
-          draft.reported_pay_frequency || DEFAULT_REPORTED_PAY_FREQUENCY,
-        irregular_payment_pattern: draft.irregular_payment_pattern,
-        exclude_from_fps_if_zero: draft.exclude_from_fps_if_zero,
-        payments_to_body: draft.payments_to_body,
-        trivial_commutation: draft.trivial_commutation,
-        flexible_drawdown: draft.flexible_drawdown,
-        off_payroll_worker: draft.off_payroll_worker,
-      })
+      if (!draft.bank_account_name.trim()) {
+        throw new Error('Enter the bank account name')
+      }
     }
 
-    void queryClient.invalidateQueries({ queryKey: ['employee', companyId, employeeId] })
+    const personalBody = {
+      title: draft.title,
+      first_name: draft.first_name,
+      middle_name: draft.middle_name || undefined,
+      last_name: draft.last_name,
+      gender: draft.gender,
+      dob: draft.dob,
+      email: primaryEmail?.value.trim() || null,
+      email_type: primaryEmail?.type ?? 'Work',
+      extra_emails: extraEmails.map((row) => ({ type: row.type, address: row.value })),
+      phone: primaryPhone?.value || undefined,
+      phone_type: primaryPhone?.type ?? 'Mobile',
+      extra_phones: extraPhones.map((row) => ({ type: row.type, number: row.value })),
+      portal_access: draft.portal_access,
+    }
+
+    let savedId = employeeId ?? createdEmployeeId
+    if (!savedId) {
+      const created = await employeesApi.create(companyId, personalBody)
+      savedId = idOf(created.data)
+      setCreatedEmployeeId(savedId)
+    } else {
+      await employeesApi.update(companyId, savedId, personalBody)
+    }
+
+    await employeesApi.updateAddress(companyId, savedId, {
+      address_line_1: draft.address_line_1,
+      address_line_2: draft.address_line_2,
+      address_line_3: draft.address_line_3,
+      address_line_4: draft.address_line_4,
+      postcode,
+      country: draft.country,
+    })
+
+    let nextPhotoUrl = draft.photo_url
+    if (photoFile) {
+      const form = new FormData()
+      form.append('file', photoFile)
+      form.append('title', 'Employee photo')
+      form.append('file_type', 'image')
+      const uploaded = (await employeesApi.uploadDocument(companyId, savedId, form)) as {
+        data?: { file_path?: string }
+      }
+      const filePath = String(uploaded.data?.file_path ?? '')
+      if (filePath) {
+        await employeesApi.update(companyId, savedId, { photo_url: filePath })
+        nextPhotoUrl = filePath
+      }
+      setPhotoFile(null)
+    }
+
+    const schedule = assignedScheduleId
+      ? { id: assignedScheduleId, request: null as string | null }
+      : parsePaySchedule(draft.pay_schedule)
+
+    await employeesApi.updateEmployment(companyId, savedId, {
+      department: draft.departments.map((item) => item.trim()).filter(Boolean).join(', '),
+      usual_working_days: draft.working_days.join(','),
+      min_wage_profile: draft.min_wage_profile,
+      typical_hours_per_week: toNumber(draft.typical_hours_per_week),
+      leave_year_starts: draft.leave_year_starts,
+      leave_calculation_method: draft.leave_calculation_method,
+      annual_leave_entitlement: toNumber(draft.annual_leave_days),
+      leave_entitlement_weeks: toNumber(draft.annual_leave_weeks),
+      carry_over_leave: draft.carry_over_leave,
+      carry_over_days: draft.carry_over_leave ? toNumber(draft.carry_over_days) : 0,
+      additional_leave: draft.additional_leave,
+      additional_leave_days: draft.additional_leave ? toNumber(draft.additional_leave_days) : 0,
+      ...(schedule.id
+        ? { pay_schedule_id: schedule.id, pay_schedule_request: null }
+        : schedule.request
+          ? { pay_schedule_request: schedule.request }
+          : {}),
+      pay_basis_type: draft.pay_basis_type,
+      period_rate: toNumber(draft.period_rate),
+      annual_salary: toNumber(draft.annual_salary),
+      basic_rate_per_hour: toNumber(draft.hourly_rate),
+      daily_rate: toNumber(draft.daily_rate),
+      extra_hourly_rates: draft.extra_hourly_rates
+        .map((value) => Number(value))
+        .filter((value) => !Number.isNaN(value)),
+      extra_daily_rates: draft.extra_daily_rates
+        .map((value) => Number(value))
+        .filter((value) => !Number.isNaN(value)),
+    })
+
+    await employeesApi.updateStarterLeaver(companyId, savedId, {
+      start_date: draft.start_date || null,
+      starter_declaration: draft.starter_declaration || null,
+      previous_gross_taxable_pay: showsPreviousEmployment(draft.starter_declaration)
+        ? toNumber(draft.previous_gross_taxable_pay)
+        : null,
+      previous_gross_tax: showsPreviousEmployment(draft.starter_declaration)
+        ? toNumber(draft.previous_gross_tax)
+        : null,
+      overseas_secondment: draft.overseas_secondment,
+      tupe_protected: draft.tupe_protected,
+      pre_transfer_start_date: draft.pre_transfer_start_date || null,
+      leave_date: draft.leave_date || null,
+    })
+
+    await employeesApi.updateBank(companyId, savedId, {
+      payment_method: draft.payment_method,
+      bank_name: draft.bank_name.trim() || null,
+      account_name: draft.bank_account_name.trim() || null,
+      account_number: accountNumber || null,
+      sort_code: sortCode ? formatSortCode(sortCode) : null,
+      bank_reference: draft.bank_reference.trim() || null,
+    })
+
+    const compactNiNumber = draft.ni_number.trim()
+      ? draft.ni_number.replace(/\s+/g, '').toUpperCase()
+      : undefined
+    const totals = showMidYearTotals ? midYearPayload(draft.mid_year) : null
+    await employeesApi.updateTax(companyId, savedId, {
+      tax_code: draft.tax_code || undefined,
+      week1month1: draft.week1month1,
+      ni_number: compactNiNumber,
+      ni_category: draft.ni_category || undefined,
+      is_director: draft.is_director,
+      secondary_nics_not_due: draft.secondary_nics_not_due,
+      student_loan_plan: draft.student_loan_plan,
+      student_loan_start_date:
+        draft.student_loan_plan === 'NONE' ? null : draft.student_loan_start_date || null,
+      student_loan_stop_date:
+        draft.student_loan_plan === 'NONE' ? null : draft.student_loan_stop_date || null,
+      postgraduate_loan_plan: draft.postgraduate_loan_plan,
+      postgraduate_loan_start_date:
+        draft.postgraduate_loan_plan === 'NONE'
+          ? null
+          : draft.postgraduate_loan_start_date || null,
+      postgraduate_loan_stop_date:
+        draft.postgraduate_loan_plan === 'NONE'
+          ? null
+          : draft.postgraduate_loan_stop_date || null,
+      payroll_id: draft.payroll_id || undefined,
+      workplace_postcode: draft.workplace_postcode || undefined,
+      payroll_id_change: draft.payroll_id_change,
+      contracted_hours_per_week:
+        draft.contracted_hours_per_week || DEFAULT_CONTRACTED_HOURS,
+      reported_pay_frequency:
+        draft.reported_pay_frequency || DEFAULT_REPORTED_PAY_FREQUENCY,
+      irregular_payment_pattern: draft.irregular_payment_pattern,
+      exclude_from_fps_if_zero: draft.exclude_from_fps_if_zero,
+      payments_to_body: draft.payments_to_body,
+      trivial_commutation: draft.trivial_commutation,
+      flexible_drawdown: draft.flexible_drawdown,
+      off_payroll_worker: draft.off_payroll_worker,
+      ...(totals ? { mid_year_totals: totals } : {}),
+    })
+
+    const savedDraft: Draft = {
+      ...draft,
+      postcode,
+      photo_url: nextPhotoUrl,
+      mid_year: totals
+        ? draftFromMidYear(totals, draft.ni_category || 'A')
+        : draft.mid_year,
+    }
+    setDraft(savedDraft)
+    setSavedSnapshot(JSON.stringify(savedDraft))
+    hydratedEmployeeId.current = savedId
+
     void queryClient.invalidateQueries({ queryKey: ['employees', companyId] })
-    setSavedSnapshot(JSON.stringify(draft))
+    void queryClient.invalidateQueries({ queryKey: ['employee', companyId, savedId] })
+
+    if (!employeeId) {
+      navigate(`/employees/${savedId}`)
+    }
   }
 
   if (!isNew && employeeQuery.isLoading) return <Loading />
@@ -641,7 +699,7 @@ export function EmployeeWorkspace() {
     <div className="flex min-h-0 flex-col">
       <div className="mb-4 overflow-x-auto rounded-[10px] border border-[#d9d9d9] bg-white">
         <div className="flex min-w-max gap-8 px-6 pt-4">
-          {EMPLOYEE_TABS.map((item) => (
+          {visibleTabs.map((item) => (
             <button
               key={item}
               type="button"
@@ -665,12 +723,6 @@ export function EmployeeWorkspace() {
           <Alert tone="success">{message}</Alert>
         </div>
       ) : null}
-      {locked ? (
-        <div className="mb-4">
-          <Alert tone="info">Save personal details first to unlock the remaining tabs.</Alert>
-        </div>
-      ) : null}
-
       <div className="min-h-0 flex-1 pb-4">
         {tab === 'Personal' ? (
           <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1.9fr)_minmax(260px,0.9fr)]">
@@ -691,7 +743,9 @@ export function EmployeeWorkspace() {
                           value={selectedExistingScheduleId ? `id:${selectedExistingScheduleId}` : ''}
                           groups={existingPayScheduleGroups(activeSchedules)}
                           placeholder="Select pay schedule"
-                          onChange={(value) => setDraft({ ...draft, pay_schedule: value })}
+                          onChange={(value) =>
+                            setDraft(withPaySchedule(draft, value, activeSchedules))
+                          }
                         />
                       </div>
                       <Button
@@ -1079,7 +1133,10 @@ export function EmployeeWorkspace() {
                   />
                 </div>
                 <div className="max-w-[384px]">
-                  <Field label="Typical hours worked per week">
+                  <Field
+                    label="Typical hours worked per week"
+                    hint="used for minimum wage reporting when the employee is not paid hourly"
+                  >
                     <Input
                       type="number"
                       value={draft.typical_hours_per_week}
@@ -1088,6 +1145,9 @@ export function EmployeeWorkspace() {
                   </Field>
                 </div>
               </div>
+              <p className="mt-4 max-w-[48rem] text-xs leading-5 text-[#5a6b7d]">
+                {minWageProfileHelp(draft.min_wage_profile)}
+              </p>
             </Section>
           </div>
         ) : null}
@@ -1119,7 +1179,7 @@ export function EmployeeWorkspace() {
                     groups={payScheduleGroups(schedules)}
                     placeholder="Select payment Schedule"
                     disabled={Boolean(assignedScheduleId)}
-                    onChange={(value) => setDraft({ ...draft, pay_schedule: value })}
+                    onChange={(value) => setDraft(withPaySchedule(draft, value, schedules))}
                   />
                   {assignedScheduleId ? (
                     <p className="mt-1.5 text-[11px] text-muted">
@@ -1267,7 +1327,7 @@ export function EmployeeWorkspace() {
                   groups={payScheduleGroups(schedules)}
                   placeholder="Select payment Schedule"
                   disabled={Boolean(assignedScheduleId)}
-                  onChange={(value) => setDraft({ ...draft, pay_schedule: value })}
+                  onChange={(value) => setDraft(withPaySchedule(draft, value, schedules))}
                 />
                 {assignedScheduleId ? (
                   <p className="mt-1.5 text-[11px] text-muted">
@@ -1409,6 +1469,8 @@ export function EmployeeWorkspace() {
                   />
                   {niCategoryError ? (
                     <p className="mt-1 text-[11px] font-medium text-brand">{niCategoryError}</p>
+                  ) : niCategoryHint ? (
+                    <p className="mt-1 text-[11px] text-muted">{niCategoryHint}</p>
                   ) : null}
                 </div>
                 <div className="mt-4 space-y-3">
@@ -1544,8 +1606,8 @@ export function EmployeeWorkspace() {
                   <div>
                     <p className="mb-1.5 text-xs font-medium text-navy">Reported pay frequency</p>
                     <OptionSelect
-                      value={draft.reported_pay_frequency}
-                      options={REPORTED_PAY_FREQUENCIES}
+                      value={fpsFrequencyValue}
+                      options={fpsFrequencyOptions}
                       onChange={(value) => setDraft({ ...draft, reported_pay_frequency: value })}
                     />
                   </div>
@@ -1597,6 +1659,16 @@ export function EmployeeWorkspace() {
               </div>
             </Section>
           </div>
+        ) : null}
+
+        {tab === 'Mid Year Totals' ? (
+          <MidYearTotalsPanel
+            companyName={company?.company_name || 'This company'}
+            employeeName={employeeName}
+            taxYear={taxYearLabel(taxYearStartFromDate(new Date()))}
+            draft={draft.mid_year}
+            onChange={(mid_year) => setDraft((current) => ({ ...current, mid_year }))}
+          />
         ) : null}
 
         {tab === 'Compliance' ? (
@@ -1663,12 +1735,12 @@ export function EmployeeWorkspace() {
           <Button
             type="button"
             className="h-10 w-[105px] text-xs disabled:opacity-50"
-            disabled={saving || locked || !isDirty}
+            disabled={saving || !isDirty}
             onClick={async () => {
               try {
                 setSaving(true)
                 setError(null)
-                await saveCurrentTab()
+                await saveEmployee()
                 setMessage('Saved')
               } catch (err) {
                 setError(err instanceof Error ? err.message : 'Save failed')
@@ -1766,19 +1838,12 @@ function isValidNiNumber(value: string) {
   return /^(?!BG|GB|KN|NK|NT|TN|ZZ)[A-CEGHJ-PR-TW-Z][A-CEGHJ-NPR-TW-Z]\d{6}[A-D]$/.test(compact)
 }
 
-function recommendedNiCategory(dob: string): 'A' | 'C' | 'M' | 'X' | null {
+function recommendedNiCategory(dob: string) {
   const ageText = ageFromDob(dob)
   if (!ageText) return null
   const years = Number(ageText)
   if (Number.isNaN(years)) return null
-  if (years < 16) return 'X'
-  if (years < 21) return 'M'
-  if (years >= 66) return 'C'
-  return 'A'
-}
-
-function niCategoryLabel(value: string) {
-  return NI_CATEGORIES.find((item) => item.value === value)?.label ?? value
+  return recommendedNiFromAge(years)
 }
 
 function visibleWorksNumber(code?: string | null) {
@@ -2167,8 +2232,9 @@ function CurrencyInput({
       >
         <span className="pr-2 text-xs text-muted">£</span>
         <input
-          className="w-full border-0 bg-transparent text-xs text-navy outline-none"
+          className="w-full border-0 bg-transparent text-xs text-navy outline-none placeholder:text-[#b7b7b7]"
           value={value}
+          placeholder="0.00"
           onChange={(event) => onChange(event.target.value)}
         />
       </label>
@@ -2216,7 +2282,7 @@ function contactsFrom(
   return [{ type: type || 'Work', value: primary || '' }, ...extraRows]
 }
 
-function draftFromEmployee(employee: Employee): Draft {
+function draftFromEmployee(employee: Employee, schedules: PayrollSchedule[] = []): Draft {
   const address = asRecord(employee.employee_addresses)
   const bank = asRecord(employee.bank_details)
   const employment = asRecord(employee.employment_details)
@@ -2321,7 +2387,11 @@ function draftFromEmployee(employee: Employee): Draft {
     workplace_postcode: str(tax.workplace_postcode),
     payroll_id_change: str(tax.payroll_id_change) || 'AUTO',
     contracted_hours_per_week: normalizeContractedHours(str(tax.contracted_hours_per_week)),
-    reported_pay_frequency: normalizeReportedPayFrequency(str(tax.reported_pay_frequency)),
+    reported_pay_frequency: resolveReportedPayFrequency(
+      str(tax.reported_pay_frequency),
+      paySchedule,
+      schedules,
+    ),
     irregular_payment_pattern: Boolean(tax.irregular_payment_pattern),
     exclude_from_fps_if_zero: Boolean(tax.exclude_from_fps_if_zero),
     payments_to_body: Boolean(tax.payments_to_body),
@@ -2329,6 +2399,7 @@ function draftFromEmployee(employee: Employee): Draft {
     flexible_drawdown: Boolean(tax.flexible_drawdown),
     off_payroll_worker: Boolean(tax.off_payroll_worker),
     portal_access: Boolean(employee.portal_access),
+    mid_year: draftFromMidYear(tax.mid_year_totals, str(tax.ni_category) || 'A'),
   }
 }
 
@@ -2366,12 +2437,43 @@ function normalizeContractedHours(stored: string) {
   return DEFAULT_CONTRACTED_HOURS
 }
 
-function normalizeReportedPayFrequency(stored: string) {
-  const value = stored.trim().toUpperCase().replace(/[\s-]+/g, '_')
-  if (REPORTED_PAY_FREQUENCIES.some((item) => item.value === value)) return value
-  if (value === 'ANNUAL' || value === 'YEARLY') return 'ANNUALLY'
-  if (value === 'ONEOFF') return 'ONE_OFF'
-  return DEFAULT_REPORTED_PAY_FREQUENCY
+function reportedFrequencyFromPaySchedule(
+  paySchedule: string,
+  schedules: PayrollSchedule[],
+) {
+  const parsed = parsePaySchedule(paySchedule)
+  if (parsed.id) {
+    const schedule = schedules.find((item) => idOf(item) === parsed.id)
+    return normalizeReportedPayFrequency(schedule?.pay_frequency)
+  }
+  if (parsed.request) return reportedFrequencyFromNewSchedule(parsed.request)
+  return ''
+}
+
+function resolveReportedPayFrequency(
+  stored: string,
+  paySchedule: string,
+  schedules: PayrollSchedule[],
+) {
+  const saved = normalizeReportedPayFrequency(stored)
+  if (keepReportedFrequencyOverride(saved)) return saved
+  return (
+    reportedFrequencyFromPaySchedule(paySchedule, schedules) ||
+    saved ||
+    DEFAULT_REPORTED_PAY_FREQUENCY
+  )
+}
+
+function withPaySchedule(draft: Draft, paySchedule: string, schedules: PayrollSchedule[]): Draft {
+  return {
+    ...draft,
+    pay_schedule: paySchedule,
+    reported_pay_frequency: resolveReportedPayFrequency(
+      draft.reported_pay_frequency,
+      paySchedule,
+      schedules,
+    ),
+  }
 }
 
 function toNumber(value: string) {
@@ -2401,4 +2503,287 @@ function parsePaySchedule(value: string) {
     return { id: null as string | null, request: value.slice(4) }
   }
   return { id: null as string | null, request: null as string | null }
+}
+
+function MidYearTotalsPanel({
+  companyName,
+  employeeName,
+  taxYear,
+  draft,
+  onChange,
+}: {
+  companyName: string
+  employeeName: string
+  taxYear: string
+  draft: MidYearTotalsDraft
+  onChange: (next: MidYearTotalsDraft) => void
+}) {
+  function setField<K extends keyof Omit<MidYearTotalsDraft, 'ni_rows'>>(
+    key: K,
+    value: string,
+  ) {
+    onChange({ ...draft, [key]: value })
+  }
+
+  function setNiRow(index: number, patch: Partial<MidYearTotalsDraft['ni_rows'][number]>) {
+    onChange({
+      ...draft,
+      ni_rows: draft.ni_rows.map((row, rowIndex) =>
+        rowIndex === index ? { ...row, ...patch } : row,
+      ),
+    })
+  }
+
+  return (
+    <div className="grid gap-5">
+      <section className="rounded-[10px] border border-[#d9d9d9] bg-white p-5">
+        <div className="grid gap-4 lg:grid-cols-2">
+          <p className="text-sm leading-6 text-navy">
+            {companyName} is set up to start payroll midway in the {taxYear} tax year, after
+            already having processed payroll for part of the year elsewhere. To ensure that
+            cumulative based calculations are correct, please enter the year-to-date values for{' '}
+            {employeeName} prior to starting payroll in Cedar Payroll.
+          </p>
+          <p className="text-sm leading-6 text-navy">
+            Note that entries below should be for the <strong>current employment only</strong>. If{' '}
+            {employeeName} had a previous employment in the tax year, the totals for that previous
+            employment should be entered separately in the Starter/Leaver tab.
+          </p>
+        </div>
+      </section>
+
+      <div className="grid gap-5 lg:grid-cols-2">
+        <Section title="PAY">
+          <div className="grid gap-3">
+            <MidYearMoneyRow
+              label="Gross pay to date (including statutory pay)"
+              value={draft.gross_pay}
+              onChange={(value) => setField('gross_pay', value)}
+            />
+            <MidYearMoneyRow
+              label="Taxable benefits to date (payrolled)"
+              value={draft.taxable_benefits}
+              onChange={(value) => setField('taxable_benefits', value)}
+            />
+            <MidYearMoneyRow
+              label="Statutory Sick Pay to date"
+              value={draft.ssp}
+              onChange={(value) => setField('ssp', value)}
+            />
+            <MidYearMoneyRow
+              label="Statutory Maternity Pay to date"
+              value={draft.smp}
+              onChange={(value) => setField('smp', value)}
+            />
+            <MidYearMoneyRow
+              label="Statutory Paternity Pay to date"
+              value={draft.spp}
+              onChange={(value) => setField('spp', value)}
+            />
+            <MidYearMoneyRow
+              label="Statutory Adoption Pay to date"
+              value={draft.sap}
+              onChange={(value) => setField('sap', value)}
+            />
+            <MidYearMoneyRow
+              label="Statutory Shared Parental Pay to date"
+              value={draft.shpp}
+              onChange={(value) => setField('shpp', value)}
+            />
+            <MidYearMoneyRow
+              label="Statutory Parental Bereavement Pay to date"
+              value={draft.spbp}
+              onChange={(value) => setField('spbp', value)}
+            />
+            <MidYearMoneyRow
+              label="Statutory Parental Bereavement Pay (NIRe) to date"
+              value={draft.spbp_nire}
+              onChange={(value) => setField('spbp_nire', value)}
+            />
+            <MidYearMoneyRow
+              label="Statutory Neonatal Care Pay to date"
+              value={draft.sncp}
+              onChange={(value) => setField('sncp', value)}
+            />
+          </div>
+        </Section>
+
+        <div className="grid gap-5">
+          <Section title="TAX">
+            <div className="grid gap-3">
+              <MidYearMoneyRow
+                label="Taxable pay to date"
+                value={draft.taxable_pay}
+                onChange={(value) => setField('taxable_pay', value)}
+              />
+              <MidYearMoneyRow
+                label="Tax to date"
+                value={draft.tax}
+                onChange={(value) => setField('tax', value)}
+              />
+            </div>
+          </Section>
+          <Section title="STUDENT/POSTGRADUATE LOAN">
+            <div className="grid gap-3">
+              <MidYearMoneyRow
+                label="Student Loan deductions to date"
+                value={draft.student_loan}
+                onChange={(value) => setField('student_loan', value)}
+              />
+              <MidYearMoneyRow
+                label="Postgraduate Loan deductions to date"
+                value={draft.postgraduate_loan}
+                onChange={(value) => setField('postgraduate_loan', value)}
+              />
+            </div>
+          </Section>
+        </div>
+      </div>
+
+      <Section title="NATIONAL INSURANCE EARNINGS/CONTRIBUTIONS TO DATE">
+        <div className="overflow-x-auto">
+          <table className="min-w-[980px] w-full border-collapse text-left">
+            <thead>
+              <tr className="text-[11px] font-medium text-navy">
+                <th className="pb-2 pr-2 font-medium">Category</th>
+                <th className="pb-2 pr-2 font-medium">Gross earnings</th>
+                <th className="pb-2 pr-2 font-medium">Earnings to LEL</th>
+                <th className="pb-2 pr-2 font-medium">Earnings from LEL to PT</th>
+                <th className="pb-2 pr-2 font-medium">Earnings from PT to UEL</th>
+                <th className="pb-2 pr-2 font-medium">Earnings from ST to [A/F/V]UST</th>
+                <th className="pb-2 pr-2 font-medium">Total NICs</th>
+                <th className="pb-2 font-medium">Employee NICs</th>
+              </tr>
+            </thead>
+            <tbody>
+              {draft.ni_rows.map((row, index) => (
+                <tr key={`${row.category}-${index}`}>
+                  <td className="py-1 pr-2">
+                    <select
+                      className={compactClass('min-w-[72px]')}
+                      value={row.category}
+                      onChange={(event) => setNiRow(index, { category: event.target.value })}
+                    >
+                      {MID_YEAR_NI_LETTERS.map((letter) => (
+                        <option key={letter} value={letter}>
+                          {letter}
+                        </option>
+                      ))}
+                    </select>
+                  </td>
+                  {(
+                    [
+                      'gross_earnings',
+                      'earnings_to_lel',
+                      'lel_to_pt',
+                      'pt_to_uel',
+                      'st_to_ust',
+                      'total_nics',
+                      'employee_nics',
+                    ] as const
+                  ).map((key) => (
+                    <td key={key} className="py-1 pr-2">
+                      <CurrencyInput
+                        value={row[key]}
+                        onChange={(value) => setNiRow(index, { [key]: value })}
+                      />
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <div className="mt-3">
+          <AddLink
+            onClick={() =>
+              onChange({
+                ...draft,
+                ni_rows: [...draft.ni_rows, emptyNiRow(draft.ni_rows.at(-1)?.category || 'A')],
+              })
+            }
+          >
+            + Add National Insurance Category
+          </AddLink>
+        </div>
+      </Section>
+
+      <div className="grid gap-5 lg:grid-cols-2">
+        <Section title="PENSIONS">
+          <div className="grid gap-3">
+            <MidYearMoneyRow
+              label="Employee's pensionable pay to date"
+              value={draft.employee_pensionable_pay}
+              onChange={(value) => setField('employee_pensionable_pay', value)}
+            />
+            <MidYearMoneyRow
+              label="Employee's pension to date"
+              value={draft.employee_pension}
+              onChange={(value) => setField('employee_pension', value)}
+            />
+            <MidYearMoneyRow
+              label="Employee's additional voluntary pension to date"
+              value={draft.employee_avc}
+              onChange={(value) => setField('employee_avc', value)}
+            />
+            <MidYearMoneyRow
+              label="Employer's pensionable pay to date"
+              value={draft.employer_pensionable_pay}
+              onChange={(value) => setField('employer_pensionable_pay', value)}
+            />
+            <MidYearMoneyRow
+              label="Employer's pension to date"
+              value={draft.employer_pension}
+              onChange={(value) => setField('employer_pension', value)}
+            />
+            <MidYearMoneyRow
+              label="Employer's additional voluntary pension to date"
+              value={draft.employer_avc}
+              onChange={(value) => setField('employer_avc', value)}
+            />
+          </div>
+        </Section>
+        <div className="grid gap-5">
+          <Section title="NET PAY">
+            <div className="grid gap-3">
+              <MidYearMoneyRow
+                label="Net pay to date"
+                value={draft.net_pay}
+                onChange={(value) => setField('net_pay', value)}
+              />
+              <MidYearMoneyRow
+                label="Take-home pay to date"
+                value={draft.take_home_pay}
+                onChange={(value) => setField('take_home_pay', value)}
+              />
+            </div>
+          </Section>
+          <Section title="COST TO EMPLOYER">
+            <MidYearMoneyRow
+              label="Cost to employer to date"
+              value={draft.cost_to_employer}
+              onChange={(value) => setField('cost_to_employer', value)}
+            />
+          </Section>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function MidYearMoneyRow({
+  label,
+  value,
+  onChange,
+}: {
+  label: string
+  value: string
+  onChange: (value: string) => void
+}) {
+  return (
+    <div className="grid grid-cols-[minmax(0,1fr)_minmax(140px,160px)] items-center gap-4">
+      <span className="text-xs italic text-navy">{label}</span>
+      <CurrencyInput value={value} onChange={onChange} />
+    </div>
+  )
 }

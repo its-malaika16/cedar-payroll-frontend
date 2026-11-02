@@ -3,11 +3,13 @@ import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
   Building2,
+  CalendarDays,
   ChevronLeft,
+  Clock,
   FileText,
   Layers,
-  Mail,
   MapPin,
+  Mail,
   Phone,
   Plus,
   Save,
@@ -20,7 +22,17 @@ import {
 import { lookupsApi } from '../../api'
 import { Alert, Button, Card } from '../../components/ui'
 import { idOf, labelize } from '../../lib/format'
+import { joinPaye, splitPaye } from '../settings/employerSettings'
 import type { Company, Role } from '../../types'
+import {
+  emptyCompanyPayrollSetup,
+  employerDefaultsFromSetup,
+  PayeRegistrationFields,
+  PayrollStartFields,
+  RegisteredAddressFields,
+  typicalEmployeeFromDefaults,
+  TypicalEmployeeFields,
+} from './companySetupFields'
 
 export type TeamMemberDraft = {
   key: string
@@ -34,13 +46,30 @@ export type TeamMemberDraft = {
 export type OrganizationFormValues = {
   company_name: string
   office_number: string
+  paye_office: string
   paye_reference: string
   accounts_office_reference: string
   pension_provider: string
   pension_employer_id: string
   sector: string
-  address: string
+  address_line_1: string
+  address_line_2: string
+  address_line_3: string
+  address_line_4: string
   postcode: string
+  country: string
+  payroll_start_mode: string
+  expenses_benefits_method: string
+  small_employers_relief: boolean
+  typical_pay_frequency: string
+  typical_pay_basis: string
+  typical_pay_method: string
+  leave_year_starts: string
+  leave_calculation_method: string
+  leave_entitlement_days: string
+  leave_entitlement_weeks: string
+  carry_over_leave: boolean
+  working_days: string[]
   payroll: boolean
   hr: boolean
   invoice: boolean
@@ -60,7 +89,16 @@ type OrganizationPayload = {
   pension_provider?: string
   pension_employer_id?: string
   address?: string
+  address_line_1?: string
+  address_line_2?: string
+  address_line_3?: string
+  address_line_4?: string
   postcode?: string
+  country?: string
+  small_employers_relief?: boolean
+  expenses_benefits_method?: string
+  payroll_start_mode?: string
+  employer_defaults?: { payroll_start_mode: string }
   sector?: string
   modules: string[]
   owner: {
@@ -120,16 +158,34 @@ export function roleIdByName(roles: Role[], name: string) {
 }
 
 export function emptyOrganizationForm(roles: Role[] = []): OrganizationFormValues {
+  const setup = emptyCompanyPayrollSetup()
   return {
     company_name: '',
     office_number: '',
-    paye_reference: '',
-    accounts_office_reference: '',
+    paye_office: setup.paye_office,
+    paye_reference: setup.paye_reference,
+    accounts_office_reference: setup.accounts_office_reference,
     pension_provider: '',
     pension_employer_id: '',
     sector: '',
-    address: '',
-    postcode: '',
+    address_line_1: setup.address_line_1,
+    address_line_2: setup.address_line_2,
+    address_line_3: setup.address_line_3,
+    address_line_4: setup.address_line_4,
+    postcode: setup.postcode,
+    country: setup.country,
+    payroll_start_mode: setup.payroll_start_mode,
+    expenses_benefits_method: setup.expenses_benefits_method,
+    small_employers_relief: setup.small_employers_relief,
+    typical_pay_frequency: setup.typical_pay_frequency,
+    typical_pay_basis: setup.typical_pay_basis,
+    typical_pay_method: setup.typical_pay_method,
+    leave_year_starts: setup.leave_year_starts,
+    leave_calculation_method: setup.leave_calculation_method,
+    leave_entitlement_days: setup.leave_entitlement_days,
+    leave_entitlement_weeks: setup.leave_entitlement_weeks,
+    carry_over_leave: setup.carry_over_leave,
+    working_days: setup.working_days,
     payroll: true,
     hr: true,
     invoice: false,
@@ -170,16 +226,27 @@ export function organizationFormFromCompany(
       ]
     })
 
+  const paye = splitPaye(company.paye_reference)
+  const setup = emptyCompanyPayrollSetup()
   return {
     company_name: company.company_name ?? '',
     office_number: company.office_number ?? '',
-    paye_reference: company.paye_reference ?? '',
+    paye_office: paye.office,
+    paye_reference: paye.reference,
     accounts_office_reference: company.accounts_office_reference ?? '',
     pension_provider: company.pension_provider ?? '',
     pension_employer_id: company.pension_employer_id ?? '',
     sector: company.sector ?? '',
-    address: company.address ?? '',
+    address_line_1: company.address_line_1 ?? '',
+    address_line_2: company.address_line_2 ?? '',
+    address_line_3: company.address_line_3 ?? '',
+    address_line_4: company.address_line_4 ?? '',
     postcode: company.postcode ?? '',
+    country: company.country || setup.country,
+    payroll_start_mode: company.employer_defaults?.payroll_start_mode || setup.payroll_start_mode,
+    expenses_benefits_method: company.expenses_benefits_method || setup.expenses_benefits_method,
+    small_employers_relief: Boolean(company.small_employers_relief),
+    ...typicalEmployeeFromDefaults(company.employer_defaults),
     payroll: modules.includes('PAYROLL'),
     hr: modules.includes('HR'),
     invoice: modules.includes('INVOICE'),
@@ -244,16 +311,29 @@ export function toOrganizationPayload(form: OrganizationFormValues): Organizatio
   }
 
   const optional = (value: string) => value.trim() || undefined
+  const address = [form.address_line_1, form.address_line_2, form.address_line_3, form.address_line_4]
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .join('\n')
 
   return {
     company_name: form.company_name.trim(),
     office_number: optional(form.office_number),
-    paye_reference: optional(form.paye_reference),
+    paye_reference: joinPaye(form.paye_office, form.paye_reference) || undefined,
     accounts_office_reference: optional(form.accounts_office_reference),
     pension_provider: optional(form.pension_provider),
     pension_employer_id: optional(form.pension_employer_id),
-    address: optional(form.address),
+    address: address || undefined,
+    address_line_1: optional(form.address_line_1),
+    address_line_2: optional(form.address_line_2),
+    address_line_3: optional(form.address_line_3),
+    address_line_4: optional(form.address_line_4),
     postcode: optional(form.postcode),
+    country: optional(form.country),
+    small_employers_relief: form.small_employers_relief,
+    expenses_benefits_method: optional(form.expenses_benefits_method),
+    payroll_start_mode: form.payroll_start_mode || 'BEGINNING',
+    employer_defaults: employerDefaultsFromSetup(form),
     sector: optional(form.sector),
     modules,
     owner: {
@@ -378,16 +458,18 @@ function SectionCard({
   title,
   subtitle,
   action,
+  className = '',
   children,
 }: {
   icon: ReactNode
   title: string
   subtitle?: string
   action?: ReactNode
+  className?: string
   children: ReactNode
 }) {
   return (
-    <Card className="p-5 shadow-[0_8px_24px_rgba(23,55,94,0.04)] md:p-6">
+    <Card className={`p-5 shadow-[0_8px_24px_rgba(23,55,94,0.04)] md:p-6 ${className}`}>
       <div className="mb-5 flex items-start justify-between gap-3">
         <div className="flex min-w-0 items-start gap-3">
           <span className="flex size-9 shrink-0 items-center justify-center rounded-[10px] bg-navy/10 text-navy">
@@ -559,8 +641,7 @@ export function OrganizationForm({
   }, [values.postcode, readOnly, onChange])
 
   return (
-    <form className="flex min-h-0 flex-1 flex-col" onSubmit={onSubmit}>
-      <div className="min-h-0 flex-1 overflow-y-auto pb-4">
+    <form className="pb-6" onSubmit={onSubmit}>
         <Link
           to="/companies"
           className="mb-4 inline-flex items-center gap-1 text-sm font-medium text-navy hover:underline"
@@ -571,14 +652,14 @@ export function OrganizationForm({
         <p className="mt-2 text-sm text-muted">{subtitle}</p>
         {error ? <Alert className="mt-4">{error}</Alert> : null}
 
-        <div className="mt-6 grid items-start gap-5 lg:grid-cols-2">
+        <div className="mt-6 grid gap-5 lg:grid-cols-2">
           <SectionCard
             icon={<Building2 size={18} />}
             title="Organisation Details"
             subtitle="Basic information about the company."
           >
             <div className="grid gap-4 sm:grid-cols-2">
-              <FormField label="Company Name" required>
+              <FormField label="Company Name" required className="sm:col-span-2">
                 <input
                   value={values.company_name}
                   onChange={(event) => set('company_name', event.target.value)}
@@ -602,46 +683,12 @@ export function OrganizationForm({
                   ))}
                 </IconSelect>
               </FormField>
-              <FormField label="Office Number" className="sm:col-span-2">
+              <FormField label="Office Number">
                 <IconInput
                   icon={<Phone size={iconSize} />}
                   value={values.office_number}
                   onChange={(event) => set('office_number', event.target.value)}
                   placeholder="+44 20 7946 0958"
-                  disabled={readOnly}
-                />
-              </FormField>
-              <FormField label="Address" className="sm:col-span-2">
-                <IconInput
-                  icon={<MapPin size={iconSize} />}
-                  value={values.address}
-                  onChange={(event) => set('address', event.target.value)}
-                  placeholder="100 Innovation Way, London"
-                  disabled={readOnly}
-                />
-              </FormField>
-              <FormField
-                label="Postcode"
-                error={postcodeError}
-                hint={postcodeChecking ? 'Checking postcode…' : null}
-              >
-                <IconInput
-                  icon={<MapPin size={iconSize} />}
-                  value={values.postcode}
-                  onChange={(event) => set('postcode', event.target.value)}
-                  placeholder="EC1A 1BB"
-                  autoComplete="postal-code"
-                  disabled={readOnly}
-                  className={postcodeError ? '!border-brand' : ''}
-                  aria-invalid={Boolean(postcodeError)}
-                />
-              </FormField>
-              <FormField label="PAYE Reference">
-                <IconInput
-                  icon={<FileText size={iconSize} />}
-                  value={values.paye_reference}
-                  onChange={(event) => set('paye_reference', event.target.value)}
-                  placeholder="123/AB45678"
                   disabled={readOnly}
                 />
               </FormField>
@@ -682,19 +729,9 @@ export function OrganizationForm({
                   disabled={readOnly}
                 />
               </FormField>
-              <FormField label="Accounts Office Reference" className="sm:col-span-2">
-                <IconInput
-                  icon={<FileText size={iconSize} />}
-                  value={values.accounts_office_reference}
-                  onChange={(event) => set('accounts_office_reference', event.target.value)}
-                  placeholder="123PA00089765"
-                  disabled={readOnly}
-                />
-              </FormField>
             </div>
           </SectionCard>
 
-          <div className="space-y-5">
             <SectionCard icon={<Layers size={18} />} title="Enabled Modules">
               <div className="grid gap-3 sm:grid-cols-2">
                 <ModuleTile
@@ -897,11 +934,68 @@ export function OrganizationForm({
                 </div>
               )}
             </SectionCard>
-          </div>
-        </div>
-      </div>
 
-      <div className="mt-auto flex shrink-0 flex-wrap items-center justify-between gap-3 border-t border-[#eceae6] bg-cream py-4">
+          <SectionCard
+            icon={<CalendarDays size={18} />}
+            title="Payroll start"
+            subtitle="How this company starts the current tax year."
+          >
+            <PayrollStartFields
+              companyName={values.company_name}
+              disabled={readOnly}
+              values={values}
+              onChange={(next) => onChange({ ...values, ...next })}
+            />
+          </SectionCard>
+          <SectionCard
+            icon={<FileText size={18} />}
+            title="PAYE registration"
+            subtitle="HMRC references used on payroll submissions."
+          >
+            <PayeRegistrationFields
+              companyName={values.company_name}
+              disabled={readOnly}
+              values={values}
+              onChange={(next) => onChange({ ...values, ...next })}
+            />
+          </SectionCard>
+
+          <SectionCard
+            className="lg:col-span-2"
+            icon={<MapPin size={18} />}
+            title="Registered address"
+            subtitle="The address used on payroll and HMRC submissions."
+          >
+            <RegisteredAddressFields
+              companyName={values.company_name}
+              disabled={readOnly}
+              values={values}
+              onChange={(next) => onChange({ ...values, ...next })}
+            />
+            {postcodeError ? (
+              <p className="mt-2 text-[11px] font-medium text-brand">{postcodeError}</p>
+            ) : postcodeChecking ? (
+              <p className="mt-2 text-[11px] text-muted">Checking postcode…</p>
+            ) : null}
+          </SectionCard>
+
+          <SectionCard
+            className="lg:col-span-2"
+            icon={<Clock size={18} />}
+            title="Typical employee"
+            subtitle="Default settings used when adding a new employee."
+          >
+            <TypicalEmployeeFields
+              companyName={values.company_name}
+              disabled={readOnly}
+              showIntro={false}
+              values={values}
+              onChange={(next) => onChange({ ...values, ...next })}
+            />
+          </SectionCard>
+        </div>
+
+      <div className="mt-6 flex flex-wrap items-center justify-between gap-3 border-t border-[#eceae6] bg-cream pt-5">
         <div className="flex flex-wrap gap-2">
           <Button type="button" variant="secondary" disabled={saving} onClick={onCancel}>
             Cancel

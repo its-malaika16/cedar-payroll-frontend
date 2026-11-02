@@ -61,6 +61,7 @@ export type BenefitEntry = {
 
 export type P11Period = {
   period_number: number
+  opening?: boolean
   pay_frequency?: string
   ni_category?: string | null
   earning_to_lel?: number

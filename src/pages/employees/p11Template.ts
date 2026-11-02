@@ -18,7 +18,10 @@ function genderLabel(value?: string | null) {
   return esc(raw)
 }
 
-function periodLabel(row: { period_number: number; pay_frequency?: string }) {
+function periodLabel(row: { period_number: number; pay_frequency?: string; opening?: boolean }) {
+  if (row.opening || String(row.pay_frequency ?? '').toUpperCase() === 'OPENING') {
+    return 'Brought forward'
+  }
   const frequency = String(row.pay_frequency ?? '').toUpperCase()
   const unit =
     frequency === 'WEEKLY'

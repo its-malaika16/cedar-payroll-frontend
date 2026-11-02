@@ -54,6 +54,8 @@ export type EmployerForm = {
   small_employers_relief: boolean
   expenses_benefits_method: string
   typical_pay_frequency: string
+  typical_pay_basis: string
+  typical_pay_method: string
   leave_year_starts: string
   leave_calculation_method: string
   leave_entitlement_days: string
@@ -67,6 +69,7 @@ export type EmployerForm = {
   do_not_pay_ssp: boolean
   opt_out_credit_check: boolean
   rti_gateway_preference: 'NONE' | 'PAYE'
+  payroll_start_mode: string
   rti_title: string
   rti_first_name: string
   rti_middle_name: string
@@ -86,6 +89,8 @@ export function emptyEmployerDefaults(): Required<
 > & { rti_contact: NonNullable<EmployerDefaults['rti_contact']> } {
   return {
     typical_pay_frequency: 'MONTHLY',
+    typical_pay_basis: 'ANNUAL',
+    typical_pay_method: 'CREDIT_TRANSFER',
     leave_year_starts: '6 April',
     leave_calculation_method: 'Set number of annual leave days',
     leave_entitlement_days: 28,
@@ -99,6 +104,7 @@ export function emptyEmployerDefaults(): Required<
     do_not_pay_ssp: false,
     opt_out_credit_check: false,
     rti_gateway_preference: 'NONE',
+    payroll_start_mode: 'BEGINNING',
     rti_contact: {
       title: '',
       first_name: '',
@@ -169,6 +175,8 @@ export function formFromCompany(company: Company): EmployerForm {
     small_employers_relief: Boolean(company.small_employers_relief),
     expenses_benefits_method: str(company.expenses_benefits_method) || EXPENSES_BENEFITS_METHODS[0],
     typical_pay_frequency: defaults.typical_pay_frequency || 'MONTHLY',
+    typical_pay_basis: defaults.typical_pay_basis || 'ANNUAL',
+    typical_pay_method: defaults.typical_pay_method || 'CREDIT_TRANSFER',
     leave_year_starts: defaults.leave_year_starts || '6 April',
     leave_calculation_method:
       defaults.leave_calculation_method || 'Set number of annual leave days',
@@ -183,6 +191,7 @@ export function formFromCompany(company: Company): EmployerForm {
     do_not_pay_ssp: Boolean(defaults.do_not_pay_ssp),
     opt_out_credit_check: Boolean(defaults.opt_out_credit_check),
     rti_gateway_preference: defaults.rti_gateway_preference === 'PAYE' ? 'PAYE' : 'NONE',
+    payroll_start_mode: defaults.payroll_start_mode || 'BEGINNING',
     rti_title: str(defaults.rti_contact.title),
     rti_first_name: str(defaults.rti_contact.first_name),
     rti_middle_name: str(defaults.rti_contact.middle_name),
@@ -229,6 +238,8 @@ export function payloadFromForm(form: EmployerForm) {
     attendance_radius_meters: Math.min(5000, Math.max(3000, amount(form.attendance_radius_meters, 3000))),
     employer_defaults: {
       typical_pay_frequency: form.typical_pay_frequency,
+      typical_pay_basis: form.typical_pay_basis,
+      typical_pay_method: form.typical_pay_method,
       leave_year_starts: form.leave_year_starts,
       leave_calculation_method: form.leave_calculation_method,
       leave_entitlement_days: amount(form.leave_entitlement_days, 28),
@@ -242,6 +253,7 @@ export function payloadFromForm(form: EmployerForm) {
       do_not_pay_ssp: form.do_not_pay_ssp,
       opt_out_credit_check: form.opt_out_credit_check,
       rti_gateway_preference: form.rti_gateway_preference,
+      payroll_start_mode: form.payroll_start_mode || 'BEGINNING',
       rti_contact: {
         title: form.rti_title.trim(),
         first_name: form.rti_first_name.trim(),
