@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes } from 'react'
 import { createPortal } from 'react-dom'
-import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   CalendarDays,
@@ -240,8 +240,12 @@ const emptyDraft = (company?: Company | null): Draft => {
 }
 
 export function EmployeeWorkspace() {
-  const { employeeId } = useParams()
-  const isNew = !employeeId
+  const { employeeId: employeeIdParam } = useParams()
+  const location = useLocation()
+  const employeeId =
+    !employeeIdParam || employeeIdParam === 'new' ? undefined : employeeIdParam
+  const isNew =
+    location.pathname.endsWith('/employees/new') || !employeeId
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const queryClient = useQueryClient()
@@ -268,6 +272,27 @@ export function EmployeeWorkspace() {
   const [createdEmployeeId, setCreatedEmployeeId] = useState<string | null>(null)
   const postcodeRequest = useRef(0)
   const hydratedEmployeeId = useRef<string | null>(null)
+  const previousEmployeeId = useRef(employeeId)
+
+  useEffect(() => {
+    if (previousEmployeeId.current === employeeId) return
+    const openedNewRecord = !previousEmployeeId.current && Boolean(employeeId)
+    const startedBlankEmployee = Boolean(previousEmployeeId.current) && !employeeId
+    previousEmployeeId.current = employeeId
+    if (openedNewRecord) return
+    setMessage(null)
+    setError(null)
+    setConfirmingDelete(false)
+    setPhotoFile(null)
+    if (startedBlankEmployee) {
+      setCreatedEmployeeId(null)
+      hydratedEmployeeId.current = null
+      const next = emptyDraft(company)
+      setDraft(next)
+      setSavedSnapshot(JSON.stringify(next))
+      if (!searchParams.get('tab')) setTab('Personal')
+    }
+  }, [company, employeeId, searchParams])
 
   const employeeQuery = useQuery({
     queryKey: ['employee', companyId, employeeId],
@@ -290,7 +315,9 @@ export function EmployeeWorkspace() {
     enabled: Boolean(companyId && employeeId) && tab === 'Compliance',
   })
 
-  const employee = employeeQuery.data?.data as Employee | undefined
+  const employee = isNew
+    ? undefined
+    : (employeeQuery.data?.data as Employee | undefined)
   const schedules = (schedulesQuery.data?.data ?? []) as PayrollSchedule[]
   const company = companyQuery.data?.data as Company | undefined
   const complianceDocuments = (complianceQuery.data?.data as ComplianceFile[] | undefined) ?? []
@@ -548,7 +575,7 @@ export function EmployeeWorkspace() {
       portal_access: draft.portal_access,
     }
 
-    let savedId = employeeId ?? createdEmployeeId
+    let savedId = isNew ? createdEmployeeId : employeeId
     if (!savedId) {
       const created = await employeesApi.create(companyId, personalBody)
       savedId = idOf(created.data)
