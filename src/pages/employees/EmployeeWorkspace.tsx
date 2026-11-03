@@ -274,26 +274,6 @@ export function EmployeeWorkspace() {
   const hydratedEmployeeId = useRef<string | null>(null)
   const previousEmployeeId = useRef(employeeId)
 
-  useEffect(() => {
-    if (previousEmployeeId.current === employeeId) return
-    const openedNewRecord = !previousEmployeeId.current && Boolean(employeeId)
-    const startedBlankEmployee = Boolean(previousEmployeeId.current) && !employeeId
-    previousEmployeeId.current = employeeId
-    if (openedNewRecord) return
-    setMessage(null)
-    setError(null)
-    setConfirmingDelete(false)
-    setPhotoFile(null)
-    if (startedBlankEmployee) {
-      setCreatedEmployeeId(null)
-      hydratedEmployeeId.current = null
-      const next = emptyDraft(company)
-      setDraft(next)
-      setSavedSnapshot(JSON.stringify(next))
-      if (!searchParams.get('tab')) setTab('Personal')
-    }
-  }, [company, employeeId, searchParams])
-
   const employeeQuery = useQuery({
     queryKey: ['employee', companyId, employeeId],
     queryFn: () => employeesApi.get(companyId!, employeeId!),
@@ -321,6 +301,26 @@ export function EmployeeWorkspace() {
   const schedules = (schedulesQuery.data?.data ?? []) as PayrollSchedule[]
   const company = companyQuery.data?.data as Company | undefined
   const complianceDocuments = (complianceQuery.data?.data as ComplianceFile[] | undefined) ?? []
+
+  useEffect(() => {
+    if (previousEmployeeId.current === employeeId) return
+    const openedNewRecord = !previousEmployeeId.current && Boolean(employeeId)
+    const startedBlankEmployee = Boolean(previousEmployeeId.current) && !employeeId
+    previousEmployeeId.current = employeeId
+    if (openedNewRecord) return
+    setMessage(null)
+    setError(null)
+    setConfirmingDelete(false)
+    setPhotoFile(null)
+    if (startedBlankEmployee) {
+      setCreatedEmployeeId(null)
+      hydratedEmployeeId.current = null
+      const next = emptyDraft(company)
+      setDraft(next)
+      setSavedSnapshot(JSON.stringify(next))
+      if (!searchParams.get('tab')) setTab('Personal')
+    }
+  }, [company, employeeId, searchParams])
   const showMidYearTotals = isContinuePartway(company)
   const visibleTabs = EMPLOYEE_TABS.filter(
     (item) => item !== 'Mid Year Totals' || showMidYearTotals,
