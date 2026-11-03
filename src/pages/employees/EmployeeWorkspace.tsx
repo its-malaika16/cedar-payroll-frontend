@@ -59,11 +59,14 @@ import {
   niCategoryLabel,
 } from './niCategories'
 import {
+  derivedMidYearCost,
   draftFromMidYear,
   emptyMidYearDraft,
   emptyNiRow,
+  employerNicsFromRow,
   isContinuePartway,
   midYearPayload,
+  moneyDisplay,
   MID_YEAR_NI_LETTERS,
   type MidYearTotalsDraft,
 } from './midYearTotals'
@@ -374,6 +377,15 @@ export function EmployeeWorkspace() {
   const isDirty = Boolean(savedSnapshot) && (JSON.stringify(draft) !== savedSnapshot || Boolean(photoFile))
 
   useEffect(() => {
+    setDraft((current) => {
+      if (!current.dob) return current
+      const nextCategory = resolveNiCategory(current.dob, current.ni_category)
+      if (nextCategory === current.ni_category) return current
+      return { ...current, ni_category: nextCategory }
+    })
+  }, [draft.dob])
+
+  useEffect(() => {
     const value = draft.postcode.trim()
     if (!value) {
       setPostcodeError(null)
@@ -494,9 +506,7 @@ export function EmployeeWorkspace() {
     if (niNumberError) {
       throw new Error(niNumberError)
     }
-    if (draft.dob && niCategoryError) {
-      throw new Error(niCategoryError)
-    }
+    const niCategory = resolveNiCategory(draft.dob, draft.ni_category)
 
     let postcode = draft.postcode.trim()
     if (postcode) {
@@ -640,7 +650,7 @@ export function EmployeeWorkspace() {
       tax_code: draft.tax_code || undefined,
       week1month1: draft.week1month1,
       ni_number: compactNiNumber,
-      ni_category: draft.ni_category || undefined,
+      ni_category: niCategory || undefined,
       is_director: draft.is_director,
       secondary_nics_not_due: draft.secondary_nics_not_due,
       student_loan_plan: draft.student_loan_plan,
@@ -677,8 +687,9 @@ export function EmployeeWorkspace() {
       ...draft,
       postcode,
       photo_url: nextPhotoUrl,
+      ni_category: niCategory,
       mid_year: totals
-        ? draftFromMidYear(totals, draft.ni_category || 'A')
+        ? draftFromMidYear(totals, niCategory || 'A')
         : draft.mid_year,
     }
     setDraft(savedDraft)
@@ -858,7 +869,18 @@ export function EmployeeWorkspace() {
                       </Select>
                     </Field>
                     <Field label="Date of Birth">
-                      <Input type="date" value={draft.dob} onChange={(e) => setDraft({ ...draft, dob: e.target.value })} />
+                      <Input
+                        type="date"
+                        value={draft.dob}
+                        onChange={(e) => {
+                          const dob = e.target.value
+                          setDraft((current) => ({
+                            ...current,
+                            dob,
+                            ni_category: resolveNiCategory(dob, current.ni_category),
+                          }))
+                        }}
+                      />
                     </Field>
                     <Field label="Age">
                       <Input value={age} readOnly className="bg-[#f8f7f4]" />
@@ -1465,7 +1487,12 @@ export function EmployeeWorkspace() {
                   <OptionSelect
                     value={draft.ni_category}
                     options={NI_CATEGORIES}
-                    onChange={(value) => setDraft({ ...draft, ni_category: value })}
+                    onChange={(value) =>
+                      setDraft({
+                        ...draft,
+                        ni_category: resolveNiCategory(draft.dob, value),
+                      })
+                    }
                   />
                   {niCategoryError ? (
                     <p className="mt-1 text-[11px] font-medium text-brand">{niCategoryError}</p>
@@ -1846,6 +1873,17 @@ function recommendedNiCategory(dob: string) {
   return recommendedNiFromAge(years)
 }
 
+function resolveNiCategory(dob: string, current: string) {
+  const recommended = recommendedNiCategory(dob)
+  if (!recommended) return current.trim().toUpperCase() || 'A'
+  const years = Number(ageFromDob(dob))
+  const letter = current.trim().toUpperCase()
+  if (letter && Number.isFinite(years) && isAllowedNiCategory(letter, years)) {
+    return letter
+  }
+  return recommended
+}
+
 function visibleWorksNumber(code?: string | null) {
   return (code ?? '').trim()
 }
@@ -2218,24 +2256,27 @@ function CurrencyInput({
   value,
   onChange,
   suffix,
+  readOnly = false,
 }: {
   value: string
-  onChange: (value: string) => void
+  onChange?: (value: string) => void
   suffix?: string
+  readOnly?: boolean
 }) {
   return (
     <div className="flex w-full">
       <label
-        className={`flex h-[35px] min-w-0 flex-1 items-center border-[0.5px] border-[#d9d9d9] bg-white px-3 ${
-          suffix ? 'rounded-l-[6px]' : 'rounded-[6px]'
-        }`}
+        className={`flex h-[35px] min-w-0 flex-1 items-center border-[0.5px] border-[#d9d9d9] px-3 ${
+          readOnly ? 'bg-[#f8f7f4]' : 'bg-white'
+        } ${suffix ? 'rounded-l-[6px]' : 'rounded-[6px]'}`}
       >
         <span className="pr-2 text-xs text-muted">£</span>
         <input
           className="w-full border-0 bg-transparent text-xs text-navy outline-none placeholder:text-[#b7b7b7]"
           value={value}
           placeholder="0.00"
-          onChange={(event) => onChange(event.target.value)}
+          readOnly={readOnly}
+          onChange={(event) => onChange?.(event.target.value)}
         />
       </label>
       {suffix ? (
@@ -2419,9 +2460,7 @@ function ageFromDob(dob: string) {
 }
 
 function allowedNiCategory(stored: string, dob: string) {
-  const value = stored.trim().toUpperCase()
-  if (NI_CATEGORIES.some((item) => item.value === value)) return value
-  return recommendedNiCategory(dob) ?? 'A'
+  return resolveNiCategory(dob, stored)
 }
 
 function normalizeContractedHours(stored: string) {
@@ -2642,7 +2681,7 @@ function MidYearTotalsPanel({
 
       <Section title="NATIONAL INSURANCE EARNINGS/CONTRIBUTIONS TO DATE">
         <div className="overflow-x-auto">
-          <table className="min-w-[980px] w-full border-collapse text-left">
+          <table className="min-w-[1100px] w-full border-collapse text-left">
             <thead>
               <tr className="text-[11px] font-medium text-navy">
                 <th className="pb-2 pr-2 font-medium">Category</th>
@@ -2652,7 +2691,8 @@ function MidYearTotalsPanel({
                 <th className="pb-2 pr-2 font-medium">Earnings from PT to UEL</th>
                 <th className="pb-2 pr-2 font-medium">Earnings from ST to [A/F/V]UST</th>
                 <th className="pb-2 pr-2 font-medium">Total NICs</th>
-                <th className="pb-2 font-medium">Employee NICs</th>
+                <th className="pb-2 pr-2 font-medium">Employee NICs</th>
+                <th className="pb-2 font-medium">Employer NICs</th>
               </tr>
             </thead>
             <tbody>
@@ -2689,6 +2729,9 @@ function MidYearTotalsPanel({
                       />
                     </td>
                   ))}
+                  <td className="py-1">
+                    <CurrencyInput value={moneyDisplay(employerNicsFromRow(row))} readOnly />
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -2761,8 +2804,8 @@ function MidYearTotalsPanel({
           <Section title="COST TO EMPLOYER">
             <MidYearMoneyRow
               label="Cost to employer to date"
-              value={draft.cost_to_employer}
-              onChange={(value) => setField('cost_to_employer', value)}
+              value={moneyDisplay(derivedMidYearCost(draft))}
+              readOnly
             />
           </Section>
         </div>
@@ -2775,15 +2818,17 @@ function MidYearMoneyRow({
   label,
   value,
   onChange,
+  readOnly = false,
 }: {
   label: string
   value: string
-  onChange: (value: string) => void
+  onChange?: (value: string) => void
+  readOnly?: boolean
 }) {
   return (
     <div className="grid grid-cols-[minmax(0,1fr)_minmax(140px,160px)] items-center gap-4">
       <span className="text-xs italic text-navy">{label}</span>
-      <CurrencyInput value={value} onChange={onChange} />
+      <CurrencyInput value={value} onChange={onChange} readOnly={readOnly} />
     </div>
   )
 }

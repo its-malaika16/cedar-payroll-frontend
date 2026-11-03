@@ -148,6 +148,32 @@ function amount(value: string) {
   return parseMoney(value)
 }
 
+export function employerNicsFromAmounts(totalNics: number, employeeNics: number) {
+  return Math.max(0, Math.round((totalNics - employeeNics) * 100) / 100)
+}
+
+export function employerNicsFromRow(row: MidYearNiRowDraft) {
+  return employerNicsFromAmounts(amount(row.total_nics), amount(row.employee_nics))
+}
+
+export function derivedMidYearCost(draft: MidYearTotalsDraft) {
+  const employerNics = draft.ni_rows.reduce((sum, row) => sum + employerNicsFromRow(row), 0)
+  return (
+    Math.round(
+      (amount(draft.gross_pay) +
+        amount(draft.taxable_benefits) +
+        employerNics +
+        amount(draft.employer_pension) +
+        amount(draft.employer_avc)) *
+        100,
+    ) / 100
+  )
+}
+
+export function moneyDisplay(value: number) {
+  return value === 0 ? '' : value.toFixed(2)
+}
+
 export function midYearPayload(draft: MidYearTotalsDraft) {
   const niRows = draft.ni_rows.map((row) => ({
     category: row.category,
@@ -160,10 +186,6 @@ export function midYearPayload(draft: MidYearTotalsDraft) {
     employee_nics: amount(row.employee_nics),
   }))
   const employeeNics = niRows.reduce((sum, row) => sum + row.employee_nics, 0)
-  const employerNics = niRows.reduce(
-    (sum, row) => sum + Math.max(0, row.total_nics - row.employee_nics),
-    0,
-  )
   const cash = amount(draft.gross_pay) + amount(draft.taxable_benefits)
   const taxablePay = amount(draft.taxable_pay) || cash
   const netPay =
@@ -178,12 +200,7 @@ export function midYearPayload(draft: MidYearTotalsDraft) {
         amount(draft.employee_avc)) *
         100,
     ) / 100
-  const cost =
-    amount(draft.cost_to_employer) ||
-    Math.round(
-      (cash + employerNics + amount(draft.employer_pension) + amount(draft.employer_avc)) *
-        100,
-    ) / 100
+  const cost = derivedMidYearCost(draft)
   return {
     gross_pay: amount(draft.gross_pay),
     taxable_benefits: amount(draft.taxable_benefits),
