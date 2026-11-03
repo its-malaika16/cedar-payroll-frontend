@@ -121,17 +121,32 @@ export function employerDefaultsFromSetup(values: CompanyPayrollSetupValues) {
   }
 }
 
-export function typicalEmployeeFromDefaults(defaults?: {
-  typical_pay_frequency?: string | null
-  typical_pay_basis?: string | null
-  typical_pay_method?: string | null
-  leave_year_starts?: string | null
-  leave_calculation_method?: string | null
-  leave_entitlement_days?: number | string | null
-  leave_entitlement_weeks?: number | string | null
-  carry_over_leave?: boolean | null
-  working_days?: string[] | null
-}): Partial<CompanyPayrollSetupValues> {
+export type TypicalEmployeeValues = Pick<
+  CompanyPayrollSetupValues,
+  | 'typical_pay_frequency'
+  | 'typical_pay_basis'
+  | 'typical_pay_method'
+  | 'leave_year_starts'
+  | 'leave_calculation_method'
+  | 'leave_entitlement_days'
+  | 'leave_entitlement_weeks'
+  | 'carry_over_leave'
+  | 'working_days'
+>
+
+export function typicalEmployeeFromDefaults(
+  defaults?: {
+    typical_pay_frequency?: string | null
+    typical_pay_basis?: string | null
+    typical_pay_method?: string | null
+    leave_year_starts?: string | null
+    leave_calculation_method?: string | null
+    leave_entitlement_days?: number | string | null
+    leave_entitlement_weeks?: number | string | null
+    carry_over_leave?: boolean | null
+    working_days?: string[] | null
+  } | null,
+): TypicalEmployeeValues {
   const empty = emptyCompanyPayrollSetup()
   return {
     typical_pay_frequency: defaults?.typical_pay_frequency || empty.typical_pay_frequency,

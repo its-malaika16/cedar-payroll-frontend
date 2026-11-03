@@ -374,20 +374,7 @@ export function OnboardingWorkspacePage() {
               <CompanyPayrollSetupFields
                 companyName={form.company_name}
                 disabled={locked}
-                values={{
-                  payroll_start_mode: form.payroll_start_mode,
-                  address_line_1: form.address_line_1,
-                  address_line_2: form.address_line_2,
-                  address_line_3: form.address_line_3,
-                  address_line_4: form.address_line_4,
-                  postcode: form.postcode,
-                  country: form.country,
-                  paye_office: form.paye_office,
-                  paye_reference: form.paye_reference,
-                  accounts_office_reference: form.accounts_office_reference,
-                  expenses_benefits_method: form.expenses_benefits_method,
-                  small_employers_relief: form.small_employers_relief,
-                }}
+                values={form}
                 onChange={(next) => patch(next)}
               />
             </div>
