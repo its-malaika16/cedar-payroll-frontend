@@ -63,10 +63,10 @@ import {
   draftFromMidYear,
   emptyMidYearDraft,
   emptyNiRow,
-  employerNicsFromRow,
   isContinuePartway,
   midYearPayload,
   moneyDisplay,
+  totalNicsFromRow,
   MID_YEAR_NI_LETTERS,
   type MidYearTotalsDraft,
 } from './midYearTotals'
@@ -2717,9 +2717,9 @@ function MidYearTotalsPanel({
                 <th className="pb-2 pr-2 font-medium">Earnings from LEL to PT</th>
                 <th className="pb-2 pr-2 font-medium">Earnings from PT to UEL</th>
                 <th className="pb-2 pr-2 font-medium">Earnings from ST to [A/F/V]UST</th>
-                <th className="pb-2 pr-2 font-medium">Total NICs</th>
                 <th className="pb-2 pr-2 font-medium">Employee NICs</th>
-                <th className="pb-2 font-medium">Employer NICs</th>
+                <th className="pb-2 pr-2 font-medium">Employer NICs</th>
+                <th className="pb-2 font-medium">Total NICs</th>
               </tr>
             </thead>
             <tbody>
@@ -2745,8 +2745,6 @@ function MidYearTotalsPanel({
                       'lel_to_pt',
                       'pt_to_uel',
                       'st_to_ust',
-                      'total_nics',
-                      'employee_nics',
                     ] as const
                   ).map((key) => (
                     <td key={key} className="py-1 pr-2">
@@ -2756,8 +2754,20 @@ function MidYearTotalsPanel({
                       />
                     </td>
                   ))}
+                  <td className="py-1 pr-2">
+                    <CurrencyInput
+                      value={row.employee_nics}
+                      onChange={(value) => setNiRow(index, { employee_nics: value })}
+                    />
+                  </td>
+                  <td className="py-1 pr-2">
+                    <CurrencyInput
+                      value={row.employer_nics}
+                      onChange={(value) => setNiRow(index, { employer_nics: value })}
+                    />
+                  </td>
                   <td className="py-1">
-                    <CurrencyInput value={moneyDisplay(employerNicsFromRow(row))} readOnly />
+                    <CurrencyInput value={moneyDisplay(totalNicsFromRow(row))} readOnly />
                   </td>
                 </tr>
               ))}

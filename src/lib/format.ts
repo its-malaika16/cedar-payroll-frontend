@@ -15,6 +15,12 @@ export function money(value: unknown) {
   }).format(amount)
 }
 
+export function moneyOrDash(value: unknown) {
+  const amount = Number(value ?? 0)
+  if (Number.isNaN(amount) || amount === 0) return '—'
+  return money(amount)
+}
+
 export function formatDate(value?: string | null) {
   if (!value) return '—'
   const date = new Date(value)

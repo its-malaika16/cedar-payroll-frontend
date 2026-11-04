@@ -222,16 +222,48 @@ export function hmrcPeriodFromPayDate(payDate: Date, frequency: PayFrequency) {
   }
 }
 
+function taxFortnightFromWeek(week: number) {
+  return Math.min(27, Math.max(1, Math.ceil(week / 2)))
+}
+
+function taxFourWeekFromWeek(week: number) {
+  return Math.min(14, Math.max(1, Math.ceil(week / 4)))
+}
+
+export function hmrcPeriodColumnLabel(frequency: PayFrequency | string | null | undefined) {
+  const freq = asPayFrequency(frequency)
+  if (freq === 'FORTNIGHTLY') return 'Tax fortnight'
+  if (freq === 'FOUR_WEEKLY') return 'Tax 4-week'
+  if (freq === 'QUARTERLY') return 'Tax quarter'
+  if (freq === 'YEARLY') return 'Tax year'
+  if (freq === 'WEEKLY') return 'Tax week'
+  return 'Tax month'
+}
+
 export function hmrcPeriodLabel(
   frequency: PayFrequency | string | null | undefined,
-  period: Pick<SchedulePeriod, 'number' | 'taxWeek' | 'taxMonth' | 'payDate'>,
+  period: Pick<SchedulePeriod, 'number' | 'taxWeek' | 'taxMonth'> & { payDate?: Date },
 ) {
   const freq = asPayFrequency(frequency)
-  const fromPay = period.payDate
-    ? hmrcPeriodFromPayDate(period.payDate, freq)
+  const payDate = period.payDate && !Number.isNaN(period.payDate.getTime()) ? period.payDate : null
+  const fromPay = payDate
+    ? hmrcPeriodFromPayDate(payDate, freq)
     : { taxWeek: period.taxWeek, taxMonth: period.taxMonth }
-  if (isWeeklyFrequency(freq)) return `Week ${fromPay.taxWeek ?? period.taxWeek ?? period.number}`
-  return `Month ${fromPay.taxMonth ?? period.taxMonth ?? period.number}`
+  const week = fromPay.taxWeek ?? period.taxWeek
+  const month = fromPay.taxMonth ?? period.taxMonth
+  if (freq === 'WEEKLY') return `Week ${week ?? period.number}`
+  if (freq === 'FORTNIGHTLY') {
+    return `Fortnight ${week != null ? taxFortnightFromWeek(week) : period.number}`
+  }
+  if (freq === 'FOUR_WEEKLY') {
+    return `4-Week ${week != null ? taxFourWeekFromWeek(week) : period.number}`
+  }
+  if (freq === 'QUARTERLY') {
+    const quarter = month != null ? Math.min(4, Math.max(1, Math.ceil(month / 3))) : period.number
+    return `Quarter ${quarter}`
+  }
+  if (freq === 'YEARLY') return 'Year'
+  return `Month ${month ?? period.number}`
 }
 
 function calendarPeriodStart(end: Date, months: number): Date {

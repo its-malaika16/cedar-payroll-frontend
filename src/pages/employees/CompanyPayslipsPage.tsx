@@ -22,6 +22,7 @@ import {
   money,
 } from '../../lib/format'
 import type { PayrollRun, PayrollSchedule } from '../../types'
+import { hmrcPeriodLabel, parseDateKey } from '../payroll/scheduleWizard/payDateRules'
 
 type PublishedEmployee = {
   employee_id: string
@@ -47,9 +48,12 @@ function frequencyLabel(value?: string | null) {
 }
 
 function periodNumberLabel(run?: PayrollRun | null) {
-  const frequency = (run?.pay_frequency ?? '').toUpperCase()
-  if (frequency.includes('WEEK')) return `Week ${run?.tax_week ?? run?.period_number ?? ''}`.trim()
-  return `Month ${run?.tax_month ?? run?.period_number ?? ''}`.trim()
+  return hmrcPeriodLabel(run?.pay_frequency, {
+    number: Number(run?.period_number ?? 0),
+    taxWeek: run?.tax_week ?? null,
+    taxMonth: run?.tax_month ?? null,
+    payDate: run?.pay_date ? parseDateKey(String(run.pay_date).slice(0, 10)) : undefined,
+  })
 }
 
 function payslipFileName(employeeName: string, run?: PayrollRun | null) {

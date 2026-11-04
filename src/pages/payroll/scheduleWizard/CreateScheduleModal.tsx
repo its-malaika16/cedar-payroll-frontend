@@ -16,9 +16,9 @@ import {
   defaultFirstPeriodEnd,
   firstPayDateInvalid,
   formatPreviewDate,
+  hmrcPeriodColumnLabel,
   hmrcPeriodLabel,
   isCalendarFrequency,
-  isWeeklyFrequency,
   monthDayOptions,
   monthYearOptions,
   parseDateKey,
@@ -420,7 +420,7 @@ export function CreateScheduleModal({
                   <thead className="sticky top-0 bg-navy text-xs font-semibold uppercase tracking-[0.12em] text-white">
                     <tr>
                       <th className="px-4 py-3">#</th>
-                      <th className="px-4 py-3">{isWeeklyFrequency(frequency) ? 'Tax week' : 'Tax month'}</th>
+                      <th className="px-4 py-3">{hmrcPeriodColumnLabel(frequency)}</th>
                       <th className="px-4 py-3">{startLabel}</th>
                       <th className="px-4 py-3">{endLabel}</th>
                       <th className="px-4 py-3">Default pay date</th>

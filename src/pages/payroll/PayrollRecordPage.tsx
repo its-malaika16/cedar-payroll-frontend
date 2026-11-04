@@ -32,6 +32,7 @@ import {
   idOf,
   isEmployeeOnPayrollRun,
   money,
+  moneyOrDash,
   pensionAppliesToPeriod,
   sortByEmployeeName,
 } from '../../lib/format'
@@ -611,9 +612,6 @@ export function PayrollRecordPage() {
   )
   const summaryRows = useMemo(() => {
     if (!record) return [] as Array<readonly [string, unknown]>
-    const zeroAsBlank = (value: unknown) =>
-      Number(value ?? 0) === 0 ? null : value
-
     const additions = taxableAdditionsFromRecord(record)
     const deductions = allowableDeductionsFromRecord(record)
     const rows: Array<readonly [string, unknown]> = [['Pay', contractualPayFromRecord(record)]]
@@ -632,7 +630,7 @@ export function PayrollRecordPage() {
     }
     rows.push(
       ['NIC-able gross', record.nicable_gross],
-      ['Employee NIC', zeroAsBlank(record.employee_nic)],
+      ['Employee NIC', record.employee_nic],
       ['Employer NIC', record.employer_nic],
     )
     if (Number(record.student_loan ?? 0) > 0) {
@@ -2166,7 +2164,7 @@ export function PayrollRecordPage() {
               >
                 <span>{label}</span>
                 <span className="font-medium tabular-nums">
-                  {value == null || value === '' ? '—' : money(value)}
+                  {moneyOrDash(value)}
                 </span>
               </div>
             ))}
@@ -2301,7 +2299,7 @@ function YtdSection({
               {rows.map(([label, value]) => (
                 <div key={label} className="flex justify-between gap-3 text-xs text-navy">
                   <span className="italic text-navy/80">{label}</span>
-                  <span className="font-semibold tabular-nums">{money(value)}</span>
+                  <span className="font-semibold tabular-nums">{moneyOrDash(value)}</span>
                 </div>
               ))}
             </div>

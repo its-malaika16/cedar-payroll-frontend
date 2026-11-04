@@ -5,8 +5,8 @@ export type MidYearNiRowDraft = {
   lel_to_pt: string
   pt_to_uel: string
   st_to_ust: string
-  total_nics: string
   employee_nics: string
+  employer_nics: string
 }
 
 export type MidYearTotalsDraft = {
@@ -58,8 +58,8 @@ export function emptyNiRow(category = 'A'): MidYearNiRowDraft {
     lel_to_pt: '',
     pt_to_uel: '',
     st_to_ust: '',
-    total_nics: '',
     employee_nics: '',
+    employer_nics: '',
   }
 }
 
@@ -136,8 +136,13 @@ export function draftFromMidYear(value: unknown, niCategory = 'A'): MidYearTotal
         lel_to_pt: moneyText(item.lel_to_pt),
         pt_to_uel: moneyText(item.pt_to_uel),
         st_to_ust: moneyText(item.st_to_ust),
-        total_nics: moneyText(item.total_nics),
         employee_nics: moneyText(item.employee_nics),
+        employer_nics:
+          item.employer_nics != null && item.employer_nics !== ''
+            ? moneyText(item.employer_nics)
+            : moneyText(
+                employerNicsFromAmounts(parseMoney(item.total_nics), parseMoney(item.employee_nics)),
+              ),
       }
     })
   }
@@ -153,7 +158,11 @@ export function employerNicsFromAmounts(totalNics: number, employeeNics: number)
 }
 
 export function employerNicsFromRow(row: MidYearNiRowDraft) {
-  return employerNicsFromAmounts(amount(row.total_nics), amount(row.employee_nics))
+  return amount(row.employer_nics)
+}
+
+export function totalNicsFromRow(row: MidYearNiRowDraft) {
+  return Math.round((amount(row.employee_nics) + amount(row.employer_nics)) * 100) / 100
 }
 
 export function derivedMidYearCost(draft: MidYearTotalsDraft) {
@@ -182,8 +191,9 @@ export function midYearPayload(draft: MidYearTotalsDraft) {
     lel_to_pt: amount(row.lel_to_pt),
     pt_to_uel: amount(row.pt_to_uel),
     st_to_ust: amount(row.st_to_ust),
-    total_nics: amount(row.total_nics),
     employee_nics: amount(row.employee_nics),
+    employer_nics: amount(row.employer_nics),
+    total_nics: totalNicsFromRow(row),
   }))
   const employeeNics = niRows.reduce((sum, row) => sum + row.employee_nics, 0)
   const cash = amount(draft.gross_pay) + amount(draft.taxable_benefits)
