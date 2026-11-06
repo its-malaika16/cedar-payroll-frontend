@@ -19,9 +19,7 @@ import {
   EXPENSES_BENEFITS_METHODS,
   PAY_FREQUENCY_OPTIONS,
   SETTINGS_TABS,
-  clampAttendanceRadius,
   daysFromWeeks,
-  DEFAULT_ATTENDANCE_RADIUS_METERS,
   formFromCompany,
   payloadFromForm,
   weeksFromDays,
@@ -50,68 +48,28 @@ export function EmployerSettingsForm({ company }: { company: Company }) {
   const fileInput = useRef<HTMLInputElement>(null)
   const [tab, setTab] = useState<SettingsTab>('Basic Details')
   const [form, setForm] = useState<EmployerForm>(() => formFromCompany(company))
+  const [savedForm, setSavedForm] = useState<EmployerForm>(() => formFromCompany(company))
   const [error, setError] = useState<string | null>(null)
   const [message, setMessage] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [uploading, setUploading] = useState(false)
-  const locationSaveTimer = useRef<number>(0)
 
   const save = useMutation({
     mutationFn: (body: Record<string, unknown>) => companiesApi.update(String(company.id), body),
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ['company', String(company.id)] })
+      await queryClient.invalidateQueries({ queryKey: ['company'] })
       await refresh()
     },
   })
 
   useEffect(() => {
-    setForm(formFromCompany(company))
-  }, [company.id, company.logo_path])
-
-  useEffect(() => {
-    return () => window.clearTimeout(locationSaveTimer.current)
-  }, [])
+    const next = formFromCompany(company)
+    setForm(next)
+    setSavedForm(next)
+  }, [company.id])
 
   function patchForm(next: Partial<EmployerForm>) {
     setForm((current) => ({ ...current, ...next }))
-  }
-
-  function persistWorkplace(latitude: string, longitude: string, radiusMeters: string) {
-    patchForm({ latitude, longitude, attendance_radius_meters: radiusMeters })
-    window.clearTimeout(locationSaveTimer.current)
-    locationSaveTimer.current = window.setTimeout(() => {
-      const lat = Number(latitude)
-      const lng = Number(longitude)
-      if (!Number.isFinite(lat) || !Number.isFinite(lng)) return
-      const meters = clampAttendanceRadius(
-        Number(radiusMeters) || DEFAULT_ATTENDANCE_RADIUS_METERS,
-      )
-      void companiesApi
-        .update(String(company.id), {
-          latitude: lat,
-          longitude: lng,
-          attendance_radius_meters: meters,
-        })
-        .then(() => {
-          queryClient.setQueriesData({ queryKey: ['company'] }, (current) => {
-            if (!current || typeof current !== 'object') return current
-            const row = current as { data?: Company }
-            if (!row.data || String(row.data.id) !== String(company.id)) return current
-            return {
-              ...row,
-              data: {
-                ...row.data,
-                latitude: lat,
-                longitude: lng,
-                attendance_radius_meters: meters,
-              },
-            }
-          })
-        })
-        .catch((err) => {
-          setError(err instanceof Error ? err.message : 'Could not save the workplace location')
-        })
-    }, 400)
   }
 
   function toggleWorkingDay(day: string) {
@@ -143,7 +101,7 @@ export function EmployerSettingsForm({ company }: { company: Company }) {
 
   const logoSrc = assetUrl(company.logo_path)
   const employerName = form.company_name.trim() || 'this employer'
-  const canSave = isFormDirty(form, formFromCompany(company))
+  const canSave = isFormDirty(form, savedForm)
 
   return (
     <div className="space-y-4">
@@ -176,13 +134,14 @@ export function EmployerSettingsForm({ company }: { company: Company }) {
           if (!form.company_name.trim()) {
             throw new Error('Enter the employer name')
           }
-          await save.mutateAsync(payloadFromForm(form))
+          const snapshot = form
+          await save.mutateAsync(payloadFromForm(snapshot))
+          setSavedForm(snapshot)
           setMessage('Employer settings saved')
         }, setError, setSaving)}
       >
 
-      {tab === 'Basic Details' ? (
-        <div className="grid gap-4 xl:grid-cols-2">
+      <div className={`grid gap-4 xl:grid-cols-2 ${tab === 'Basic Details' ? '' : 'hidden'}`}>
           <Section title="Name">
             <Field label="Name">
               <Input
@@ -255,30 +214,29 @@ export function EmployerSettingsForm({ company }: { company: Company }) {
           </Section>
 
           <div className="xl:col-span-2">
-            <Section title="Workplace check-in">
-              <WorkplaceMapPicker
-                latitude={form.latitude}
-                longitude={form.longitude}
-                radiusMeters={form.attendance_radius_meters}
-                postcode={form.postcode}
-                addressQuery={[
-                  form.address_line_1,
-                  form.address_line_2,
-                  form.address_line_3,
-                  form.address_line_4,
-                  form.postcode,
-                  form.country,
-                ]
-                  .filter(Boolean)
-                  .join(', ')}
-                onLocationChange={(nextLat, nextLng) =>
-                  persistWorkplace(nextLat, nextLng, form.attendance_radius_meters)
-                }
-                onRadiusChange={(meters) =>
-                  persistWorkplace(form.latitude, form.longitude, meters)
-                }
-              />
-            </Section>
+            <WorkplaceMapPicker
+              latitude={form.latitude}
+              longitude={form.longitude}
+              radiusMeters={form.attendance_radius_meters}
+              postcode={form.postcode}
+              addressLine={form.address_line_1}
+              officeName={form.trading_name.trim() || form.company_name}
+              active={tab === 'Basic Details'}
+              addressQuery={[
+                form.address_line_1,
+                form.address_line_2,
+                form.address_line_3,
+                form.address_line_4,
+                form.postcode,
+                form.country,
+              ]
+                .filter(Boolean)
+                .join(', ')}
+              onLocationChange={(nextLat, nextLng) =>
+                patchForm({ latitude: nextLat, longitude: nextLng })
+              }
+              onRadiusChange={(meters) => patchForm({ attendance_radius_meters: meters })}
+            />
           </div>
 
           <Section title="Logo image">
@@ -339,7 +297,6 @@ export function EmployerSettingsForm({ company }: { company: Company }) {
             </Field>
           </Section>
         </div>
-      ) : null}
 
       {tab === 'PAYE Registration' ? (
         <div className="grid gap-4 xl:grid-cols-2">
@@ -681,7 +638,8 @@ export function EmployerSettingsForm({ company }: { company: Company }) {
         </div>
       ) : null}
 
-          <div className="flex justify-end">
+          <div className="flex flex-wrap items-center justify-end gap-3">
+            {message && !canSave ? <p className="text-sm font-medium text-[#157a3a]">{message}</p> : null}
             <Button type="submit" disabled={saving || !canSave}>
               {saving ? 'Saving…' : 'Save employer settings'}
             </Button>

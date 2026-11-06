@@ -32,7 +32,7 @@ export const EXPENSES_BENEFITS_METHODS = [
   'Not applicable',
 ] as const
 
-export const MIN_ATTENDANCE_RADIUS_METERS = 100
+export const MIN_ATTENDANCE_RADIUS_METERS = 25
 export const MAX_ATTENDANCE_RADIUS_METERS = 5000
 export const DEFAULT_ATTENDANCE_RADIUS_METERS = 3000
 
@@ -153,7 +153,8 @@ function str(value: unknown) {
 function coord(value: unknown) {
   if (value == null || value === '') return ''
   const parsed = Number(value)
-  return Number.isFinite(parsed) ? String(parsed) : ''
+  if (!Number.isFinite(parsed)) return ''
+  return parsed.toFixed(6)
 }
 
 export function formFromCompany(company: Company): EmployerForm {
@@ -168,6 +169,10 @@ export function formFromCompany(company: Company): EmployerForm {
   const paye = splitPaye(company.paye_reference)
   const workingDays =
     defaults.working_days?.length > 0 ? defaults.working_days : [...WEEKDAYS]
+  const latitude = coord(company.latitude)
+  const longitude = coord(company.longitude)
+  const hasSavedPoint =
+    Boolean(latitude && longitude) && !(Number(latitude) === 0 && Number(longitude) === 0)
   return {
     company_name: company.company_name ?? '',
     trading_name: str(company.trading_name),
@@ -214,8 +219,8 @@ export function formFromCompany(company: Company): EmployerForm {
     rti_email: str(defaults.rti_contact.email),
     rti_phone: str(defaults.rti_contact.phone),
     rti_fax: str(defaults.rti_contact.fax),
-    latitude: coord(company.latitude),
-    longitude: coord(company.longitude),
+    latitude: hasSavedPoint ? latitude : '',
+    longitude: hasSavedPoint ? longitude : '',
     attendance_radius_meters: String(
       clampAttendanceRadius(company.attendance_radius_meters || DEFAULT_ATTENDANCE_RADIUS_METERS),
     ),
@@ -227,7 +232,17 @@ function amount(value: string, fallback: number) {
   return Number.isFinite(parsed) ? parsed : fallback
 }
 
+function workplaceCoords(form: EmployerForm) {
+  const lat = form.latitude.trim() ? Number(form.latitude) : NaN
+  const lng = form.longitude.trim() ? Number(form.longitude) : NaN
+  if (!Number.isFinite(lat) || !Number.isFinite(lng) || (lat === 0 && lng === 0)) {
+    return { latitude: null, longitude: null }
+  }
+  return { latitude: lat, longitude: lng }
+}
+
 export function payloadFromForm(form: EmployerForm) {
+  const location = workplaceCoords(form)
   return {
     company_name: form.company_name.trim(),
     trading_name: form.trading_name.trim() || null,
@@ -248,8 +263,8 @@ export function payloadFromForm(form: EmployerForm) {
     bacs_sun: form.bacs_sun.trim() || null,
     small_employers_relief: form.small_employers_relief,
     expenses_benefits_method: form.expenses_benefits_method.trim() || null,
-    latitude: form.latitude.trim() ? Number(form.latitude) : null,
-    longitude: form.longitude.trim() ? Number(form.longitude) : null,
+    latitude: location.latitude,
+    longitude: location.longitude,
     attendance_radius_meters: clampAttendanceRadius(
       amount(form.attendance_radius_meters, DEFAULT_ATTENDANCE_RADIUS_METERS),
     ),

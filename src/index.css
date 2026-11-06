@@ -59,6 +59,17 @@ body,
   max-width: 100%;
 }
 
+.app-main .leaflet-container img,
+.app-main .leaflet-container svg,
+.app-main .leaflet-container canvas,
+.app-main .leaflet-pane,
+.app-main .leaflet-tile,
+.app-main .leaflet-marker-icon,
+.app-main .leaflet-marker-shadow {
+  max-width: none !important;
+  max-height: none !important;
+}
+
 .app-main input,
 .app-main select,
 .app-main textarea {
@@ -98,13 +109,92 @@ textarea {
   max-width: 100%;
 }
 
-.leaflet-container img {
-  max-width: none;
+.workplace-checkin {
+  width: 100%;
 }
 
-.leaflet-container {
+.workplace-map-frame {
+  position: relative;
+  width: 100%;
+  height: 280px;
+  background: #e8eef6;
+}
+
+@media (min-width: 640px) {
+  .workplace-map-frame {
+    height: 320px;
+  }
+}
+
+@media (min-width: 1280px) {
+  .workplace-map-frame {
+    height: 100%;
+    min-height: 0;
+  }
+}
+
+.workplace-map-sizer {
+  display: none;
+}
+
+.workplace-map-surface,
+.workplace-map-frame .leaflet-container {
+  position: absolute !important;
+  inset: 0;
+  height: 100% !important;
+  width: 100% !important;
   font-family: inherit;
   z-index: 0;
+  background: #e8eef6;
+  border-radius: 18px;
+}
+
+.workplace-pin {
+  background: none;
+  border: none;
+}
+
+.workplace-pin-mark {
+  width: 34px;
+  height: 42px;
+  filter: drop-shadow(0 2px 4px rgb(23 55 94 / 0.28));
+}
+
+.workplace-map-frame .leaflet-popup-content-wrapper {
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgb(23 55 94 / 0.12);
+  padding: 0;
+}
+
+.workplace-map-frame .leaflet-popup-content {
+  margin: 10px 12px;
+  font-family: inherit;
+}
+
+.workplace-map-frame .leaflet-popup-tip {
+  box-shadow: none;
+}
+
+.workplace-map-frame .leaflet-top.leaflet-left {
+  top: 52px;
+}
+
+@media (min-width: 640px) {
+  .workplace-map-frame .leaflet-top.leaflet-left {
+    top: 60px;
+  }
+}
+
+.workplace-map-frame .leaflet-control-zoom {
+  border: 0 !important;
+  box-shadow: 0 1px 4px rgb(23 55 94 / 0.16);
+}
+
+.workplace-map-frame .leaflet-control-zoom a {
+  width: 34px !important;
+  height: 34px !important;
+  line-height: 34px !important;
+  color: #17375e !important;
 }
 
 @media print {
