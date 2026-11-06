@@ -32,7 +32,7 @@ export const EXPENSES_BENEFITS_METHODS = [
   'Not applicable',
 ] as const
 
-export const MIN_ATTENDANCE_RADIUS_METERS = 1000
+export const MIN_ATTENDANCE_RADIUS_METERS = 100
 export const MAX_ATTENDANCE_RADIUS_METERS = 5000
 export const DEFAULT_ATTENDANCE_RADIUS_METERS = 3000
 
@@ -150,6 +150,12 @@ function str(value: unknown) {
   return value == null ? '' : String(value)
 }
 
+function coord(value: unknown) {
+  if (value == null || value === '') return ''
+  const parsed = Number(value)
+  return Number.isFinite(parsed) ? String(parsed) : ''
+}
+
 export function formFromCompany(company: Company): EmployerForm {
   const defaults = {
     ...emptyEmployerDefaults(),
@@ -208,8 +214,8 @@ export function formFromCompany(company: Company): EmployerForm {
     rti_email: str(defaults.rti_contact.email),
     rti_phone: str(defaults.rti_contact.phone),
     rti_fax: str(defaults.rti_contact.fax),
-    latitude: str(company.latitude),
-    longitude: str(company.longitude),
+    latitude: coord(company.latitude),
+    longitude: coord(company.longitude),
     attendance_radius_meters: String(
       clampAttendanceRadius(company.attendance_radius_meters || DEFAULT_ATTENDANCE_RADIUS_METERS),
     ),

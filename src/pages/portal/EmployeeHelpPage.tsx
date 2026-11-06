@@ -17,7 +17,7 @@ const FAQS = [
   },
   {
     q: 'Where can I check in?',
-    a: 'Attendance lets you check in and out from within the radius your employer sets (1-5 km of the workplace). Check-in opens 10 minutes before your shift. After the start time you may be marked late.',
+    a: 'Attendance lets you check in and out from within the radius your employer sets (100 m to 5 km of the workplace). Check-in opens 10 minutes before your shift. After the start time you may be marked late.',
   },
   {
     q: 'Can I change my email address?',

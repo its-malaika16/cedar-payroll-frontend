@@ -24,7 +24,7 @@ import {
 } from '../hr/rota/rotaDates'
 import { hoursBetween, shiftDateKey, type RotaShift } from '../hr/rota/rotaModel'
 
-const MIN_RADIUS_METERS = 1000
+const MIN_RADIUS_METERS = 100
 const MAX_RADIUS_METERS = 5000
 const DEFAULT_RADIUS_METERS = 3000
 const LATE_GRACE_MINUTES = 10

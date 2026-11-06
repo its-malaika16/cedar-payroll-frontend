@@ -20,6 +20,7 @@ type WorkplaceMapPickerProps = {
   latitude: string
   longitude: string
   radiusMeters: string
+  postcode: string
   addressQuery: string
   onLocationChange: (latitude: string, longitude: string) => void
   onRadiusChange: (meters: string) => void
@@ -41,10 +42,36 @@ function clampRadius(value: number) {
   )
 }
 
+function radiusLabel(meters: number) {
+  if (meters < 1000) return `${meters} m`
+  const km = meters / 1000
+  return Number.isInteger(km) ? `${km} km` : `${km.toFixed(1)} km`
+}
+
+async function lookupPlace(query: string) {
+  const url = new URL('https://nominatim.openstreetmap.org/search')
+  url.searchParams.set('format', 'json')
+  url.searchParams.set('limit', '1')
+  url.searchParams.set('countrycodes', 'gb')
+  url.searchParams.set('q', query)
+  const response = await fetch(url.toString(), {
+    headers: { Accept: 'application/json' },
+  })
+  if (!response.ok) throw new Error('Search failed')
+  const results = (await response.json()) as Array<{ lat: string; lon: string }>
+  const match = results[0]
+  if (!match) return null
+  return {
+    latitude: formatCoord(Number(match.lat)),
+    longitude: formatCoord(Number(match.lon)),
+  }
+}
+
 export function WorkplaceMapPicker({
   latitude,
   longitude,
   radiusMeters,
+  postcode,
   addressQuery,
   onLocationChange,
   onRadiusChange,
@@ -59,8 +86,9 @@ export function WorkplaceMapPicker({
     lng: null,
     ready: false,
   })
+  const defaulted = useRef(false)
   const [mapReady, setMapReady] = useState(false)
-  const [search, setSearch] = useState('')
+  const [search, setSearch] = useState(postcode)
   const [searching, setSearching] = useState(false)
   const [searchError, setSearchError] = useState<string | null>(null)
 
@@ -72,11 +100,15 @@ export function WorkplaceMapPicker({
   const radius = clampRadius(Number(radiusMeters) || DEFAULT_ATTENDANCE_RADIUS_METERS)
 
   useEffect(() => {
+    setSearch((current) => current.trim() || postcode)
+  }, [postcode])
+
+  useEffect(() => {
     if (!mapEl.current || mapRef.current) return
 
     const map = L.map(mapEl.current, {
       center: hasPoint ? [lat, lng] : UK_CENTRE,
-      zoom: hasPoint ? 14 : 6,
+      zoom: hasPoint ? 16 : 6,
       scrollWheelZoom: true,
     })
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -90,9 +122,11 @@ export function WorkplaceMapPicker({
 
     mapRef.current = map
     setMapReady(true)
-    const resize = window.setTimeout(() => map.invalidateSize(), 80)
+    const resize = window.setTimeout(() => map.invalidateSize(), 120)
+    const resizeAgain = window.setTimeout(() => map.invalidateSize(), 400)
     return () => {
       window.clearTimeout(resize)
+      window.clearTimeout(resizeAgain)
       setMapReady(false)
       map.remove()
       mapRef.current = null
@@ -145,39 +179,43 @@ export function WorkplaceMapPicker({
       Math.abs(lastFitted.current.lat - lat) > 0.0008 ||
       Math.abs(lastFitted.current.lng - lng) > 0.0008
     lastFitted.current = { lat, lng, ready: true }
-    if (createdMarker) {
+    if (createdMarker || jumped) {
       const bounds = circleRef.current.getBounds()
-      if (bounds.isValid()) map.fitBounds(bounds, { padding: [24, 24], maxZoom: 16 })
-    } else if (jumped) {
-      map.panTo(point)
+      if (bounds.isValid()) map.fitBounds(bounds, { padding: [28, 28], maxZoom: 17 })
+      window.setTimeout(() => map.invalidateSize(), 80)
     }
   }, [hasPoint, lat, lng, mapReady, radius])
+
+  useEffect(() => {
+    if (!mapReady || hasPoint || defaulted.current) return
+    const query = postcode.trim() || addressQuery.trim()
+    if (!query) return
+    defaulted.current = true
+    void lookupPlace(query)
+      .then((match) => {
+        if (!match) return
+        onLocationChangeRef.current(match.latitude, match.longitude)
+      })
+      .catch(() => {
+        defaulted.current = false
+      })
+  }, [addressQuery, hasPoint, mapReady, postcode])
 
   async function geocode(query: string) {
     const trimmed = query.trim()
     if (!trimmed) {
-      setSearchError('Enter an address or place to search')
+      setSearchError('Enter an address or postcode to search')
       return
     }
     setSearching(true)
     setSearchError(null)
     try {
-      const url = new URL('https://nominatim.openstreetmap.org/search')
-      url.searchParams.set('format', 'json')
-      url.searchParams.set('limit', '1')
-      url.searchParams.set('countrycodes', 'gb')
-      url.searchParams.set('q', trimmed)
-      const response = await fetch(url.toString(), {
-        headers: { Accept: 'application/json' },
-      })
-      if (!response.ok) throw new Error('Search failed')
-      const results = (await response.json()) as Array<{ lat: string; lon: string }>
-      const match = results[0]
+      const match = await lookupPlace(trimmed)
       if (!match) {
         setSearchError('No matching location found. Try a postcode or street name.')
         return
       }
-      onLocationChange(formatCoord(Number(match.lat)), formatCoord(Number(match.lon)))
+      onLocationChange(match.latitude, match.longitude)
     } catch {
       setSearchError('Could not search the map. Try again in a moment.')
     } finally {
@@ -188,8 +226,8 @@ export function WorkplaceMapPicker({
   return (
     <div className="space-y-4">
       <p className="text-sm text-muted">
-        Click the map or search for your office. Employees can only check in or out when they are
-        inside the circle (1-5 km).
+        The map starts from the company postcode. Drop the pin on the office, then choose a
+        check-in radius from 100 m to 5 km. The pin and radius are saved automatically.
       </p>
       <div className="flex flex-col gap-2 sm:flex-row">
         <input
@@ -214,15 +252,18 @@ export function WorkplaceMapPicker({
         </button>
         <button
           type="button"
-          onClick={() => void geocode(addressQuery)}
-          disabled={searching || !addressQuery.trim()}
+          onClick={() => void geocode(postcode.trim() || addressQuery)}
+          disabled={searching || !(postcode.trim() || addressQuery.trim())}
           className="h-11 rounded-[8px] border border-navy px-4 text-sm font-semibold text-navy disabled:opacity-60"
         >
           Use office address
         </button>
       </div>
       {searchError ? <p className="text-sm text-brand">{searchError}</p> : null}
-      <div ref={mapEl} className="z-0 h-[320px] w-full overflow-hidden rounded-[10px] border border-[#d9d9d9]" />
+      <div
+        ref={mapEl}
+        className="z-0 h-[380px] min-h-[380px] w-full overflow-hidden rounded-[10px] border border-[#d9d9d9]"
+      />
       <div className="grid gap-4 sm:grid-cols-2">
         <Field label="Latitude">
           <UiInput
@@ -262,7 +303,7 @@ export function WorkplaceMapPicker({
               onChange={(event) => onRadiusChange(event.target.value)}
               placeholder={String(DEFAULT_ATTENDANCE_RADIUS_METERS)}
             />
-            <span className="shrink-0 text-sm text-muted">{(radius / 1000).toFixed(1)} km</span>
+            <span className="shrink-0 text-sm text-muted">{radiusLabel(radius)}</span>
           </div>
         </div>
       </div>

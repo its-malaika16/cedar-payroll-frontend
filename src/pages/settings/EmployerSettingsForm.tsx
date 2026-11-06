@@ -19,7 +19,9 @@ import {
   EXPENSES_BENEFITS_METHODS,
   PAY_FREQUENCY_OPTIONS,
   SETTINGS_TABS,
+  clampAttendanceRadius,
   daysFromWeeks,
+  DEFAULT_ATTENDANCE_RADIUS_METERS,
   formFromCompany,
   payloadFromForm,
   weeksFromDays,
@@ -52,6 +54,7 @@ export function EmployerSettingsForm({ company }: { company: Company }) {
   const [message, setMessage] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [uploading, setUploading] = useState(false)
+  const locationSaveTimer = useRef<number>(0)
 
   const save = useMutation({
     mutationFn: (body: Record<string, unknown>) => companiesApi.update(String(company.id), body),
@@ -63,10 +66,52 @@ export function EmployerSettingsForm({ company }: { company: Company }) {
 
   useEffect(() => {
     setForm(formFromCompany(company))
-  }, [company.id, company.updated_at, company.logo_path])
+  }, [company.id, company.logo_path])
+
+  useEffect(() => {
+    return () => window.clearTimeout(locationSaveTimer.current)
+  }, [])
 
   function patchForm(next: Partial<EmployerForm>) {
     setForm((current) => ({ ...current, ...next }))
+  }
+
+  function persistWorkplace(latitude: string, longitude: string, radiusMeters: string) {
+    patchForm({ latitude, longitude, attendance_radius_meters: radiusMeters })
+    window.clearTimeout(locationSaveTimer.current)
+    locationSaveTimer.current = window.setTimeout(() => {
+      const lat = Number(latitude)
+      const lng = Number(longitude)
+      if (!Number.isFinite(lat) || !Number.isFinite(lng)) return
+      const meters = clampAttendanceRadius(
+        Number(radiusMeters) || DEFAULT_ATTENDANCE_RADIUS_METERS,
+      )
+      void companiesApi
+        .update(String(company.id), {
+          latitude: lat,
+          longitude: lng,
+          attendance_radius_meters: meters,
+        })
+        .then(() => {
+          queryClient.setQueriesData({ queryKey: ['company'] }, (current) => {
+            if (!current || typeof current !== 'object') return current
+            const row = current as { data?: Company }
+            if (!row.data || String(row.data.id) !== String(company.id)) return current
+            return {
+              ...row,
+              data: {
+                ...row.data,
+                latitude: lat,
+                longitude: lng,
+                attendance_radius_meters: meters,
+              },
+            }
+          })
+        })
+        .catch((err) => {
+          setError(err instanceof Error ? err.message : 'Could not save the workplace location')
+        })
+    }, 400)
   }
 
   function toggleWorkingDay(day: string) {
@@ -215,6 +260,7 @@ export function EmployerSettingsForm({ company }: { company: Company }) {
                 latitude={form.latitude}
                 longitude={form.longitude}
                 radiusMeters={form.attendance_radius_meters}
+                postcode={form.postcode}
                 addressQuery={[
                   form.address_line_1,
                   form.address_line_2,
@@ -226,9 +272,11 @@ export function EmployerSettingsForm({ company }: { company: Company }) {
                   .filter(Boolean)
                   .join(', ')}
                 onLocationChange={(nextLat, nextLng) =>
-                  patchForm({ latitude: nextLat, longitude: nextLng })
+                  persistWorkplace(nextLat, nextLng, form.attendance_radius_meters)
                 }
-                onRadiusChange={(meters) => patchForm({ attendance_radius_meters: meters })}
+                onRadiusChange={(meters) =>
+                  persistWorkplace(form.latitude, form.longitude, meters)
+                }
               />
             </Section>
           </div>
