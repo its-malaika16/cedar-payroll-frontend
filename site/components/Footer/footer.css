@@ -10,12 +10,17 @@
   margin: 0 auto;
   padding: clamp(48px, 6vw, 80px) var(--page-gutter) clamp(36px, 4vw, 56px);
   display: grid;
-  grid-template-columns: minmax(220px, 0.85fr) minmax(280px, 1.35fr);
-  gap: clamp(40px, 6vw, 96px);
-  align-items: start;
+  grid-template-columns: minmax(240px, 0.9fr) minmax(320px, 1.4fr);
+  grid-template-areas:
+    "left right"
+    "apps social";
+  column-gap: clamp(40px, 6vw, 96px);
+  row-gap: 36px;
+  align-items: stretch;
 }
 
 .footer-left {
+  grid-area: left;
   min-width: 0;
 }
 
@@ -62,13 +67,43 @@
   color: var(--secondary);
 }
 
+.footer-apps {
+  grid-area: apps;
+  align-self: end;
+}
+
+.footer-apps-title {
+  color: var(--primary);
+  font-size: clamp(14px, 0.95vw, 16px);
+  font-weight: 700;
+  margin-bottom: 12px;
+}
+
+.footer-store-badges {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.footer-store-badges a {
+  display: block;
+  line-height: 0;
+}
+
+.footer-store-badges img {
+  height: 40px;
+  width: auto;
+  display: block;
+}
+
 .footer-right {
+  grid-area: right;
   min-width: 0;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  gap: 48px;
-  min-height: 220px;
+  gap: 56px;
 }
 
 .footer-columns {
@@ -106,7 +141,7 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 10px 12px;
+  gap: 10px 14px;
 }
 
 .footer-legal a {
@@ -124,15 +159,51 @@
   font-weight: 700;
 }
 
+.footer-social {
+  grid-area: social;
+  display: flex;
+  align-items: flex-end;
+  justify-content: flex-end;
+  gap: 10px;
+  align-self: end;
+}
+
+.footer-social a {
+  display: block;
+  line-height: 0;
+  border-radius: 8px;
+  overflow: hidden;
+  transition: transform 0.2s ease, opacity 0.2s ease;
+}
+
+.footer-social a:hover {
+  transform: translateY(-2px);
+  opacity: 0.9;
+}
+
+.footer-social svg {
+  width: 36px;
+  height: 36px;
+  display: block;
+}
+
 @media (max-width: 992px) {
   .footer-container {
     grid-template-columns: 1fr;
+    grid-template-areas:
+      "left"
+      "right"
+      "apps"
+      "social";
     gap: 40px;
   }
 
   .footer-right {
-    min-height: 0;
     gap: 32px;
+  }
+
+  .footer-social {
+    justify-content: flex-start;
   }
 }
 
