@@ -4,7 +4,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Check, Inbox, Search, User, X } from 'lucide-react'
 import { hrApi } from '../../api'
 import { useAuth } from '../../auth/AuthContext'
-import { Alert, Badge, Button, Card, EmptyState, Loading, Table, Textarea } from '../../components/ui'
+import { Alert, Badge, Button, Card, EmptyState, Field, Input, Loading, Table, Textarea } from '../../components/ui'
 import { fullName, idOf, labelize } from '../../lib/format'
 import { formatLeaveRange, leaveTypeColor } from './leaveTypes'
 import { HrCrumbs, HrTitle, RequestsButton } from './HrChrome'
@@ -17,6 +17,9 @@ type LeaveRequest = {
   end_date?: string
   status?: string
   is_paid?: boolean
+  days?: number
+  paid_per_day?: string | number | null
+  paid_total?: string | number | null
   reason?: string | null
   rejection_reason?: string | null
   created_at?: string | null
@@ -45,6 +48,7 @@ export function LeaveRequestsPage() {
   const [busyId, setBusyId] = useState('')
   const [approving, setApproving] = useState<LeaveRequest | null>(null)
   const [approvePaid, setApprovePaid] = useState(true)
+  const [approvePerDay, setApprovePerDay] = useState('')
   const [rejecting, setRejecting] = useState<LeaveRequest | null>(null)
   const [rejectionReason, setRejectionReason] = useState('')
 
@@ -91,7 +95,7 @@ export function LeaveRequestsPage() {
   async function review(
     item: LeaveRequest,
     status: 'APPROVED' | 'REJECTED',
-    options?: { isPaid?: boolean; reason?: string },
+    options?: { isPaid?: boolean; paidPerDay?: number; reason?: string },
   ) {
     if (!companyId || !item.id) return
     setError(null)
@@ -100,7 +104,12 @@ export function LeaveRequestsPage() {
     try {
       const result = await hrApi.reviewLeave(companyId, String(item.id), {
         status,
-        ...(status === 'APPROVED' ? { is_paid: options?.isPaid } : {}),
+        ...(status === 'APPROVED'
+          ? {
+              is_paid: options?.isPaid,
+              ...(options?.isPaid ? { paid_per_day: options.paidPerDay } : {}),
+            }
+          : {}),
         ...(status === 'REJECTED' ? { rejection_reason: options?.reason } : {}),
       })
       setMessage(result.message)
@@ -219,7 +228,13 @@ export function LeaveRequestsPage() {
                   </td>
                   <td className="px-4 py-3 text-navy">{formatLeaveRange(item.start_date, item.end_date)}</td>
                   <td className="px-4 py-3 text-navy">
-                    {pending ? '—' : item.is_paid === false ? 'Unpaid' : 'Paid'}
+                    {pending
+                      ? '—'
+                      : item.is_paid === false
+                        ? 'Unpaid'
+                        : item.paid_total != null
+                          ? `Paid · £${Number(item.paid_total).toFixed(2)}`
+                          : 'Paid'}
                   </td>
                   <td className="px-4 py-3">
                     <Badge status={item.status}>{labelize(item.status)}</Badge>
@@ -235,6 +250,11 @@ export function LeaveRequestsPage() {
                           onClick={() => {
                             setApproving(item)
                             setApprovePaid(item.is_paid !== false)
+                            setApprovePerDay(
+                              item.paid_per_day != null && Number(item.paid_per_day) > 0
+                                ? String(item.paid_per_day)
+                                : '',
+                            )
                           }}
                         >
                           <Check size={14} />
@@ -292,13 +312,43 @@ export function LeaveRequestsPage() {
                 Unpaid
               </label>
             </div>
+            {approvePaid ? (
+              <div className="mt-4">
+                <Field label="Amount to be paid per day">
+                  <Input
+                    variant="outline"
+                    inputMode="decimal"
+                    value={approvePerDay}
+                    onChange={(event) => setApprovePerDay(event.target.value)}
+                    placeholder="0.00"
+                  />
+                </Field>
+                <p className="mt-2 text-sm text-muted">
+                  {Number(approving.days ?? 0) || '—'} working day
+                  {Number(approving.days ?? 0) === 1 ? '' : 's'} × £
+                  {Number(approvePerDay || 0).toFixed(2)} ={' '}
+                  <span className="font-semibold text-navy">
+                    £
+                    {(
+                      (Number(approving.days ?? 0) || 0) * (Number(approvePerDay) || 0)
+                    ).toFixed(2)}
+                  </span>
+                  . This amount is added to payroll as {approving.leave_type || 'leave'}.
+                </p>
+              </div>
+            ) : null}
             <div className="mt-5 flex justify-end gap-2">
               <Button variant="secondary" onClick={() => setApproving(null)} disabled={Boolean(busyId)}>
                 Cancel
               </Button>
               <Button
-                disabled={Boolean(busyId)}
-                onClick={() => void review(approving, 'APPROVED', { isPaid: approvePaid })}
+                disabled={Boolean(busyId) || (approvePaid && !(Number(approvePerDay) > 0))}
+                onClick={() =>
+                  void review(approving, 'APPROVED', {
+                    isPaid: approvePaid,
+                    paidPerDay: Number(approvePerDay),
+                  })
+                }
               >
                 Approve request
               </Button>

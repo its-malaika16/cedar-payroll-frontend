@@ -515,7 +515,12 @@ export const hrApi = {
   reviewLeave: (
     companyId: string,
     leaveId: string,
-    body: { status: 'APPROVED' | 'REJECTED'; is_paid?: boolean; rejection_reason?: string },
+    body: {
+      status: 'APPROVED' | 'REJECTED'
+      is_paid?: boolean
+      paid_per_day?: number
+      rejection_reason?: string
+    },
   ) => patch(`/companies/${companyId}/hr/leave/${leaveId}/review`, body),
   upcomingLeave: (companyId: string) =>
     get(`/companies/${companyId}/hr/leave/upcoming`),

@@ -3,6 +3,7 @@ import { isFormDirty } from '../../lib/formDirty'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { companiesApi } from '../../api'
 import { assetUrl } from '../../api/client'
+import { useAuth } from '../../auth/AuthContext'
 import { Alert, Button, Field, Input as UiInput, Select as UiSelect, onSubmit } from '../../components/ui'
 import type { Company } from '../../types'
 import {
@@ -25,6 +26,7 @@ import {
   type EmployerForm,
   type SettingsTab,
 } from './employerSettings'
+import { WorkplaceMapPicker } from './WorkplaceMapPicker'
 import {
   currentTaxYearLabel,
   payrollStartOptions,
@@ -42,6 +44,7 @@ function Select(props: ComponentProps<typeof UiSelect>) {
 
 export function EmployerSettingsForm({ company }: { company: Company }) {
   const queryClient = useQueryClient()
+  const { refresh } = useAuth()
   const fileInput = useRef<HTMLInputElement>(null)
   const [tab, setTab] = useState<SettingsTab>('Basic Details')
   const [form, setForm] = useState<EmployerForm>(() => formFromCompany(company))
@@ -52,7 +55,10 @@ export function EmployerSettingsForm({ company }: { company: Company }) {
 
   const save = useMutation({
     mutationFn: (body: Record<string, unknown>) => companiesApi.update(String(company.id), body),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['company', String(company.id)] }),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['company', String(company.id)] })
+      await refresh()
+    },
   })
 
   useEffect(() => {
@@ -203,34 +209,29 @@ export function EmployerSettingsForm({ company }: { company: Company }) {
             </div>
           </Section>
 
-          <Section title="Workplace check-in">
-            <p className="mb-4 text-sm text-muted">
-              Employees can only check in or out when they are within 3-5 km of the workplace.
-            </p>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <Field label="Latitude">
-                <Input
-                  value={form.latitude}
-                  onChange={(event) => patchForm({ latitude: event.target.value })}
-                  placeholder="53.4808"
-                />
-              </Field>
-              <Field label="Longitude">
-                <Input
-                  value={form.longitude}
-                  onChange={(event) => patchForm({ longitude: event.target.value })}
-                  placeholder="-2.2426"
-                />
-              </Field>
-            </div>
-            <Field label="Check-in radius (metres, 3000-5000)">
-              <Input
-                value={form.attendance_radius_meters}
-                onChange={(event) => patchForm({ attendance_radius_meters: event.target.value })}
-                placeholder="3000"
+          <div className="xl:col-span-2">
+            <Section title="Workplace check-in">
+              <WorkplaceMapPicker
+                latitude={form.latitude}
+                longitude={form.longitude}
+                radiusMeters={form.attendance_radius_meters}
+                addressQuery={[
+                  form.address_line_1,
+                  form.address_line_2,
+                  form.address_line_3,
+                  form.address_line_4,
+                  form.postcode,
+                  form.country,
+                ]
+                  .filter(Boolean)
+                  .join(', ')}
+                onLocationChange={(nextLat, nextLng) =>
+                  patchForm({ latitude: nextLat, longitude: nextLng })
+                }
+                onRadiusChange={(meters) => patchForm({ attendance_radius_meters: meters })}
               />
-            </Field>
-          </Section>
+            </Section>
+          </div>
 
           <Section title="Logo image">
             <div className="flex flex-wrap items-start gap-5">

@@ -98,6 +98,15 @@ textarea {
   max-width: 100%;
 }
 
+.leaflet-container img {
+  max-width: none;
+}
+
+.leaflet-container {
+  font-family: inherit;
+  z-index: 0;
+}
+
 @media print {
   @page {
     size: A4 portrait;

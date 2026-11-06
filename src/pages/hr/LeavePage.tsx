@@ -4,7 +4,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { ChevronLeft, ChevronRight, Plus, Search, User } from 'lucide-react'
 import { employeesApi, hrApi } from '../../api'
 import { useAuth } from '../../auth/AuthContext'
-import { Alert, Button, Card, Loading } from '../../components/ui'
+import { Alert, Button, Card, Field, Input, Loading } from '../../components/ui'
 import { fullName, idOf } from '../../lib/format'
 import type { Employee } from '../../types'
 import { addDays, dateKey, formatMonthLabel, weeksInMonth } from './rota/rotaDates'
@@ -49,6 +49,7 @@ export function LeavePage() {
     start_date: '',
     end_date: '',
     is_paid: true,
+    paid_per_day: '',
     reason: '',
   })
 
@@ -115,7 +116,14 @@ export function LeavePage() {
     if (!companyId || !form.employee_id || !form.start_date || !form.end_date) return
     try {
       setError(null)
-      await hrApi.addLeave(companyId, form)
+      if (form.is_paid && !(Number(form.paid_per_day) > 0)) {
+        throw new Error('Enter the amount to be paid per day')
+      }
+      const { paid_per_day, ...rest } = form
+      await hrApi.addLeave(companyId, {
+        ...rest,
+        ...(form.is_paid ? { paid_per_day: Number(paid_per_day) } : {}),
+      })
       setModal(false)
       await queryClient.invalidateQueries({ queryKey: ['leave', companyId] })
       await queryClient.invalidateQueries({ queryKey: ['leave-upcoming', companyId] })
@@ -403,6 +411,17 @@ export function LeavePage() {
                 Unpaid
               </label>
             </div>
+            {form.is_paid ? (
+              <Field label="Amount to be paid per day">
+                <Input
+                  variant="outline"
+                  inputMode="decimal"
+                  value={form.paid_per_day}
+                  onChange={(event) => setForm({ ...form, paid_per_day: event.target.value })}
+                  placeholder="0.00"
+                />
+              </Field>
+            ) : null}
             <label className="mt-4 block">
               <span className="mb-2 block text-sm font-medium text-navy">Notes (optional)</span>
               <textarea
@@ -415,7 +434,12 @@ export function LeavePage() {
               <Button variant="secondary" onClick={() => setModal(false)}>
                 Cancel
               </Button>
-              <Button onClick={() => void submitLeave()}>Add Leave</Button>
+              <Button
+                disabled={form.is_paid && !(Number(form.paid_per_day) > 0)}
+                onClick={() => void submitLeave()}
+              >
+                Add Leave
+              </Button>
             </div>
           </Card>
         </div>

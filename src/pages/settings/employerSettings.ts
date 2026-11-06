@@ -32,6 +32,15 @@ export const EXPENSES_BENEFITS_METHODS = [
   'Not applicable',
 ] as const
 
+export const MIN_ATTENDANCE_RADIUS_METERS = 1000
+export const MAX_ATTENDANCE_RADIUS_METERS = 5000
+export const DEFAULT_ATTENDANCE_RADIUS_METERS = 3000
+
+export function clampAttendanceRadius(value: number, fallback = DEFAULT_ATTENDANCE_RADIUS_METERS) {
+  const raw = Number.isFinite(value) && value > 0 ? value : fallback
+  return Math.min(MAX_ATTENDANCE_RADIUS_METERS, Math.max(MIN_ATTENDANCE_RADIUS_METERS, Math.round(raw)))
+}
+
 export type EmployerForm = {
   company_name: string
   trading_name: string
@@ -202,7 +211,7 @@ export function formFromCompany(company: Company): EmployerForm {
     latitude: str(company.latitude),
     longitude: str(company.longitude),
     attendance_radius_meters: String(
-      Math.min(5000, Math.max(3000, company.attendance_radius_meters || 3000)),
+      clampAttendanceRadius(company.attendance_radius_meters || DEFAULT_ATTENDANCE_RADIUS_METERS),
     ),
   }
 }
@@ -235,7 +244,9 @@ export function payloadFromForm(form: EmployerForm) {
     expenses_benefits_method: form.expenses_benefits_method.trim() || null,
     latitude: form.latitude.trim() ? Number(form.latitude) : null,
     longitude: form.longitude.trim() ? Number(form.longitude) : null,
-    attendance_radius_meters: Math.min(5000, Math.max(3000, amount(form.attendance_radius_meters, 3000))),
+    attendance_radius_meters: clampAttendanceRadius(
+      amount(form.attendance_radius_meters, DEFAULT_ATTENDANCE_RADIUS_METERS),
+    ),
     employer_defaults: {
       typical_pay_frequency: form.typical_pay_frequency,
       typical_pay_basis: form.typical_pay_basis,

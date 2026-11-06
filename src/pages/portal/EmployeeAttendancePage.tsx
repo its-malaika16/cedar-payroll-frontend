@@ -24,7 +24,7 @@ import {
 } from '../hr/rota/rotaDates'
 import { hoursBetween, shiftDateKey, type RotaShift } from '../hr/rota/rotaModel'
 
-const MIN_RADIUS_METERS = 3000
+const MIN_RADIUS_METERS = 1000
 const MAX_RADIUS_METERS = 5000
 const DEFAULT_RADIUS_METERS = 3000
 const LATE_GRACE_MINUTES = 10
@@ -224,7 +224,7 @@ export function EmployeeAttendancePage() {
 
   useEffect(() => {
     if (!navigator.geolocation) {
-      setGeoError('Location is required to check in. You must be within 3-5 km of the workplace.')
+      setGeoError('Location is required to check in. You must be inside the attendance area set by your employer.')
       return
     }
     const watchId = navigator.geolocation.watchPosition(
@@ -237,7 +237,7 @@ export function EmployeeAttendancePage() {
       },
       () =>
         setGeoError(
-          'Allow location access so we can confirm you are within 3-5 km of the workplace.',
+          'Allow location access so we can confirm you are inside the attendance area set by your employer.',
         ),
       { enableHighAccuracy: true, maximumAge: 15_000 },
     )
@@ -310,7 +310,7 @@ export function EmployeeAttendancePage() {
           () =>
             reject(
               new Error(
-                'Location permission is required. You can only check in within 3-5 km of the workplace.',
+                'Location permission is required. You can only check in inside the attendance area set by your employer.',
               ),
             ),
           { enableHighAccuracy: true },
@@ -372,7 +372,9 @@ export function EmployeeAttendancePage() {
         Attendance
       </p>
       <h1 className="mt-2 text-[32px] font-semibold text-navy">Attendance</h1>
-      <p className="mt-1 text-sm text-muted">Check in and out from within 3-5 km of the workplace</p>
+      <p className="mt-1 text-sm text-muted">
+        Check in and out from within {kmLabel(clampRadius(today?.radius_meters))} of the workplace
+      </p>
 
       {error ? (
         <div className="mt-4">

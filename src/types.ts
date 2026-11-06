@@ -539,6 +539,14 @@ export type CalendarLeaveSummary = {
   paternity_pay?: number
   total_deduction?: number
   manual?: boolean
+  paid_leave_pay?: number
+  paid_items?: Array<{
+    id: string
+    leave_type: string
+    days: number
+    per_day: number
+    amount: number
+  }>
   amounts?: {
     unpaid?: number
     absent?: number

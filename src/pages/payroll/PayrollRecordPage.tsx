@@ -571,9 +571,28 @@ export function PayrollRecordPage() {
 
   const leaveSummary = (record?.calendar_leave_summary ?? {}) as Record<string, unknown>
   const leaveAmounts = (leaveSummary.amounts ?? {}) as Record<string, number>
+  const paidLeaveItems = (
+    Array.isArray(leaveSummary.paid_items) ? leaveSummary.paid_items : []
+  ) as Array<{ leave_type?: string; days?: number; per_day?: number; amount?: number }>
+  const hasPaidAnnual = paidLeaveItems.some((item) =>
+    /annual|holiday/i.test(String(item.leave_type ?? '')),
+  )
   const leaveLines = (
     [
-      ['Annual leave', leaveSummary.annual, leaveAmounts.annual, 'Paid — already in basic pay'],
+      ...(hasPaidAnnual
+        ? []
+        : ([['Annual leave', leaveSummary.annual, leaveAmounts.annual, 'Paid — already in basic pay']] as Array<
+            [string, unknown, unknown, string]
+          >)),
+      ...paidLeaveItems.map(
+        (item) =>
+          [
+            item.leave_type || 'Paid leave',
+            item.days,
+            item.amount,
+            `£${Number(item.per_day ?? 0).toFixed(2)} per day`,
+          ] as [string, unknown, unknown, string],
+      ),
       ['Unpaid leave', leaveSummary.unpaid, leaveAmounts.unpaid, 'Deducted from basic pay'],
       ['Sick leave (SSP)', leaveSummary.sick, leaveAmounts.sick ?? leaveSummary.sick_pay, leaveSummary.offsets_contractual_pay === false ? 'Statutory sick pay' : 'Replaces contractual pay · statutory sick pay'],
       ['Maternity leave (SMP)', leaveSummary.maternity, leaveAmounts.maternity ?? leaveSummary.maternity_pay, leaveSummary.offsets_contractual_pay === false ? 'Statutory maternity pay' : 'Replaces contractual pay · statutory maternity pay'],
