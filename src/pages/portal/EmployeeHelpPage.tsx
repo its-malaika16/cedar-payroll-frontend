@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom'
+import { useAuth } from '../../auth/AuthContext'
 import { Card, PageHeader } from '../../components/ui'
 
 const FAQS = [
@@ -25,6 +26,10 @@ const FAQS = [
 ]
 
 export function EmployeeHelpPage() {
+  const { companyHasModule } = useAuth()
+  const faqs = companyHasModule('PAYROLL')
+    ? FAQS
+    : FAQS.filter((item) => item.q !== 'When will I see my payslip?')
   return (
     <div>
       <PageHeader
@@ -44,7 +49,7 @@ export function EmployeeHelpPage() {
         </Link>
       </Card>
       <div className="space-y-3">
-        {FAQS.map((item) => (
+        {faqs.map((item) => (
           <Card key={item.q} className="p-5">
             <h3 className="text-sm font-semibold text-navy">{item.q}</h3>
             <p className="mt-2 text-sm text-muted">{item.a}</p>

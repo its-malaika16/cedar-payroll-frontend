@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import { APP_HOME } from './appHome'
 import { useAuth } from './auth/AuthContext'
@@ -124,6 +125,13 @@ function EmployeePortalLayout() {
   if (!auth.token) return <Navigate to="/login" replace />
   if (!auth.canUseEmployeePortal) return <Navigate to={APP_HOME} replace />
   return <EmployeeLayout />
+}
+
+function RequirePayrollModule({ children }: { children: ReactNode }) {
+  const auth = useAuth()
+  if (auth.loading) return <Loading />
+  if (!auth.companyHasModule('PAYROLL')) return <Navigate to="/portal" replace />
+  return children
 }
 
 function HomeRedirect() {
@@ -292,8 +300,22 @@ export default function App() {
       <Route element={<EmployeePortalLayout />}>
         <Route path="/portal" element={<EmployeeDashboardPage />} />
         <Route path="/portal/information" element={<EmployeeInformationPage />} />
-        <Route path="/portal/payslips/:runId/:recordId" element={<PayslipViewPage />} />
-        <Route path="/portal/payslips" element={<PortalPayslipsPage />} />
+        <Route
+          path="/portal/payslips/:runId/:recordId"
+          element={
+            <RequirePayrollModule>
+              <PayslipViewPage />
+            </RequirePayrollModule>
+          }
+        />
+        <Route
+          path="/portal/payslips"
+          element={
+            <RequirePayrollModule>
+              <PortalPayslipsPage />
+            </RequirePayrollModule>
+          }
+        />
         <Route path="/portal/rota" element={<PortalRotaPage />} />
         <Route path="/portal/leave" element={<PortalLeavePage />} />
         <Route path="/portal/leave/requests" element={<EmployeeLeaveRequestsPage />} />

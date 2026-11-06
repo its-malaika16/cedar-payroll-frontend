@@ -37,6 +37,7 @@ type AuthContextValue = {
   modules: string[]
   can: (permission: string) => boolean
   hasModule: (module: string) => boolean
+  companyHasModule: (module: string) => boolean
   homePath: string
   login: (email: string, password: string) => Promise<string>
   register: (email: string, password: string, confirm: string) => Promise<string>
@@ -320,6 +321,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       isSuperAdmin || isBureauAdmin || permissions.includes(permission),
     hasModule: (module: string) =>
       isSuperAdmin || isBureauAdmin || modules.includes(module),
+    companyHasModule: (module: string) =>
+      (
+        companies.find((company) => company.id === companyId)?.modules ??
+        currentEmployee?.modules ??
+        []
+      ).includes(module),
     homePath,
     login: async (email, password) => {
       const response = await authApi.login(email, password)

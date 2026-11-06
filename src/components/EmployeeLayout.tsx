@@ -107,6 +107,8 @@ export function EmployeeLayout() {
     auth.employeeAccess.some((access) => access.company_id === item.id),
   )
   const company = employeeCompanies.find((item) => item.id === auth.companyId) ?? employeeCompanies[0]
+  const hasPayroll = auth.companyHasModule('PAYROLL')
+  const navItems = mainNav.filter((item) => item.to !== '/portal/payslips' || hasPayroll)
   const seenNotifications = useRef(new Set<string>())
   const notifications = useQuery({
     queryKey: ['notifications', auth.companyId],
@@ -136,13 +138,15 @@ export function EmployeeLayout() {
       const id = String(item.id ?? '')
       if (!id || seenNotifications.current.has(id) || item.is_read) continue
       seenNotifications.current.add(id)
-      const allowed = ['ROTA_PUBLISHED', 'ROTA_UPDATED', 'DOCUMENT_EXPIRING', 'PAYSLIP_READY']
+      const allowed = hasPayroll
+        ? ['ROTA_PUBLISHED', 'ROTA_UPDATED', 'DOCUMENT_EXPIRING', 'PAYSLIP_READY']
+        : ['ROTA_PUBLISHED', 'ROTA_UPDATED', 'DOCUMENT_EXPIRING']
       if (!allowed.includes(item.type ?? '')) continue
       if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
         new Notification(item.title || 'Cedar Payroll', { body: item.body || '' })
       }
     }
-  }, [notifications.data])
+  }, [hasPayroll, notifications.data])
 
   return (
     <ResponsiveShell
@@ -160,7 +164,7 @@ export function EmployeeLayout() {
             </span>
           </div>
           <nav className="min-h-0 flex-1 space-y-1 overflow-y-auto px-1.5">
-            {mainNav.map((item) => (
+            {navItems.map((item) => (
               <SidebarLink key={item.to} item={item} unread={unread} />
             ))}
           </nav>

@@ -360,7 +360,8 @@ function StatIcon({ children }: { children: ReactNode }) {
 }
 
 export function EmployeeDashboardPage() {
-  const { companyId, currentEmployee, user, companies } = useAuth()
+  const { companyId, currentEmployee, user, companies, companyHasModule } = useAuth()
+  const hasPayroll = companyHasModule('PAYROLL')
   const employeeId = currentEmployee?.employee_id
   const company = companies.find((item) => item.id === companyId)
   const query = useQuery({
@@ -392,7 +393,8 @@ export function EmployeeDashboardPage() {
       <p className="mt-3 text-lg font-medium text-navy">Welcome, {name}</p>
       <p className="mt-1 text-sm text-muted">{company?.name || 'Your company'}</p>
 
-      <div className="mt-8 grid gap-5 md:grid-cols-3">
+      <div className={`mt-8 grid gap-5 ${hasPayroll ? 'md:grid-cols-3' : 'md:grid-cols-2'}`}>
+        {hasPayroll ? (
         <article className="rounded-[24px] bg-white px-7 py-6">
           <div className="flex items-start gap-5">
             <StatIcon>
@@ -424,6 +426,7 @@ export function EmployeeDashboardPage() {
             </div>
           </div>
         </article>
+        ) : null}
 
         <article className="rounded-[24px] bg-white px-7 py-6">
           <div className="flex items-start gap-5">
@@ -443,6 +446,7 @@ export function EmployeeDashboardPage() {
           </div>
         </article>
 
+        {hasPayroll ? (
         <article className="rounded-[24px] bg-white px-7 py-6">
           <div className="flex items-start gap-5">
             <StatIcon>
@@ -461,8 +465,10 @@ export function EmployeeDashboardPage() {
             </div>
           </div>
         </article>
+        ) : null}
       </div>
 
+      {hasPayroll ? (
       <div className="mt-5 grid gap-5 xl:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)]">
         <article className="rounded-[24px] bg-white p-7">
           <h2 className="text-lg font-semibold text-navy">Payroll Breakdown</h2>
@@ -484,6 +490,7 @@ export function EmployeeDashboardPage() {
           </div>
         </article>
       </div>
+      ) : null}
 
       <article className="mt-5 rounded-[24px] bg-white px-7 py-6">
         <h2 className="text-lg font-semibold text-navy">Next Assigned Shift</h2>
@@ -503,7 +510,7 @@ export function EmployeeDashboardPage() {
           <p className="mt-3 text-sm text-muted">No published shift is assigned yet.</p>
         )}
       </article>
-      {previewOpen && latestRunId && latestRecordId ? (
+      {hasPayroll && previewOpen && latestRunId && latestRecordId ? (
         <PayslipPreviewModal
           runId={latestRunId}
           recordId={latestRecordId}
