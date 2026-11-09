@@ -23,12 +23,12 @@ import {
   weeksInMonth,
 } from '../hr/rota/rotaDates'
 import { hoursBetween, shiftDateKey, type RotaShift } from '../hr/rota/rotaModel'
-import { EmployeeCheckInPanel } from './EmployeeCheckInPanel'
 
 const MIN_RADIUS_METERS = 25
 const MAX_RADIUS_METERS = 5000
 const DEFAULT_RADIUS_METERS = 3000
 const LATE_GRACE_MINUTES = 10
+const CHECK_IN_OPENS_MINUTES = 30
 
 type AttendanceRecord = {
   check_in_at?: string | null
@@ -200,6 +200,42 @@ function Banner({
   )
 }
 
+function HoursRing({ percent }: { percent: number }) {
+  const size = 88
+  const stroke = 8
+  const radius = (size - stroke) / 2
+  const circumference = 2 * Math.PI * radius
+  const value = Math.min(100, Math.max(0, percent))
+  return (
+    <svg viewBox={`0 0 ${size} ${size}`} className="size-[88px] shrink-0" aria-hidden>
+      <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke="#e8eef4" strokeWidth={stroke} />
+      <circle
+        cx={size / 2}
+        cy={size / 2}
+        r={radius}
+        fill="none"
+        stroke="#17375e"
+        strokeWidth={stroke}
+        strokeLinecap="round"
+        strokeDasharray={circumference}
+        strokeDashoffset={circumference * (1 - value / 100)}
+        transform={`rotate(-90 ${size / 2} ${size / 2})`}
+      />
+      <text
+        x="50%"
+        y="50%"
+        dominantBaseline="middle"
+        textAnchor="middle"
+        fill="#17375e"
+        fontSize="16"
+        fontWeight="700"
+      >
+        {Math.round(value)}%
+      </text>
+    </svg>
+  )
+}
+
 export function EmployeeAttendancePage() {
   const { companyId, currentEmployee } = useAuth()
   const employeeId = currentEmployee?.employee_id
@@ -210,6 +246,7 @@ export function EmployeeAttendancePage() {
   const [tab, setTab] = useState<'list' | 'calendar'>('list')
   const [weekStart, setWeekStart] = useState(() => startOfWeek(new Date()))
   const [monthAnchor, setMonthAnchor] = useState(() => new Date(new Date().getFullYear(), new Date().getMonth(), 1))
+  const [nowMs, setNowMs] = useState(() => Date.now())
 
   const historyQuery = useQuery({
     queryKey: ['attendance', companyId, employeeId],
@@ -250,6 +287,11 @@ export function EmployeeAttendancePage() {
     return () => navigator.geolocation.clearWatch(watchId)
   }, [])
 
+  useEffect(() => {
+    const id = window.setInterval(() => setNowMs(Date.now()), 15_000)
+    return () => window.clearInterval(id)
+  }, [])
+
   const today = todayQuery.data?.data as TodayPayload | undefined
   const records = (historyQuery.data?.data as AttendanceRecord[] | undefined) ?? []
   const shifts = (shiftsQuery.data?.data as RotaShift[] | undefined) ?? []
@@ -267,7 +309,11 @@ export function EmployeeAttendancePage() {
     return shifts.find((item) => shiftDateKey(item) === key)
   }
 
-  const weekRows = [...weekDays].reverse().map((day) => {
+  const viewingCurrentWeek = dateKey(weekStart) === dateKey(startOfWeek(now))
+  const weekRows = [...weekDays]
+    .filter((day) => !viewingCurrentWeek || dateKey(day) <= todayKey)
+    .reverse()
+    .map((day) => {
     const key = dateKey(day)
     const shift = shiftFor(key)
     const record = recordFor(key)
@@ -325,16 +371,6 @@ export function EmployeeAttendancePage() {
     })
   }
 
-  async function refreshLocation() {
-    try {
-      const position = await readLocation()
-      setCoords(position)
-      setGeoError(null)
-    } catch (err) {
-      setGeoError(err instanceof Error ? err.message : 'Could not read your location')
-    }
-  }
-
   async function punch(kind: 'in' | 'out') {
     if (!employeeId) return
     try {
@@ -375,7 +411,6 @@ export function EmployeeAttendancePage() {
   const worked = today?.hours_worked ?? 0
   const progress = expected > 0 ? Math.min(140, Math.round((worked / expected) * 100)) : 0
   const onShift = Boolean(checkInAt && !checkOutAt)
-  const earlyMinutes = today?.checked_in_early_minutes ?? 0
   const radius = clampRadius(today?.radius_meters)
   const currentDistance =
     coords && today?.workplace_latitude != null && today?.workplace_longitude != null
@@ -387,6 +422,21 @@ export function EmployeeAttendancePage() {
         )
       : null
   const insideRadius = currentDistance == null ? null : currentDistance <= radius
+  const hasWorkplace = today?.workplace_latitude != null && today?.workplace_longitude != null
+  const alreadyCheckedIn = Boolean(onShift || checkInAt)
+  const opensAt = today?.shift?.start_time
+    ? new Date(new Date(today.shift.start_time).getTime() - CHECK_IN_OPENS_MINUTES * 60_000)
+    : today?.check_in_opens_at
+      ? new Date(today.check_in_opens_at)
+      : null
+  const windowOpen = !opensAt || Number.isNaN(opensAt.getTime()) || nowMs >= opensAt.getTime()
+  const canCheckIn = Boolean(
+    hasWorkplace && !alreadyCheckedIn && windowOpen && insideRadius !== false && !geoError && !busy,
+  )
+  const canCheckOut = Boolean(today?.can_check_out && insideRadius !== false && !geoError && !busy)
+  const locationLabel = today?.shift?.location || today?.shift?.role_name || 'Office'
+  const overtimeHours = today?.overtime_hours ?? 0
+  const remainingHours = today?.remaining_hours ?? Math.max(0, expected - worked)
 
   return (
     <div>
@@ -399,7 +449,7 @@ export function EmployeeAttendancePage() {
       </p>
       <h1 className="mt-2 text-[32px] font-semibold text-navy">Attendance</h1>
       <p className="mt-1 text-sm text-muted">
-        Check in and out when you are within {kmLabel(clampRadius(today?.radius_meters))} of the workplace pin your employer saved.
+        Check in and out from within {kmLabel(radius)} of workplace
       </p>
 
       {error ? (
@@ -408,130 +458,158 @@ export function EmployeeAttendancePage() {
         </div>
       ) : null}
 
-      <div className="mt-6">
-        {todayQuery.isLoading ? (
-          <Loading />
-        ) : (
-          <EmployeeCheckInPanel
-            today={today}
-            coords={coords}
-            distance={currentDistance}
-            insideRadius={insideRadius}
-            geoError={geoError}
-            busy={busy}
-            checkedIn={onShift}
-            onCheckIn={() => void punch('in')}
-            onCheckOut={() => void punch('out')}
-            onRefreshLocation={() => void refreshLocation()}
-          />
-        )}
-      </div>
-
-      <div className="mt-5 grid gap-5 xl:grid-cols-[minmax(0,1.4fr)_minmax(280px,0.8fr)]">
+      <div className="mt-5 grid gap-5 xl:grid-cols-[minmax(0,1.45fr)_minmax(280px,0.85fr)]">
         <section className="rounded-[16px] border border-[#eceae6] bg-white p-5">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div className="flex items-start gap-3">
-              <span className="mt-0.5 flex size-9 items-center justify-center rounded-[10px] bg-[#eef2f6] text-navy">
-                <CalendarDays size={18} />
-              </span>
-              <div>
-                <p className="text-sm font-semibold text-navy">Today</p>
-                <p className="text-xs text-muted">
-                  {now.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
-                </p>
-              </div>
-            </div>
-            {today?.shift ? (
-              <span
-                className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold ${
-                  today.absent
-                    ? 'bg-[#fdecee] text-[#d32027]'
-                    : onShift
-                      ? 'bg-[#e7f6ec] text-[#1b7d4f]'
-                      : 'bg-[#eef3fb] text-navy'
-                }`}
-              >
-                <span
-                  className={`size-2 rounded-full ${
-                    today.absent ? 'bg-[#d32027]' : onShift ? 'bg-[#22c55e]' : 'bg-navy'
-                  }`}
-                />
-                {today.absent ? 'Absent' : onShift ? 'On Shift' : checkOutAt ? 'Checked out' : 'Scheduled'}
-              </span>
-            ) : null}
-          </div>
-          {today?.shift ? (
-            <div className="mt-6 grid gap-5 sm:grid-cols-2">
-              <div className="flex items-start gap-3">
-                <Clock3 size={18} className="mt-0.5 text-navy" />
-                <div>
-                  <p className="text-xs text-muted">Scheduled Shift</p>
-                  <p className="mt-1 text-sm font-semibold text-navy">
-                    {clock(today.shift.start_time)} - {clock(today.shift.end_time)}
-                  </p>
-                  <p className="text-xs text-muted">{today.shift.location || today.shift.role_name || 'Workplace'}</p>
-                </div>
-              </div>
-              <div className="flex items-start gap-3">
-                {today.absent ? (
-                  <XCircle size={18} className="mt-0.5 text-[#d32027]" />
-                ) : checkInAt ? (
-                  <CheckCircle2 size={18} className="mt-0.5 text-[#1b7d4f]" />
-                ) : (
-                  <Minus size={18} className="mt-0.5 text-muted" />
-                )}
-                <div>
-                  <p className="text-xs text-muted">Your Status</p>
-                  <p className="mt-1 text-sm font-semibold text-navy">
-                    {today.absent
-                      ? 'No Check In'
-                      : checkOutAt
-                        ? 'Checked out'
-                        : checkInAt
-                          ? 'Checked In'
-                          : 'Not checked in'}
-                  </p>
-                  <p className="text-xs text-muted">
-                    {checkOutAt
-                      ? `At ${clock(checkOutAt)}`
-                      : checkInAt
-                        ? `Since ${clock(checkInAt)}`
-                        : today.can_check_in ||
-                            (today.shift &&
-                              Date.now() >=
-                                new Date(today.shift.start_time).getTime() - 30 * 60_000)
-                          ? 'Check-in is open'
-                          : today.check_in_opens_at
-                            ? `Opens ${clock(today.check_in_opens_at)}`
-                            : 'Waiting for workplace location'}
-                  </p>
-                </div>
-              </div>
-            </div>
+          {todayQuery.isLoading ? (
+            <Loading />
           ) : (
-            <p className="mt-6 text-sm text-muted">No shift is assigned for today. You can still check in if you are inside the office radius.</p>
+            <>
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div className="flex items-start gap-3">
+                  <span className="mt-0.5 flex size-9 items-center justify-center rounded-[10px] bg-[#eef2f6] text-navy">
+                    <CalendarDays size={18} />
+                  </span>
+                  <div>
+                    <p className="text-sm font-semibold text-navy">Today</p>
+                    <p className="text-xs text-muted">
+                      {now.toLocaleDateString('en-GB', {
+                        weekday: 'long',
+                        day: 'numeric',
+                        month: 'long',
+                        year: 'numeric',
+                      })}
+                    </p>
+                  </div>
+                </div>
+                {today?.shift ? (
+                  <span
+                    className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold ${
+                      today.absent
+                        ? 'bg-[#fdecee] text-[#d32027]'
+                        : onShift
+                          ? 'bg-[#e7f6ec] text-[#1b7d4f]'
+                          : 'bg-[#eef3fb] text-navy'
+                    }`}
+                  >
+                    <span
+                      className={`size-2 rounded-full ${
+                        today.absent ? 'bg-[#d32027]' : onShift ? 'bg-[#22c55e]' : 'bg-navy'
+                      }`}
+                    />
+                    {today.absent ? 'Absent' : onShift ? 'On Shift' : checkOutAt ? 'Checked out' : 'Scheduled'}
+                  </span>
+                ) : null}
+              </div>
+              {today?.shift ? (
+                <div className="mt-6 grid gap-5 sm:grid-cols-2">
+                  <div className="flex items-start gap-3">
+                    <Clock3 size={18} className="mt-0.5 text-navy" />
+                    <div>
+                      <p className="text-xs text-muted">Scheduled Shift</p>
+                      <p className="mt-1 text-sm font-semibold text-navy">
+                        {clock(today.shift.start_time)} - {clock(today.shift.end_time)}
+                      </p>
+                      <p className="text-xs text-muted">@{locationLabel}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    {today.absent ? (
+                      <XCircle size={18} className="mt-0.5 text-[#d32027]" />
+                    ) : checkInAt ? (
+                      <CheckCircle2
+                        size={18}
+                        className={`mt-0.5 ${today.checked_in_late ? 'text-[#c2782a]' : 'text-[#1b7d4f]'}`}
+                      />
+                    ) : (
+                      <Minus size={18} className="mt-0.5 text-muted" />
+                    )}
+                    <div>
+                      <p className="text-xs text-muted">Your Status</p>
+                      <p className="mt-1 text-sm font-semibold text-navy">
+                        {today.absent
+                          ? 'No Check In'
+                          : checkOutAt
+                            ? 'Checked out'
+                            : checkInAt
+                              ? 'Checked In'
+                              : 'Not checked in'}
+                      </p>
+                      <p className="text-xs text-muted">
+                        {checkOutAt
+                          ? `At ${clock(checkOutAt)}`
+                          : checkInAt
+                            ? `Since ${clock(checkInAt)}`
+                            : windowOpen
+                              ? 'Check-in is open'
+                              : opensAt
+                                ? `Opens ${clock(opensAt)}`
+                                : 'Waiting for workplace location'}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <p className="mt-6 text-sm text-muted">
+                  No shift is assigned for today. You can still check in if you are inside the office radius.
+                </p>
+              )}
+              {geoError ? (
+                <Banner tone="danger" icon={<XCircle size={16} />}>
+                  {geoError}
+                </Banner>
+              ) : checkOutAt && today?.checked_out_early ? (
+                <Banner tone="danger" icon={<Clock3 size={16} />}>
+                  You checked out early
+                </Banner>
+              ) : checkInAt && today?.checked_in_late ? (
+                <Banner tone="warning" icon={<Clock3 size={16} />}>
+                  You checked in late
+                </Banner>
+              ) : onShift ? (
+                <Banner tone="success" icon={<CheckCircle2 size={16} />}>
+                  Great! You are on time
+                </Banner>
+              ) : !hasWorkplace ? (
+                <Banner tone="info" icon={<Clock3 size={16} />}>
+                  Your employer still needs to save the workplace pin in Company info.
+                </Banner>
+              ) : insideRadius === false ? (
+                <Banner tone="danger" icon={<XCircle size={16} />}>
+                  You are {kmLabel(currentDistance ?? 0)} from the office. Check-in is allowed within {kmLabel(radius)}.
+                </Banner>
+              ) : !windowOpen && opensAt ? (
+                <Banner tone="info" icon={<Clock3 size={16} />}>
+                  Check-in opens at {clock(opensAt)}
+                </Banner>
+              ) : null}
+              <div className="mt-5 grid grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  disabled={!canCheckIn}
+                  onClick={() => void punch('in')}
+                  className={`h-11 rounded-[10px] text-sm font-semibold ${
+                    canCheckIn
+                      ? 'bg-navy text-white'
+                      : 'cursor-not-allowed border border-[#eceae6] bg-[#f3f2ef] text-muted'
+                  }`}
+                >
+                  {busy && !onShift ? 'Checking…' : alreadyCheckedIn ? 'Checked In' : 'Check In'}
+                </button>
+                <button
+                  type="button"
+                  disabled={!canCheckOut}
+                  onClick={() => void punch('out')}
+                  className={`h-11 rounded-[10px] text-sm font-semibold ${
+                    canCheckOut
+                      ? 'bg-navy text-white'
+                      : 'cursor-not-allowed border border-[#eceae6] bg-[#f3f2ef] text-muted'
+                  }`}
+                >
+                  {busy && onShift ? 'Checking…' : 'Check out'}
+                </button>
+              </div>
+            </>
           )}
-          {error ? (
-            <Banner tone="danger" icon={<XCircle size={16} />}>
-              {error}
-            </Banner>
-          ) : checkOutAt && today?.checked_out_early ? (
-            <Banner tone="danger" icon={<Clock3 size={16} />}>
-              You checked out early
-            </Banner>
-          ) : checkInAt && today?.checked_in_late ? (
-            <Banner tone="warning" icon={<Clock3 size={16} />}>
-              You checked in late
-            </Banner>
-          ) : checkInAt && earlyMinutes > 0 ? (
-            <Banner tone="success" icon={<CheckCircle2 size={16} />}>
-              You have checked in {earlyMinutes} minute{earlyMinutes === 1 ? '' : 's'} before your shift.
-            </Banner>
-          ) : onShift ? (
-            <Banner tone="success" icon={<CheckCircle2 size={16} />}>
-              You are checked in
-            </Banner>
-          ) : null}
         </section>
 
         <section className="rounded-[16px] border border-[#eceae6] bg-white p-5">
@@ -541,29 +619,32 @@ export function EmployeeAttendancePage() {
             </span>
             <p className="text-sm font-semibold text-navy">Working Hours</p>
           </div>
-          <div className="mt-6 grid grid-cols-2 gap-4">
-            <div>
-              <p className="text-xs text-muted">Worked so far</p>
-              <p className="mt-1 text-lg font-semibold text-navy">{compactHours(worked)}</p>
+          <div className="mt-6 flex items-start justify-between gap-4">
+            <div className="grid flex-1 grid-cols-2 gap-x-6 gap-y-5">
+              <div>
+                <p className="text-xs text-muted">Worked so far</p>
+                <p className="mt-1 text-lg font-semibold text-navy">{compactHours(worked)}</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted">Expected today</p>
+                <p className="mt-1 text-lg font-semibold text-navy">{compactHours(expected)}</p>
+              </div>
+              <div>
+                <p className="flex items-center gap-1.5 text-xs text-muted">
+                  <Clock3 size={12} />
+                  Overtime
+                </p>
+                <p className="mt-1 text-lg font-semibold text-navy">{hoursLabel(overtimeHours)}</p>
+              </div>
+              <div>
+                <p className="flex items-center gap-1.5 text-xs text-muted">
+                  <Clock3 size={12} />
+                  Overtime remaining
+                </p>
+                <p className="mt-1 text-lg font-semibold text-navy">{hoursLabel(remainingHours)}</p>
+              </div>
             </div>
-            <div>
-              <p className="text-xs text-muted">Expected today</p>
-              <p className="mt-1 text-lg font-semibold text-navy">{compactHours(expected)}</p>
-            </div>
-            <div>
-              <p className="text-xs text-muted">Overtime</p>
-              <p className="mt-1 text-lg font-semibold text-navy">{hoursLabel(today?.overtime_hours ?? 0)}</p>
-            </div>
-            <div>
-              <p className="text-xs text-muted">Remaining</p>
-              <p className="mt-1 text-lg font-semibold text-navy">{hoursLabel(today?.remaining_hours ?? expected)}</p>
-            </div>
-          </div>
-          <div className="mt-6">
-            <div className="h-2 overflow-hidden rounded-full bg-[#eceae6]">
-              <div className="h-full rounded-full bg-navy" style={{ width: `${Math.min(progress, 100)}%` }} />
-            </div>
-            <p className="mt-2 text-right text-xs text-muted">{progress}%</p>
+            <HoursRing percent={progress} />
           </div>
         </section>
       </div>
