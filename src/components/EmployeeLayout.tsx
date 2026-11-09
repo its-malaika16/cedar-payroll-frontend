@@ -46,7 +46,7 @@ type NavItem = {
 
 const mainNav: NavItem[] = [
   { to: '/portal', label: 'Dashboard', icon: Home, end: true },
-  { to: '/portal/information', label: 'My Profile', icon: User },
+  { to: '/portal/information', label: 'Employee Info', icon: User },
   { to: '/portal/payslips', label: 'Payslip', icon: ClipboardList },
   { to: '/portal/rota', label: 'Rota', icon: CalendarClock },
   { to: '/portal/attendance', label: 'Attendance', icon: CalendarUser },

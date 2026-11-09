@@ -3,12 +3,13 @@ import { Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import {
   CalendarDays,
-  CheckCircle2,
+  Check,
   ChevronLeft,
   ChevronRight,
   Clock3,
-  Minus,
+  MapPin,
   User,
+  Users,
   XCircle,
 } from 'lucide-react'
 import { hrApi } from '../../api'
@@ -78,7 +79,10 @@ function clock(value?: string | Date | null) {
   if (!value) return ''
   const date = value instanceof Date ? value : new Date(value)
   if (Number.isNaN(date.getTime())) return ''
-  return date.toLocaleTimeString('en-GB', { hour: 'numeric', minute: '2-digit', hour12: true }).toUpperCase()
+  return date
+    .toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: true })
+    .toUpperCase()
+    .replace('  ', ' ')
 }
 
 function distanceMeters(
@@ -109,18 +113,31 @@ function clampRadius(value?: number | null) {
   return Math.min(MAX_RADIUS_METERS, Math.max(MIN_RADIUS_METERS, Math.round(raw)))
 }
 
-function hoursLabel(value = 0) {
+function hoursParts(value = 0) {
   const safe = Math.max(0, value)
-  const hours = Math.floor(safe)
-  const minutes = Math.round((safe - hours) * 60)
+  let hours = Math.floor(safe)
+  let minutes = Math.round((safe - hours) * 60)
+  if (minutes === 60) {
+    hours += 1
+    minutes = 0
+  }
+  return { hours, minutes }
+}
+
+function hoursLabel(value = 0) {
+  const { hours, minutes } = hoursParts(value)
   return `${String(hours).padStart(2, '0')}h ${String(minutes).padStart(2, '0')}m`
 }
 
 function compactHours(value = 0) {
-  const safe = Math.max(0, value)
-  const hours = Math.floor(safe)
-  const minutes = Math.round((safe - hours) * 60)
+  const { hours, minutes } = hoursParts(value)
   return `${hours}h ${String(minutes).padStart(2, '0')}m`
+}
+
+function spacedHours(value = 0, padHours = false) {
+  const { hours, minutes } = hoursParts(value)
+  const hourText = padHours ? String(hours).padStart(2, '0') : String(hours)
+  return `${hourText} h ${String(minutes).padStart(2, '0')} m`
 }
 
 function shiftHours(shift?: { start_time: string; end_time: string } | null) {
@@ -159,7 +176,7 @@ function statusMeta(status: DayStatus) {
     on_time: { label: 'On time', className: 'bg-[#e7f6ec] text-[#1b7d4f]' },
     late: { label: 'Checked in late', className: 'bg-[#fff4e5] text-[#c2782a]' },
     overtime: { label: 'Overtime', className: 'bg-[#eef3fb] text-navy' },
-    early_out: { label: 'Checked out early', className: 'bg-[#fdecee] text-[#d32027]' },
+    early_out: { label: 'Checked out early', className: 'bg-[#fff4e5] text-[#c2782a]' },
     absent: { label: 'Absent', className: 'bg-[#fdecee] text-[#d32027]' },
     off: { label: '', className: '' },
     upcoming: { label: 'Scheduled', className: 'bg-[#eef3fb] text-navy' },
@@ -200,39 +217,25 @@ function Banner({
   )
 }
 
-function HoursRing({ percent }: { percent: number }) {
-  const size = 88
-  const stroke = 8
-  const radius = (size - stroke) / 2
-  const circumference = 2 * Math.PI * radius
-  const value = Math.min(100, Math.max(0, percent))
+function StatusMark({
+  tone,
+}: {
+  tone: 'success' | 'warning' | 'danger' | 'muted'
+}) {
+  const fill = {
+    success: 'bg-[#22c55e]',
+    warning: 'bg-[#e2a334]',
+    danger: 'bg-[#d32027]',
+    muted: 'bg-[#c5c5c5]',
+  }[tone]
   return (
-    <svg viewBox={`0 0 ${size} ${size}`} className="size-[88px] shrink-0" aria-hidden>
-      <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke="#e8eef4" strokeWidth={stroke} />
-      <circle
-        cx={size / 2}
-        cy={size / 2}
-        r={radius}
-        fill="none"
-        stroke="#17375e"
-        strokeWidth={stroke}
-        strokeLinecap="round"
-        strokeDasharray={circumference}
-        strokeDashoffset={circumference * (1 - value / 100)}
-        transform={`rotate(-90 ${size / 2} ${size / 2})`}
-      />
-      <text
-        x="50%"
-        y="50%"
-        dominantBaseline="middle"
-        textAnchor="middle"
-        fill="#17375e"
-        fontSize="16"
-        fontWeight="700"
-      >
-        {Math.round(value)}%
-      </text>
-    </svg>
+    <span className={`flex size-10 shrink-0 items-center justify-center rounded-full text-white ${fill}`}>
+      {tone === 'muted' ? (
+        <span className="text-lg leading-none">–</span>
+      ) : (
+        <Check size={20} strokeWidth={3} />
+      )}
+    </span>
   )
 }
 
@@ -299,7 +302,8 @@ export function EmployeeAttendancePage() {
   const todayKey = dateKey(now)
   const weekDays = useMemo(() => daysInPeriod(weekStart, addDays(weekStart, 6)), [weekStart])
   const weekLabel = `${weekStart.toLocaleDateString('en-GB', { day: 'numeric', month: 'long' })} - ${addDays(weekStart, 6).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}`
-  const shortWeek = `${weekStart.getDate()} - ${addDays(weekStart, 6).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}`
+  const weekEnd = addDays(weekStart, 6)
+  const shortWeek = `${weekStart.getDate()} - ${weekEnd.getDate()} ${weekEnd.toLocaleDateString('en-GB', { month: 'short' })}, ${weekEnd.getFullYear()}`
 
   function recordFor(key: string) {
     return records.find((item) => item.check_in_at && dateKey(new Date(item.check_in_at)) === key)
@@ -458,74 +462,58 @@ export function EmployeeAttendancePage() {
         </div>
       ) : null}
 
-      <div className="mt-5 grid gap-5 xl:grid-cols-[minmax(0,1.45fr)_minmax(280px,0.85fr)]">
+      <div className="mt-5 grid gap-5 xl:grid-cols-[minmax(0,1.5fr)_minmax(300px,0.9fr)]">
         <section className="rounded-[16px] border border-[#eceae6] bg-white p-5">
           {todayQuery.isLoading ? (
             <Loading />
           ) : (
             <>
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <div className="flex items-start gap-3">
-                  <span className="mt-0.5 flex size-9 items-center justify-center rounded-[10px] bg-[#eef2f6] text-navy">
-                    <CalendarDays size={18} />
-                  </span>
-                  <div>
-                    <p className="text-sm font-semibold text-navy">Today</p>
-                    <p className="text-xs text-muted">
-                      {now.toLocaleDateString('en-GB', {
-                        weekday: 'long',
-                        day: 'numeric',
-                        month: 'long',
-                        year: 'numeric',
-                      })}
-                    </p>
-                  </div>
+              <div className="flex items-start gap-3">
+                <span className="flex size-10 items-center justify-center rounded-[10px] bg-[#eef2f6] text-navy">
+                  <CalendarDays size={18} />
+                </span>
+                <div>
+                  <p className="text-lg font-semibold text-navy">Today</p>
+                  <p className="text-sm text-muted">
+                    {now.toLocaleDateString('en-GB', {
+                      weekday: 'long',
+                      day: 'numeric',
+                      month: 'long',
+                      year: 'numeric',
+                    })}
+                  </p>
                 </div>
-                {today?.shift ? (
-                  <span
-                    className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold ${
-                      today.absent
-                        ? 'bg-[#fdecee] text-[#d32027]'
-                        : onShift
-                          ? 'bg-[#e7f6ec] text-[#1b7d4f]'
-                          : 'bg-[#eef3fb] text-navy'
-                    }`}
-                  >
-                    <span
-                      className={`size-2 rounded-full ${
-                        today.absent ? 'bg-[#d32027]' : onShift ? 'bg-[#22c55e]' : 'bg-navy'
-                      }`}
-                    />
-                    {today.absent ? 'Absent' : onShift ? 'On Shift' : checkOutAt ? 'Checked out' : 'Scheduled'}
-                  </span>
-                ) : null}
               </div>
               {today?.shift ? (
                 <div className="mt-6 grid gap-5 sm:grid-cols-2">
                   <div className="flex items-start gap-3">
-                    <Clock3 size={18} className="mt-0.5 text-navy" />
+                    <Clock3 size={22} className="mt-0.5 text-navy" />
                     <div>
-                      <p className="text-xs text-muted">Scheduled Shift</p>
-                      <p className="mt-1 text-sm font-semibold text-navy">
+                      <p className="text-sm text-muted">Schedule Shift</p>
+                      <p className="mt-0.5 text-base font-semibold text-navy">
                         {clock(today.shift.start_time)} - {clock(today.shift.end_time)}
                       </p>
-                      <p className="text-xs text-muted">@{locationLabel}</p>
+                      <p className="mt-0.5 flex items-center gap-1 text-sm text-muted">
+                        <MapPin size={14} />
+                        {locationLabel}
+                      </p>
                     </div>
                   </div>
                   <div className="flex items-start gap-3">
-                    {today.absent ? (
-                      <XCircle size={18} className="mt-0.5 text-[#d32027]" />
-                    ) : checkInAt ? (
-                      <CheckCircle2
-                        size={18}
-                        className={`mt-0.5 ${today.checked_in_late ? 'text-[#c2782a]' : 'text-[#1b7d4f]'}`}
-                      />
-                    ) : (
-                      <Minus size={18} className="mt-0.5 text-muted" />
-                    )}
+                    <StatusMark
+                      tone={
+                        today.absent
+                          ? 'danger'
+                          : today.checked_in_late
+                            ? 'warning'
+                            : checkInAt
+                              ? 'success'
+                              : 'muted'
+                      }
+                    />
                     <div>
-                      <p className="text-xs text-muted">Your Status</p>
-                      <p className="mt-1 text-sm font-semibold text-navy">
+                      <p className="text-sm text-muted">Your Status</p>
+                      <p className="mt-0.5 text-base font-semibold text-navy">
                         {today.absent
                           ? 'No Check In'
                           : checkOutAt
@@ -534,7 +522,7 @@ export function EmployeeAttendancePage() {
                               ? 'Checked In'
                               : 'Not checked in'}
                       </p>
-                      <p className="text-xs text-muted">
+                      <p className="text-sm text-muted">
                         {checkOutAt
                           ? `At ${clock(checkOutAt)}`
                           : checkInAt
@@ -558,15 +546,36 @@ export function EmployeeAttendancePage() {
                   {geoError}
                 </Banner>
               ) : checkOutAt && today?.checked_out_early ? (
-                <Banner tone="danger" icon={<Clock3 size={16} />}>
+                <Banner
+                  tone="warning"
+                  icon={
+                    <span className="flex size-5 items-center justify-center rounded-full bg-[#e2a334] text-white">
+                      <Check size={12} strokeWidth={3} />
+                    </span>
+                  }
+                >
                   You checked out early
                 </Banner>
               ) : checkInAt && today?.checked_in_late ? (
-                <Banner tone="warning" icon={<Clock3 size={16} />}>
+                <Banner
+                  tone="warning"
+                  icon={
+                    <span className="flex size-5 items-center justify-center rounded-full bg-[#e2a334] text-white">
+                      <Check size={12} strokeWidth={3} />
+                    </span>
+                  }
+                >
                   You checked in late
                 </Banner>
               ) : onShift ? (
-                <Banner tone="success" icon={<CheckCircle2 size={16} />}>
+                <Banner
+                  tone="success"
+                  icon={
+                    <span className="flex size-5 items-center justify-center rounded-full bg-[#22c55e] text-white">
+                      <Check size={12} strokeWidth={3} />
+                    </span>
+                  }
+                >
                   Great! You are on time
                 </Banner>
               ) : !hasWorkplace ? (
@@ -582,27 +591,30 @@ export function EmployeeAttendancePage() {
                   Check-in opens at {clock(opensAt)}
                 </Banner>
               ) : null}
-              <div className="mt-5 grid grid-cols-2 gap-3">
+              <div className="mt-5 grid grid-cols-2 gap-4">
                 <button
                   type="button"
                   disabled={!canCheckIn}
                   onClick={() => void punch('in')}
-                  className={`h-11 rounded-[10px] text-sm font-semibold ${
+                  className={`flex min-h-12 flex-col items-center justify-center rounded-full px-4 text-sm font-semibold ${
                     canCheckIn
                       ? 'bg-navy text-white'
-                      : 'cursor-not-allowed border border-[#eceae6] bg-[#f3f2ef] text-muted'
+                      : 'cursor-not-allowed bg-[#eceae6] text-muted'
                   }`}
                 >
-                  {busy && !onShift ? 'Checking…' : alreadyCheckedIn ? 'Checked In' : 'Check In'}
+                  <span>{busy && !onShift ? 'Checking…' : alreadyCheckedIn ? 'Checked In' : 'Check In'}</span>
+                  {alreadyCheckedIn && checkInAt ? (
+                    <span className="text-[11px] font-medium">{clock(checkInAt)}</span>
+                  ) : null}
                 </button>
                 <button
                   type="button"
                   disabled={!canCheckOut}
                   onClick={() => void punch('out')}
-                  className={`h-11 rounded-[10px] text-sm font-semibold ${
+                  className={`flex min-h-12 items-center justify-center rounded-full px-4 text-sm font-semibold ${
                     canCheckOut
                       ? 'bg-navy text-white'
-                      : 'cursor-not-allowed border border-[#eceae6] bg-[#f3f2ef] text-muted'
+                      : 'cursor-not-allowed bg-[#eceae6] text-muted'
                   }`}
                 >
                   {busy && onShift ? 'Checking…' : 'Check out'}
@@ -614,94 +626,94 @@ export function EmployeeAttendancePage() {
 
         <section className="rounded-[16px] border border-[#eceae6] bg-white p-5">
           <div className="flex items-center gap-3">
-            <span className="flex size-9 items-center justify-center rounded-[10px] bg-[#eef2f6] text-navy">
+            <span className="flex size-10 items-center justify-center rounded-[10px] bg-[#eef2f6] text-navy">
               <Clock3 size={18} />
             </span>
-            <p className="text-sm font-semibold text-navy">Working Hours</p>
+            <p className="text-lg font-semibold text-navy">Working Hours</p>
           </div>
-          <div className="mt-6 flex items-start justify-between gap-4">
-            <div className="grid flex-1 grid-cols-2 gap-x-6 gap-y-5">
-              <div>
-                <p className="text-xs text-muted">Worked so far</p>
-                <p className="mt-1 text-lg font-semibold text-navy">{compactHours(worked)}</p>
-              </div>
-              <div>
-                <p className="text-xs text-muted">Expected today</p>
-                <p className="mt-1 text-lg font-semibold text-navy">{compactHours(expected)}</p>
-              </div>
-              <div>
-                <p className="flex items-center gap-1.5 text-xs text-muted">
-                  <Clock3 size={12} />
-                  Overtime
-                </p>
-                <p className="mt-1 text-lg font-semibold text-navy">{hoursLabel(overtimeHours)}</p>
-              </div>
-              <div>
-                <p className="flex items-center gap-1.5 text-xs text-muted">
-                  <Clock3 size={12} />
-                  Overtime remaining
-                </p>
-                <p className="mt-1 text-lg font-semibold text-navy">{hoursLabel(remainingHours)}</p>
-              </div>
+          <div className="mt-5 grid grid-cols-2 gap-3">
+            <div className="rounded-[12px] bg-[#f3f6fa] px-4 py-3">
+              <p className="text-sm text-muted">Worked so far</p>
+              <p className="mt-1 text-xl font-semibold text-navy">{spacedHours(worked)}</p>
             </div>
-            <HoursRing percent={progress} />
+            <div className="rounded-[12px] bg-[#f3f6fa] px-4 py-3">
+              <p className="text-sm text-muted">Expected today</p>
+              <p className="mt-1 text-xl font-semibold text-navy">{spacedHours(expected)}</p>
+            </div>
+            <div className="px-1 py-2">
+              <p className="flex items-center gap-1.5 text-sm text-muted">
+                <Clock3 size={15} />
+                Overtime
+              </p>
+              <p className="mt-1 text-lg font-semibold text-navy">{spacedHours(overtimeHours, true)}</p>
+            </div>
+            <div className="px-1 py-2">
+              <p className="flex items-center gap-1.5 text-sm text-muted">
+                <Users size={15} />
+                Overtime remaining
+              </p>
+              <p className="mt-1 text-lg font-semibold text-navy">{spacedHours(remainingHours, true)}</p>
+            </div>
+          </div>
+          <div className="mt-4 flex items-center gap-3">
+            <div className="h-2.5 flex-1 overflow-hidden rounded-full bg-[#e8e4dc]">
+              <div
+                className="h-full rounded-full bg-navy"
+                style={{ width: `${Math.min(progress, 100)}%` }}
+              />
+            </div>
+            <span className="text-sm font-semibold text-navy">{Math.min(progress, 100)}%</span>
           </div>
         </section>
       </div>
 
       <div className="mt-5 grid gap-5 xl:grid-cols-[minmax(0,1fr)_260px]">
         <section className="rounded-[16px] border border-[#eceae6] bg-white">
-          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#eceae6] px-5 py-4">
-            <div className="flex gap-6 text-sm font-semibold text-muted">
-              <button
-                type="button"
-                onClick={() => setTab('list')}
-                className={`-mb-4 border-b-2 pb-3 ${tab === 'list' ? 'border-navy text-navy' : 'border-transparent'}`}
-              >
-                <span className="inline-flex items-center gap-2">
-                  <User size={15} />
-                  My Attendance
-                </span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setTab('calendar')}
-                className={`-mb-4 border-b-2 pb-3 ${tab === 'calendar' ? 'border-navy text-navy' : 'border-transparent'}`}
-              >
-                <span className="inline-flex items-center gap-2">
-                  <CalendarDays size={15} />
-                  Calendar View
-                </span>
-              </button>
-            </div>
-            <div className="flex items-center gap-2 text-sm font-semibold text-navy">
-              <button
-                type="button"
-                className="rounded p-1 hover:bg-[#f6f5f2]"
-                onClick={() =>
-                  tab === 'list'
-                    ? setWeekStart((value) => addDays(value, -7))
-                    : setMonthAnchor((value) => new Date(value.getFullYear(), value.getMonth() - 1, 1))
-                }
-              >
-                <ChevronLeft size={18} />
-              </button>
-              <span className="inline-flex items-center gap-2">
-                <CalendarDays size={15} />
-                {tab === 'list' ? weekLabel : formatMonthLabel(monthAnchor)}
-              </span>
-              <button
-                type="button"
-                className="rounded p-1 hover:bg-[#f6f5f2]"
-                onClick={() =>
-                  tab === 'list'
-                    ? setWeekStart((value) => addDays(value, 7))
-                    : setMonthAnchor((value) => new Date(value.getFullYear(), value.getMonth() + 1, 1))
-                }
-              >
-                <ChevronRight size={18} />
-              </button>
-            </div>
+          <div className="flex flex-wrap items-center gap-6 px-5 pt-4 text-sm font-semibold">
+            <button
+              type="button"
+              onClick={() => setTab('list')}
+              className={`inline-flex items-center gap-2 pb-3 ${tab === 'list' ? 'text-navy' : 'text-muted'}`}
+            >
+              <User size={15} />
+              My Attendance
+            </button>
+            <button
+              type="button"
+              onClick={() => setTab('calendar')}
+              className={`inline-flex items-center gap-2 pb-3 ${tab === 'calendar' ? 'text-navy' : 'text-muted'}`}
+            >
+              <CalendarDays size={15} />
+              Calendar View
+            </button>
+          </div>
+          <div className="flex items-center gap-3 px-5 pb-3 text-sm font-semibold text-navy">
+            <button
+              type="button"
+              className="rounded p-1 hover:bg-[#f6f5f2]"
+              onClick={() =>
+                tab === 'list'
+                  ? setWeekStart((value) => addDays(value, -7))
+                  : setMonthAnchor((value) => new Date(value.getFullYear(), value.getMonth() - 1, 1))
+              }
+            >
+              <ChevronLeft size={18} />
+            </button>
+            <span className="inline-flex items-center gap-2">
+              <CalendarDays size={15} />
+              {tab === 'list' ? weekLabel : formatMonthLabel(monthAnchor)}
+            </span>
+            <button
+              type="button"
+              className="rounded p-1 hover:bg-[#f6f5f2]"
+              onClick={() =>
+                tab === 'list'
+                  ? setWeekStart((value) => addDays(value, 7))
+                  : setMonthAnchor((value) => new Date(value.getFullYear(), value.getMonth() + 1, 1))
+              }
+            >
+              <ChevronRight size={18} />
+            </button>
           </div>
 
           {historyQuery.isLoading || shiftsQuery.isLoading ? (
@@ -760,7 +772,7 @@ export function EmployeeAttendancePage() {
                         <td className="px-4 py-3 text-navy">
                           {row.checkOut ? (
                             <span className="inline-flex items-center gap-2">
-                              <StatusDot tone={row.status === 'early_out' ? 'red' : 'green'} />
+                              <StatusDot tone={row.status === 'early_out' ? 'amber' : 'green'} />
                               {clock(row.checkOut)}
                             </span>
                           ) : row.checkIn ? (
@@ -847,11 +859,11 @@ export function EmployeeAttendancePage() {
             </div>
             <div className="flex items-center justify-between">
               <dt className="text-muted">Late Arrival</dt>
-              <dd className="font-semibold">{weekStats.late}</dd>
+              <dd className={`font-semibold ${weekStats.late ? 'text-[#d32027]' : ''}`}>{weekStats.late}</dd>
             </div>
             <div className="flex items-center justify-between">
               <dt className="text-muted">Early Checkout</dt>
-              <dd className="font-semibold">{weekStats.earlyOut}</dd>
+              <dd className={`font-semibold ${weekStats.earlyOut ? 'text-[#d32027]' : ''}`}>{weekStats.earlyOut}</dd>
             </div>
           </dl>
         </aside>
