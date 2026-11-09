@@ -496,7 +496,10 @@ export function EmployeeAttendancePage() {
                       ? `At ${clock(checkOutAt)}`
                       : checkInAt
                         ? `Since ${clock(checkInAt)}`
-                        : today.can_check_in
+                        : today.can_check_in ||
+                            (today.shift &&
+                              Date.now() >=
+                                new Date(today.shift.start_time).getTime() - 30 * 60_000)
                           ? 'Check-in is open'
                           : today.check_in_opens_at
                             ? `Opens ${clock(today.check_in_opens_at)}`
