@@ -1,12 +1,14 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Check, Inbox, Search, User, X } from 'lucide-react'
 import { hrApi } from '../../api'
 import { useAuth } from '../../auth/AuthContext'
-import { Alert, Badge, Button, Card, EmptyState, Field, Input, Loading, Table, Textarea } from '../../components/ui'
+import { Alert, Badge, Button, Card, EmptyState, Loading, Table, Textarea } from '../../components/ui'
 import { fullName, idOf, labelize } from '../../lib/format'
+import type { LeavePayQuote } from '../../types'
 import { formatLeaveRange, leaveTypeColor } from './leaveTypes'
+import { LeaveStatutoryPayFields, paidLeaveReady } from './LeaveStatutoryPayFields'
 import { HrCrumbs, HrTitle, RequestsButton } from './HrChrome'
 
 type LeaveRequest = {
@@ -74,6 +76,37 @@ export function LeaveRequestsPage() {
     }
     return next
   }, [requests])
+
+  const quoteQuery = useQuery({
+    queryKey: [
+      'leave-pay-quote',
+      companyId,
+      approving?.employee_id,
+      approving?.leave_type,
+      approving?.start_date,
+      approving?.end_date,
+      approvePaid,
+    ],
+    queryFn: () =>
+      hrApi.quoteLeavePay(companyId!, String(approving!.employee_id), {
+        leave_type: String(approving!.leave_type ?? ''),
+        start_date: String(approving!.start_date ?? '').slice(0, 10),
+        end_date: String(approving!.end_date ?? approving!.start_date ?? '').slice(0, 10),
+      }),
+    enabled: Boolean(
+      approvePaid &&
+        companyId &&
+        approving?.employee_id &&
+        approving?.leave_type &&
+        approving?.start_date,
+    ),
+  })
+  const quote = quoteQuery.data?.data as LeavePayQuote | undefined
+
+  useEffect(() => {
+    if (!quote || quote.requires_manual_amount || quote.paid_per_day == null) return
+    setApprovePerDay(Number(quote.paid_per_day).toFixed(2))
+  }, [quote])
 
   const visible = useMemo(() => {
     const needle = search.trim().toLowerCase()
@@ -313,36 +346,22 @@ export function LeaveRequestsPage() {
               </label>
             </div>
             {approvePaid ? (
-              <div className="mt-4">
-                <Field label="Amount to be paid per day">
-                  <Input
-                    variant="outline"
-                    inputMode="decimal"
-                    value={approvePerDay}
-                    onChange={(event) => setApprovePerDay(event.target.value)}
-                    placeholder="0.00"
-                  />
-                </Field>
-                <p className="mt-2 text-sm text-muted">
-                  {Number(approving.days ?? 0) || '—'} working day
-                  {Number(approving.days ?? 0) === 1 ? '' : 's'} × £
-                  {Number(approvePerDay || 0).toFixed(2)} ={' '}
-                  <span className="font-semibold text-navy">
-                    £
-                    {(
-                      (Number(approving.days ?? 0) || 0) * (Number(approvePerDay) || 0)
-                    ).toFixed(2)}
-                  </span>
-                  . This amount is added to payroll as {approving.leave_type || 'leave'}.
-                </p>
-              </div>
+              <LeaveStatutoryPayFields
+                quote={quote}
+                loading={quoteQuery.isFetching}
+                value={approvePerDay}
+                onChange={setApprovePerDay}
+              />
             ) : null}
             <div className="mt-5 flex justify-end gap-2">
               <Button variant="secondary" onClick={() => setApproving(null)} disabled={Boolean(busyId)}>
                 Cancel
               </Button>
               <Button
-                disabled={Boolean(busyId) || (approvePaid && !(Number(approvePerDay) > 0))}
+                disabled={
+                  Boolean(busyId) ||
+                  !paidLeaveReady(approvePaid, approvePerDay, quote, quoteQuery.isFetching)
+                }
                 onClick={() =>
                   void review(approving, 'APPROVED', {
                     isPaid: approvePaid,

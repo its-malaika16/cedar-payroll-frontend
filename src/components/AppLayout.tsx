@@ -285,6 +285,9 @@ export function AppLayout() {
         item.type !== 'ROTA_PUBLISHED' &&
         item.type !== 'ROTA_UPDATED' &&
         item.type !== 'DOCUMENT_EXPIRING' &&
+        item.type !== 'LEAVE_REQUESTED' &&
+        item.type !== 'LEAVE_APPROVED' &&
+        item.type !== 'LEAVE_REJECTED' &&
         item.type !== 'INVOICE_APPROVED' &&
         item.type !== 'INVOICE_REQUESTED' &&
         item.type !== 'INVOICE_REASON_REQUESTED' &&

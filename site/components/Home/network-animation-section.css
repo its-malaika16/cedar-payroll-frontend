@@ -17,7 +17,7 @@
 .network-section {
   position: relative;
   width: 100%;
-  height: 900px;
+  height: min(900px, 100svh);
   background: var(--primary);
   overflow: hidden;
 }

@@ -2,7 +2,7 @@
 .payroll-features {
   width: 100%;
   background: var(--background);
-  padding: 80px 120px;
+  padding: clamp(40px, 6vw, 80px) var(--page-gutter, 20px);
 }
 
 .features-grid {

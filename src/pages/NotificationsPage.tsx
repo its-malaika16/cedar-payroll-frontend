@@ -20,6 +20,8 @@ function notificationPath(item: AppNotification) {
   if (item.type === 'INVOICE_APPROVED' && invoiceId) {
     return `/payroll/invoices/${invoiceId}`
   }
+  if (item.type === 'LEAVE_REQUESTED') return '/hr/leave/requests'
+  if (item.type === 'LEAVE_APPROVED' || item.type === 'LEAVE_REJECTED') return '/portal/leave'
   if (item.type === 'COMMUNICATION') return ''
   if (item.type === 'ONBOARDING') {
     return item.data?.company_id ? `/companies/${item.data.company_id}/onboarding` : '/onboarding'
@@ -40,12 +42,12 @@ export function NotificationsPage() {
 
   return (
     <div>
-      <PageHeader title="Notifications" subtitle="Rota updates, invoices and document expiry alerts for your account." />
+      <PageHeader title="Notifications" subtitle="Leave, rota, invoices and document alerts for your account." />
       <Card>
         {query.isLoading ? (
           <Loading />
         ) : list.length === 0 ? (
-            <EmptyState title="No notifications" body="Rota updates, invoices and document expiry alerts will appear here." />
+            <EmptyState title="No notifications" body="Leave, rota, invoices and document alerts will appear here." />
         ) : (
           <div className="divide-y divide-[#eceae6]">
             {list.map((item) => {

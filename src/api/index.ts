@@ -14,6 +14,7 @@ import type {
   PayrollPension,
   PayrollSchedule,
   PensionAssessment,
+  LeavePayQuote,
   Role,
   User,
   BureauTeamMember,
@@ -526,8 +527,30 @@ export const hrApi = {
     get(`/companies/${companyId}/hr/leave/upcoming`),
   leaveBalance: (companyId: string, employeeId: string) =>
     get(`/companies/${companyId}/hr/employees/${employeeId}/leave/balance`),
+  quoteLeavePay: (
+    companyId: string,
+    employeeId: string,
+    params: {
+      leave_type: string
+      start_date: string
+      end_date: string
+      duration_kind?: string
+    },
+  ) => {
+    const query = new URLSearchParams({
+      leave_type: params.leave_type,
+      start_date: params.start_date,
+      end_date: params.end_date,
+    })
+    if (params.duration_kind) query.set('duration_kind', params.duration_kind)
+    return get<LeavePayQuote>(
+      `/companies/${companyId}/hr/employees/${employeeId}/leave/quote?${query.toString()}`,
+    )
+  },
   addLeave: (companyId: string, body: Record<string, unknown>) =>
     post(`/companies/${companyId}/hr/leave`, body),
+  removeLeave: (companyId: string, leaveId: string) =>
+    del(`/companies/${companyId}/hr/leave/${leaveId}`),
   attendanceOverview: (companyId: string, date: string, range: 'day' | 'week') =>
     get(`/companies/${companyId}/hr/attendance/overview?date=${date}&range=${range}`),
   attendance: (companyId: string, employeeId: string) =>

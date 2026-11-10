@@ -612,6 +612,21 @@ export type StatutoryLeaveBalance = {
   reason?: string
 }
 
+export type LeavePayQuote = {
+  source: string
+  can_calculate: boolean
+  requires_manual_amount: boolean
+  paid_per_day: number | null
+  total: number | null
+  weekly_rate: number | null
+  days: number
+  tax_year: string
+  qualifies: boolean
+  label: string
+  basis: string
+  reason: string
+}
+
 export type CalendarEntitlement = {
   employee_id: string
   as_of: string

@@ -1,6 +1,6 @@
 .cedar-site {
 .support-section {
-  padding: 100px 80px;
+  padding: clamp(48px, 8vw, 100px) var(--page-gutter, 20px);
   background: var(--background);
 }
 

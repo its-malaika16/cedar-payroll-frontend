@@ -1,15 +1,16 @@
-import { useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { ChevronLeft, ChevronRight, Plus, Search, User } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Plus, Search, Trash2, User } from 'lucide-react'
 import { employeesApi, hrApi } from '../../api'
 import { useAuth } from '../../auth/AuthContext'
-import { Alert, Button, Card, Field, Input, Loading } from '../../components/ui'
+import { Alert, Button, Card, Loading } from '../../components/ui'
 import { fullName, idOf } from '../../lib/format'
-import type { Employee } from '../../types'
+import type { Employee, LeavePayQuote } from '../../types'
 import { addDays, dateKey, formatMonthLabel, weeksInMonth } from './rota/rotaDates'
 import { formatLeaveRange, LEAVE_TYPES, leaveTypeColor } from './leaveTypes'
 import { HrCrumbs, HrTitle, RequestsButton } from './HrChrome'
+import { AddLeaveModal } from './AddLeaveModal'
 
 type LeaveItem = {
   id?: unknown
@@ -19,6 +20,7 @@ type LeaveItem = {
   end_date?: string
   status?: string
   is_paid?: boolean
+  days?: number
   employees?: { first_name?: string | null; last_name?: string | null }
 }
 
@@ -43,15 +45,17 @@ export function LeavePage() {
   const [view, setView] = useState<'month' | 'year'>('month')
   const [anchor, setAnchor] = useState(() => new Date())
   const [modal, setModal] = useState(false)
-  const [form, setForm] = useState({
+  const [saving, setSaving] = useState(false)
+  const [quoteKeys, setQuoteKeys] = useState({
     employee_id: employeeId ?? '',
     leave_type: 'Annual Leave',
     start_date: '',
     end_date: '',
     is_paid: true,
-    paid_per_day: '',
-    reason: '',
   })
+  const handleQuoteKeys = useCallback((keys: typeof quoteKeys) => {
+    setQuoteKeys(keys)
+  }, [])
 
   const employeesQuery = useQuery({
     queryKey: ['employees', companyId],
@@ -74,6 +78,34 @@ export function LeavePage() {
     enabled: Boolean(companyId && employeeId),
   })
 
+  const quoteQuery = useQuery({
+    queryKey: [
+      'leave-pay-quote',
+      companyId,
+      quoteKeys.employee_id,
+      quoteKeys.leave_type,
+      quoteKeys.start_date,
+      quoteKeys.end_date,
+      quoteKeys.is_paid,
+    ],
+    queryFn: () =>
+      hrApi.quoteLeavePay(companyId!, quoteKeys.employee_id, {
+        leave_type: quoteKeys.leave_type,
+        start_date: quoteKeys.start_date,
+        end_date: quoteKeys.end_date || quoteKeys.start_date,
+      }),
+    enabled: Boolean(
+      modal &&
+        quoteKeys.is_paid &&
+        companyId &&
+        quoteKeys.employee_id &&
+        quoteKeys.leave_type &&
+        quoteKeys.start_date &&
+        quoteKeys.end_date,
+    ),
+  })
+  const quote = quoteQuery.data?.data as LeavePayQuote | undefined
+
   const people = (employeesQuery.data?.data ?? []) as Employee[]
   const leave = ((leaveQuery.data?.data as LeaveItem[] | undefined) ?? []).map((item) => ({
     ...item,
@@ -90,6 +122,8 @@ export function LeavePage() {
     fullName(person.first_name, person.last_name).toLowerCase().includes(search.trim().toLowerCase()),
   )
   const personLeave = leave.filter((item) => item.employee_id === employeeId)
+  const assignedLeave = personLeave.filter((item) => String(item.status ?? '').toUpperCase() === 'APPROVED')
+  const calendarLeave = assignedLeave
   const balance = balanceQuery.data?.data as
     | { hours_entitled?: number; hours_used?: number; hours_remaining?: number }
     | undefined
@@ -103,38 +137,73 @@ export function LeavePage() {
       const startKey = dateKey(start)
       const endKey = dateKey(end)
       let count = 0
-      for (const item of personLeave) {
+      for (const item of assignedLeave) {
         const from = String(item.start_date ?? '').slice(0, 10)
         const to = String(item.end_date ?? from).slice(0, 10)
         if (from && to >= startKey && from <= endKey) count += 1
       }
       return count
     })
-  }, [personLeave, year])
+  }, [assignedLeave, year])
 
-  async function submitLeave() {
-    if (!companyId || !form.employee_id || !form.start_date || !form.end_date) return
+  async function refreshLeave() {
+    await queryClient.invalidateQueries({ queryKey: ['leave', companyId] })
+    await queryClient.invalidateQueries({ queryKey: ['leave-upcoming', companyId] })
+    await queryClient.invalidateQueries({ queryKey: ['leave-balance', companyId] })
+  }
+
+  async function removeLeave(item: LeaveItem) {
+    if (!companyId || !item.id) return
+    const type = item.leave_type || 'leave'
+    if (!window.confirm(`Remove ${type} from ${formatLeaveRange(item.start_date, item.end_date)}?`)) return
     try {
       setError(null)
-      if (form.is_paid && !(Number(form.paid_per_day) > 0)) {
-        throw new Error('Enter the amount to be paid per day')
-      }
-      const { paid_per_day, ...rest } = form
-      await hrApi.addLeave(companyId, {
-        ...rest,
-        ...(form.is_paid ? { paid_per_day: Number(paid_per_day) } : {}),
+      await hrApi.removeLeave(companyId, String(item.id))
+      await refreshLeave()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not remove leave')
+    }
+  }
+
+  async function submitLeave(payload: {
+    employee_ids: string[]
+    leave_type: string
+    start_date: string
+    end_date: string
+    is_paid: boolean
+    paid_per_day?: number
+    reason: string
+  }) {
+    if (!companyId) return
+    setSaving(true)
+    try {
+      setError(null)
+      const result = await hrApi.addLeave(companyId, {
+        employee_id: payload.employee_ids[0],
+        employee_ids: payload.employee_ids,
+        leave_type: payload.leave_type,
+        start_date: payload.start_date,
+        end_date: payload.end_date,
+        is_paid: payload.is_paid,
+        ...(payload.is_paid && payload.paid_per_day != null ? { paid_per_day: payload.paid_per_day } : {}),
+        reason: payload.reason.trim() || null,
       })
+      const failures = (result as { errors?: { message?: string }[] }).errors ?? []
+      if (failures.length > 0) {
+        setError(result.message || failures.map((item) => item.message).join(' '))
+      }
       setModal(false)
-      await queryClient.invalidateQueries({ queryKey: ['leave', companyId] })
-      await queryClient.invalidateQueries({ queryKey: ['leave-upcoming', companyId] })
-      await queryClient.invalidateQueries({ queryKey: ['leave-balance', companyId] })
+      await refreshLeave()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not add leave')
+      throw err
+    } finally {
+      setSaving(false)
     }
   }
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+    <div className="flex min-h-0 flex-1 flex-col overflow-y-auto lg:overflow-hidden">
       <HrCrumbs
         items={[
           { label: 'HR', to: '/hr' },
@@ -142,23 +211,21 @@ export function LeavePage() {
           ...(selected ? [{ label: fullName(selected.first_name, selected.last_name) }] : []),
         ]}
       />
-      <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+      <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
         <HrTitle
           title={selected ? fullName(selected.first_name, selected.last_name) : 'Leave'}
           onBack={() => navigate(selected ? '/hr/leave' : '/hr')}
         />
         <div className="flex flex-wrap items-center gap-2">
-          {selected ? (
-            <Button
-              onClick={() => {
-                setForm((current) => ({ ...current, employee_id: employeeId ?? current.employee_id }))
-                setModal(true)
-              }}
-            >
-              <Plus size={16} />
-              Add Leave
-            </Button>
-          ) : null}
+          <Button
+            onClick={() => {
+              setError(null)
+              setModal(true)
+            }}
+          >
+            <Plus size={16} />
+            Add Leave
+          </Button>
           <RequestsButton
             count={leave.filter((item) => String(item.status ?? '').toUpperCase() === 'PENDING').length}
           />
@@ -170,8 +237,8 @@ export function LeavePage() {
         </div>
       ) : null}
 
-      <div className="grid min-h-0 flex-1 gap-4 overflow-hidden lg:grid-cols-[260px_minmax(0,1fr)]">
-        <Card className="flex min-h-0 flex-col overflow-hidden p-4">
+      <div className="grid min-h-0 flex-1 gap-4 overflow-visible lg:grid-cols-[minmax(200px,260px)_minmax(0,1fr)] lg:overflow-hidden">
+        <Card className="flex max-h-64 min-h-0 flex-col overflow-hidden p-4 lg:max-h-none">
           <h2 className="mb-3 text-sm font-semibold text-navy">All Employees</h2>
           <label className="relative mb-3 block">
             <Search size={14} className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-muted" />
@@ -315,14 +382,19 @@ export function LeavePage() {
                     {monthWeeks.flat().map((day) => {
                       const key = dateKey(day)
                       const outside = day.getMonth() !== anchor.getMonth()
-                      const match = personLeave.find((item) => coversDate(item, key))
+                      const match = calendarLeave.find((item) => coversDate(item, key))
                       return (
                         <div
                           key={key}
-                          className={`min-h-[54px] rounded-[8px] p-1 ${outside ? 'text-muted/40' : 'text-navy'}`}
-                          style={match ? { background: `${leaveTypeColor(match.leave_type)}22` } : undefined}
+                          className={`min-h-[62px] rounded-[8px] p-1 text-left ${outside ? 'text-muted/40' : 'text-navy'}`}
+                          style={match ? { background: `${leaveTypeColor(match.leave_type)}33` } : undefined}
                         >
-                          {day.getDate()}
+                          <p className="text-xs font-semibold">{day.getDate()}</p>
+                          {match?.leave_type ? (
+                            <p className="mt-1 truncate text-[10px] font-medium leading-tight" title={match.leave_type}>
+                              {match.leave_type}
+                            </p>
+                          ) : null}
                         </div>
                       )
                     })}
@@ -340,109 +412,58 @@ export function LeavePage() {
                   </div>
                 )}
               </Card>
+
+              <Card className="p-5">
+                <h3 className="text-sm font-semibold text-navy">Assigned leave</h3>
+                {assignedLeave.length === 0 ? (
+                  <p className="mt-3 text-sm text-muted">No leave assigned yet.</p>
+                ) : (
+                  <ul className="mt-3 divide-y divide-[#eceae6]">
+                    {assignedLeave.map((item) => (
+                      <li key={String(item.id)} className="flex flex-wrap items-center justify-between gap-3 py-3">
+                        <div className="min-w-0">
+                          <p className="flex items-center gap-2 text-sm font-semibold text-navy">
+                            <span
+                              className="size-2.5 shrink-0 rounded-full"
+                              style={{ background: leaveTypeColor(item.leave_type) }}
+                            />
+                            {item.leave_type || 'Leave'}
+                          </p>
+                          <p className="mt-0.5 text-sm text-muted">
+                            {formatLeaveRange(item.start_date, item.end_date)}
+                            {item.days ? ` · ${item.days} day${item.days === 1 ? '' : 's'}` : ''}
+                            {item.is_paid === false ? ' · Unpaid' : ' · Paid'}
+                          </p>
+                        </div>
+                        <Button variant="secondary" onClick={() => void removeLeave(item)}>
+                          <Trash2 size={14} />
+                          Remove
+                        </Button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </Card>
             </div>
           )}
         </div>
       </div>
 
       {modal ? (
-        <div className="fixed inset-0 z-40 flex items-center justify-center bg-navy/40 p-4">
-          <Card className="w-full max-w-lg p-6">
-            <h2 className="text-xl font-semibold text-navy">+ Add Leave</h2>
-            <label className="mt-4 block">
-              <span className="mb-2 block text-sm font-medium text-navy">Select Employee(s)</span>
-              <select
-                className="w-full rounded-[10px] border border-[#d9d9d9] bg-white px-3 py-2.5 text-sm"
-                value={form.employee_id}
-                onChange={(event) => setForm({ ...form, employee_id: event.target.value })}
-              >
-                <option value="">Select employee</option>
-                {people.map((person) => (
-                  <option key={idOf(person)} value={idOf(person)}>
-                    {fullName(person.first_name, person.last_name)}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <p className="mt-4 mb-2 text-sm font-medium text-navy">Leave Type</p>
-            <div className="flex flex-wrap gap-2">
-              {LEAVE_TYPES.map((type) => (
-                <button
-                  key={type.id}
-                  type="button"
-                  onClick={() => setForm({ ...form, leave_type: type.id })}
-                  className={`rounded-full px-3 py-1 text-xs font-semibold text-white ${
-                    form.leave_type === type.id ? 'ring-2 ring-offset-2 ring-navy' : 'opacity-90'
-                  }`}
-                  style={{ background: type.color }}
-                >
-                  {type.id}
-                </button>
-              ))}
-            </div>
-            <div className="mt-4 grid gap-3 sm:grid-cols-2">
-              <label>
-                <span className="mb-2 block text-sm font-medium text-navy">Start Date</span>
-                <input
-                  type="date"
-                  className="w-full rounded-[10px] border border-[#d9d9d9] px-3 py-2.5 text-sm"
-                  value={form.start_date}
-                  onChange={(event) => setForm({ ...form, start_date: event.target.value })}
-                />
-              </label>
-              <label>
-                <span className="mb-2 block text-sm font-medium text-navy">Leave Date</span>
-                <input
-                  type="date"
-                  className="w-full rounded-[10px] border border-[#d9d9d9] px-3 py-2.5 text-sm"
-                  value={form.end_date}
-                  onChange={(event) => setForm({ ...form, end_date: event.target.value })}
-                />
-              </label>
-            </div>
-            <p className="mt-4 mb-2 text-sm font-medium text-navy">Leave is</p>
-            <div className="flex gap-4 text-sm text-navy">
-              <label className="flex items-center gap-2">
-                <input type="radio" checked={form.is_paid} onChange={() => setForm({ ...form, is_paid: true })} />
-                Paid
-              </label>
-              <label className="flex items-center gap-2">
-                <input type="radio" checked={!form.is_paid} onChange={() => setForm({ ...form, is_paid: false })} />
-                Unpaid
-              </label>
-            </div>
-            {form.is_paid ? (
-              <Field label="Amount to be paid per day">
-                <Input
-                  variant="outline"
-                  inputMode="decimal"
-                  value={form.paid_per_day}
-                  onChange={(event) => setForm({ ...form, paid_per_day: event.target.value })}
-                  placeholder="0.00"
-                />
-              </Field>
-            ) : null}
-            <label className="mt-4 block">
-              <span className="mb-2 block text-sm font-medium text-navy">Notes (optional)</span>
-              <textarea
-                className="min-h-20 w-full rounded-[10px] border border-[#d9d9d9] px-3 py-2 text-sm"
-                value={form.reason}
-                onChange={(event) => setForm({ ...form, reason: event.target.value })}
-              />
-            </label>
-            <div className="mt-5 flex justify-end gap-2">
-              <Button variant="secondary" onClick={() => setModal(false)}>
-                Cancel
-              </Button>
-              <Button
-                disabled={form.is_paid && !(Number(form.paid_per_day) > 0)}
-                onClick={() => void submitLeave()}
-              >
-                Add Leave
-              </Button>
-            </div>
-          </Card>
-        </div>
+        <AddLeaveModal
+          people={people}
+          initialEmployeeId={employeeId}
+          quote={quote}
+          quoting={quoteQuery.isFetching}
+          submitting={saving}
+          error={error}
+          onClose={() => {
+            setModal(false)
+            setError(null)
+          }}
+          onQuoteKeys={handleQuoteKeys}
+          onSubmit={submitLeave}
+        />
       ) : null}
     </div>
   )

@@ -7,7 +7,7 @@
 .payroll-features-container {
   max-width: 1370px;
   margin: 0 auto;
-  padding: 0 48px;
+  padding: 0 var(--page-gutter, 20px);
   display: grid;
   grid-template-columns: 1.2fr 0.8fr;
   align-items: center;
