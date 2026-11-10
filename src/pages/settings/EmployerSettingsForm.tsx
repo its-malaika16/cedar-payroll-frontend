@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type ComponentProps, type ReactNode } from 'react'
+import { Pencil, Plus, Trash2 } from 'lucide-react'
 import { isFormDirty } from '../../lib/formDirty'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { companiesApi } from '../../api'
@@ -27,6 +28,13 @@ import {
   type SettingsTab,
 } from './employerSettings'
 import { WorkplaceMapPicker } from './WorkplaceMapPicker'
+import { PayTypeEditor } from '../payroll/PayTypeEditor'
+import {
+  draftFromEntry,
+  entryFromDraft,
+  type CompanyPayTypeEntry,
+} from '../payroll/companyPayTypes'
+import { emptyPayTypeDraft, rememberPayType, type PayTypeDraft, type PayTypeKind } from '../payroll/payTypes'
 import {
   currentTaxYearLabel,
   payrollStartOptions,
@@ -44,7 +52,15 @@ function Select(props: ComponentProps<typeof UiSelect>) {
 
 export function EmployerSettingsForm({ company }: { company: Company }) {
   const queryClient = useQueryClient()
-  const { refresh } = useAuth()
+  const { refresh, isBureauAdmin, isSuperAdmin, canManageOrganizations } = useAuth()
+  const canEditPayTypes = isBureauAdmin || isSuperAdmin || canManageOrganizations
+  const [typeEditor, setTypeEditor] = useState<PayTypeKind | null>(null)
+  const [editingName, setEditingName] = useState<string | null>(null)
+  const [typeDraft, setTypeDraft] = useState<PayTypeDraft>(() => ({
+    ...emptyPayTypeDraft(),
+    reuse: 'remember',
+  }))
+  const [typeError, setTypeError] = useState<string | null>(null)
   const fileInput = useRef<HTMLInputElement>(null)
   const [tab, setTab] = useState<SettingsTab>('Basic Details')
   const [form, setForm] = useState<EmployerForm>(() => formFromCompany(company))
@@ -102,6 +118,71 @@ export function EmployerSettingsForm({ company }: { company: Company }) {
   const logoSrc = assetUrl(company.logo_path)
   const employerName = form.company_name.trim() || 'this employer'
   const canSave = isFormDirty(form, savedForm)
+
+  function openPayTypeEditor(kind: PayTypeKind, entry?: CompanyPayTypeEntry) {
+    setError(null)
+    setTypeError(null)
+    setTypeDraft(entry ? draftFromEntry(entry) : { ...emptyPayTypeDraft(), reuse: 'remember' })
+    setEditingName(entry?.name ?? null)
+    setTypeEditor(kind)
+  }
+
+  function saveCompanyPayType() {
+    const name = typeDraft.name.trim()
+    if (!name) {
+      setTypeError('Enter a name for this type.')
+      return
+    }
+    const list = typeEditor === 'deduction' ? form.pay_deductions : form.pay_additions
+    const taken = list.some(
+      (item) =>
+        item.name.trim().toLowerCase() === name.toLowerCase() &&
+        item.name !== editingName,
+    )
+    if (taken) {
+      setTypeError('That type is already on this company')
+      return
+    }
+    const entry = entryFromDraft(typeDraft)
+    const next = editingName
+      ? list.map((item) => (item.name === editingName ? entry : item))
+      : [...list, entry]
+    if (typeEditor === 'deduction') {
+      patchForm({ pay_deductions: next })
+    } else {
+      patchForm({ pay_additions: next })
+    }
+    if (typeDraft.reuse === 'remember') {
+      rememberPayType(String(company.id), typeEditor ?? 'addition', { ...typeDraft, name })
+    }
+    setTypeEditor(null)
+    setEditingName(null)
+    setTypeError(null)
+    setMessage(
+      `${name} ${editingName ? 'updated' : 'added'}. Save employer settings to keep this type.`,
+    )
+  }
+
+  if (typeEditor) {
+    return (
+      <div className="space-y-4">
+        <PayTypeEditor
+          kind={typeEditor}
+          draft={typeDraft}
+          onChange={setTypeDraft}
+          onCancel={() => {
+            setTypeEditor(null)
+            setEditingName(null)
+            setTypeError(null)
+          }}
+          onSave={saveCompanyPayType}
+          locked={false}
+          error={typeError}
+          mode={editingName ? 'edit' : 'create'}
+        />
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-4">
@@ -558,6 +639,45 @@ export function EmployerSettingsForm({ company }: { company: Company }) {
         </div>
       ) : null}
 
+      {tab === 'Additions and Deductions' ? (
+        <div className="space-y-4">
+          <p className="text-sm text-muted">
+            These types appear on payslips for this company. Bureau admins can add, edit or remove them here.
+          </p>
+          {!canEditPayTypes ? (
+            <Alert tone="info">Only a bureau admin can add or remove additions and deductions for this company.</Alert>
+          ) : null}
+          <div className="grid gap-4 xl:grid-cols-2">
+            <PayTypeList
+              title="Additions"
+              items={form.pay_additions}
+              canEdit={canEditPayTypes}
+              addLabel="New addition type.."
+              onAdd={() => openPayTypeEditor('addition')}
+              onEdit={(item) => openPayTypeEditor('addition', item)}
+              onRemove={(name) =>
+                patchForm({
+                  pay_additions: form.pay_additions.filter((item) => item.name !== name),
+                })
+              }
+            />
+            <PayTypeList
+              title="Deductions"
+              items={form.pay_deductions}
+              canEdit={canEditPayTypes}
+              addLabel="New deduction type..."
+              onAdd={() => openPayTypeEditor('deduction')}
+              onEdit={(item) => openPayTypeEditor('deduction', item)}
+              onRemove={(name) =>
+                patchForm({
+                  pay_deductions: form.pay_deductions.filter((item) => item.name !== name),
+                })
+              }
+            />
+          </div>
+        </div>
+      ) : null}
+
       {tab === 'RTI' ? (
         <div className="grid gap-4 xl:grid-cols-2">
           <Section title="Preferred credentials">
@@ -646,6 +766,73 @@ export function EmployerSettingsForm({ company }: { company: Company }) {
           </div>
         </form>
     </div>
+  )
+}
+
+function PayTypeList({
+  title,
+  items,
+  canEdit,
+  addLabel,
+  onAdd,
+  onEdit,
+  onRemove,
+}: {
+  title: string
+  items: CompanyPayTypeEntry[]
+  canEdit: boolean
+  addLabel: string
+  onAdd: () => void
+  onEdit: (item: CompanyPayTypeEntry) => void
+  onRemove: (name: string) => void
+}) {
+  return (
+    <Section title={title}>
+      {items.length === 0 ? (
+        <p className="text-sm text-muted">None for this company.</p>
+      ) : (
+        <ul className="divide-y divide-[#eceae6] rounded-[10px] border border-[#eceae6]">
+          {items.map((item) => (
+            <li key={item.name} className="flex items-center justify-between gap-3 px-4 py-2.5">
+              <div className="min-w-0">
+                <p className="text-sm font-medium text-navy">{item.name}</p>
+                {item.custom || item.calculationMethod || item.repetition ? (
+                  <p className="text-xs text-muted">
+                    {[item.calculationMethod, item.repetition].filter(Boolean).join(' · ')}
+                  </p>
+                ) : null}
+              </div>
+              {canEdit ? (
+                <div className="flex shrink-0 items-center gap-1">
+                  <button
+                    type="button"
+                    className="rounded-[8px] p-1.5 text-muted hover:bg-cream hover:text-navy"
+                    aria-label={`Edit ${item.name}`}
+                    onClick={() => onEdit(item)}
+                  >
+                    <Pencil size={16} />
+                  </button>
+                  <button
+                    type="button"
+                    className="rounded-[8px] p-1.5 text-muted hover:bg-cream hover:text-navy"
+                    aria-label={`Remove ${item.name}`}
+                    onClick={() => onRemove(item.name)}
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                </div>
+              ) : null}
+            </li>
+          ))}
+        </ul>
+      )}
+      {canEdit ? (
+        <Button type="button" variant="secondary" onClick={onAdd}>
+          <Plus size={16} />
+          {addLabel}
+        </Button>
+      ) : null}
+    </Section>
   )
 }
 

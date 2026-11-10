@@ -8,6 +8,7 @@ import {
   Coffee,
   Plus,
   User,
+  X,
 } from 'lucide-react'
 import { Alert, Button } from '../../../components/ui'
 import { isFormDirty } from '../../../lib/formDirty'
@@ -20,6 +21,7 @@ import {
   type RotaEmployee,
   type RotaShift,
 } from './rotaModel'
+import { dateKey, daysInPeriod, parseDateKey } from './rotaDates'
 import { fullName, idOf } from '../../../lib/format'
 
 const fieldClass =
@@ -31,6 +33,7 @@ export type ShiftFormValue = {
   employee_id: string
   employee_ids: string[]
   date: string
+  dates: string[]
   time: string
   breakMinutes: string
   role: string
@@ -40,10 +43,13 @@ export type ShiftFormValue = {
 
 function emptyForm(overrides: Partial<ShiftFormValue> = {}): ShiftFormValue {
   const employeeId = overrides.employee_id ?? ''
+  const date = overrides.date ?? overrides.dates?.[0] ?? ''
+  const dates = [...new Set((overrides.dates ?? (date ? [date] : [])).filter(Boolean))].sort()
   return {
     employee_id: employeeId,
     employee_ids: overrides.employee_ids ?? (employeeId ? [employeeId] : []),
-    date: overrides.date ?? '',
+    date: dates[0] ?? date,
+    dates,
     time: overrides.time ?? '',
     breakMinutes: overrides.breakMinutes ?? '',
     role: overrides.role ?? '',
@@ -57,6 +63,16 @@ export function selectedEmployeeIds(form: ShiftFormValue): string[] {
   return form.employee_id ? [form.employee_id] : []
 }
 
+export function selectedDates(form: ShiftFormValue): string[] {
+  const dates = [...new Set((form.dates?.length ? form.dates : form.date ? [form.date] : []).filter(Boolean))]
+  return dates.sort()
+}
+
+function chipDate(value: string) {
+  const date = parseDateKey(value)
+  return date.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })
+}
+
 export function formFromShift(shift: RotaShift): ShiftFormValue {
   const meta = decodeShiftNotes(shift.notes)
   const employeeId =
@@ -65,6 +81,7 @@ export function formFromShift(shift: RotaShift): ShiftFormValue {
     employee_id: employeeId,
     employee_ids: employeeId ? [employeeId] : [],
     date: String(shift.shift_date ?? '').slice(0, 10),
+    dates: [String(shift.shift_date ?? '').slice(0, 10)].filter(Boolean),
     time: formatTimeRange(shift.start_time, shift.end_time),
     breakMinutes: meta.breakMinutes ? String(meta.breakMinutes) : '',
     role: shift.role_name ?? '',
@@ -73,20 +90,20 @@ export function formFromShift(shift: RotaShift): ShiftFormValue {
   }
 }
 
-export function shiftPayload(form: ShiftFormValue) {
+export function shiftPayload(form: ShiftFormValue, date = selectedDates(form)[0]) {
   const range = parseTimeRange(form.time)
   if (!range) {
     throw new Error('Enter a time range such as 9 am - 5 pm')
   }
-  if (!form.date) {
+  if (!date) {
     throw new Error('Select a date')
   }
-  const start = combineDateAndMinutes(form.date, range.startMinutes)
-  const end = combineDateAndMinutes(form.date, range.endMinutes)
+  const start = combineDateAndMinutes(date, range.startMinutes)
+  const end = combineDateAndMinutes(date, range.endMinutes)
   if (end <= start) end.setDate(end.getDate() + 1)
   return {
     employee_id: selectedEmployeeIds(form)[0] ?? null,
-    shift_date: form.date,
+    shift_date: date,
     start_time: start.toISOString(),
     end_time: end.toISOString(),
     role_name: form.role.trim() || undefined,
@@ -96,6 +113,14 @@ export function shiftPayload(form: ShiftFormValue) {
       notes: form.notes,
     }),
   }
+}
+
+export function shiftPayloads(form: ShiftFormValue) {
+  const dates = selectedDates(form)
+  if (dates.length === 0) {
+    throw new Error('Select at least one date')
+  }
+  return dates.map((date) => shiftPayload(form, date))
 }
 
 function Label({ icon, children }: { icon: ReactNode; children: ReactNode }) {
@@ -183,10 +208,111 @@ function EmployeeMultiSelect({
   )
 }
 
+function DateMultiSelect({
+  value,
+  weekDates,
+  onChange,
+}: {
+  value: string[]
+  weekDates?: string[]
+  onChange: (dates: string[]) => void
+}) {
+  const [draft, setDraft] = useState('')
+  const [until, setUntil] = useState('')
+  const sorted = [...new Set(value.filter(Boolean))].sort()
+  const first = sorted[0] ?? ''
+
+  function setDates(next: string[]) {
+    onChange([...new Set(next.filter(Boolean))].sort())
+  }
+
+  function add(date: string) {
+    if (!date || value.includes(date)) return
+    setDates([...value, date])
+  }
+
+  function fillRange(from: string, to: string) {
+    if (!from || !to || to < from) return
+    setDates([...value, ...daysInPeriod(parseDateKey(from), parseDateKey(to)).map(dateKey)])
+  }
+
+  return (
+    <div className="space-y-2">
+      {sorted.length > 0 ? (
+        <div className="flex flex-wrap gap-1.5">
+          {sorted.map((date) => (
+            <button
+              key={date}
+              type="button"
+              className="inline-flex items-center gap-1 rounded-full border border-navy/15 bg-[#eef2f6] px-2.5 py-1 text-xs font-medium text-navy"
+              onClick={() => setDates(value.filter((item) => item !== date))}
+            >
+              {chipDate(date)}
+              <X size={12} className="text-navy/50" />
+            </button>
+          ))}
+        </div>
+      ) : null}
+      <div className="grid grid-cols-2 gap-2">
+        <label className="block">
+          <span className="mb-1 block text-xs text-muted">Add date</span>
+          <div className="relative">
+            <input
+              type="date"
+              className={`${fieldClass} pr-10 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:inset-0 [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-0`}
+              value={draft}
+              onChange={(event) => {
+                const next = event.target.value
+                setDraft(next)
+                add(next)
+                setDraft('')
+              }}
+            />
+            <CalendarDays
+              size={16}
+              className="pointer-events-none absolute top-1/2 right-3 -translate-y-1/2 text-navy/45"
+            />
+          </div>
+        </label>
+        <label className="block">
+          <span className="mb-1 block text-xs text-muted">Repeat until</span>
+          <div className="relative">
+            <input
+              type="date"
+              min={first || undefined}
+              className={`${fieldClass} pr-10 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:inset-0 [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-0`}
+              value={until}
+              onChange={(event) => {
+                const next = event.target.value
+                setUntil(next)
+                fillRange(first || next, next)
+              }}
+            />
+            <CalendarDays
+              size={16}
+              className="pointer-events-none absolute top-1/2 right-3 -translate-y-1/2 text-navy/45"
+            />
+          </div>
+        </label>
+      </div>
+      {weekDates && weekDates.length > 0 ? (
+        <button
+          type="button"
+          className="text-xs font-semibold text-navy underline-offset-2 hover:underline"
+          onClick={() => setDates([...value, ...weekDates])}
+        >
+          Add this week
+        </button>
+      ) : null}
+    </div>
+  )
+}
+
 export function ShiftModal({
   mode,
   people,
   roles,
+  weekDates,
   initial,
   saving,
   error,
@@ -196,6 +322,7 @@ export function ShiftModal({
   mode: ShiftModalMode
   people: RotaEmployee[]
   roles: string[]
+  weekDates?: string[]
   initial: Partial<ShiftFormValue>
   saving?: boolean
   error?: string | null
@@ -211,7 +338,17 @@ export function ShiftModal({
   }, [initial, mode])
 
   const title = mode === 'edit' ? 'Edit Shift' : mode === 'move' ? 'Move Shift' : 'Add Shift'
-  const submitLabel = mode === 'edit' ? 'Save Edits' : mode === 'move' ? 'Save' : 'Add Shift'
+  const dateCount = selectedDates(form).length
+  const employeeCount = Math.max(selectedEmployeeIds(form).length, 1)
+  const shiftCount = dateCount * employeeCount
+  const submitLabel =
+    mode === 'edit'
+      ? 'Save Edits'
+      : mode === 'move'
+        ? 'Save'
+        : shiftCount > 1
+          ? `Add ${shiftCount} Shifts`
+          : 'Add Shift'
   const moveOnly = mode === 'move'
   const canSave = mode === 'create' || isFormDirty(form, emptyForm(initial))
 
@@ -243,19 +380,24 @@ export function ShiftModal({
 
           {moveOnly ? null : (
             <label className="block">
-              <Label icon={<User size={14} />}>Select Employees</Label>
+              <Label icon={<User size={14} />}>
+                {mode === 'create' ? 'Select Employees' : 'Select Employee'}
+              </Label>
               {mode === 'create' ? (
-                <EmployeeMultiSelect
-                  people={people}
-                  value={form.employee_ids}
-                  onChange={(employee_ids) =>
-                    setForm({
-                      ...form,
-                      employee_ids,
-                      employee_id: employee_ids[0] ?? '',
-                    })
-                  }
-                />
+                <>
+                  <EmployeeMultiSelect
+                    people={people}
+                    value={form.employee_ids}
+                    onChange={(employee_ids) =>
+                      setForm({
+                        ...form,
+                        employee_ids,
+                        employee_id: employee_ids[0] ?? '',
+                      })
+                    }
+                  />
+                  <p className="mt-1 text-xs text-muted">Tick every employee who should get this shift.</p>
+                </>
               ) : (
                 <div className="relative">
                   <select
@@ -285,22 +427,47 @@ export function ShiftModal({
             </label>
           )}
 
-          <label className="block">
-            <Label icon={<CalendarDays size={14} />}>Date</Label>
-            <div className="relative">
-              <input
-                type="date"
-                className={`${fieldClass} pr-10 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:inset-0 [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-0`}
-                value={form.date}
-                onChange={(event) => setForm({ ...form, date: event.target.value })}
-                required
-              />
-              <CalendarDays
-                size={16}
-                className="pointer-events-none absolute top-1/2 right-3 -translate-y-1/2 text-navy/45"
+          {mode === 'create' ? (
+            <div>
+              <Label icon={<CalendarDays size={14} />}>
+                Dates{dateCount > 1 ? ` · ${dateCount} selected` : ''}
+              </Label>
+              <DateMultiSelect
+                value={form.dates}
+                weekDates={weekDates}
+                onChange={(dates) =>
+                  setForm({
+                    ...form,
+                    dates,
+                    date: dates[0] ?? '',
+                  })
+                }
               />
             </div>
-          </label>
+          ) : (
+            <label className="block">
+              <Label icon={<CalendarDays size={14} />}>Date</Label>
+              <div className="relative">
+                <input
+                  type="date"
+                  className={`${fieldClass} pr-10 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:inset-0 [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-0`}
+                  value={form.date}
+                  onChange={(event) =>
+                    setForm({
+                      ...form,
+                      date: event.target.value,
+                      dates: event.target.value ? [event.target.value] : [],
+                    })
+                  }
+                  required
+                />
+                <CalendarDays
+                  size={16}
+                  className="pointer-events-none absolute top-1/2 right-3 -translate-y-1/2 text-navy/45"
+                />
+              </div>
+            </label>
+          )}
 
           <div className={moveOnly ? '' : 'grid grid-cols-[1fr_120px] gap-3'}>
             <label className="block">

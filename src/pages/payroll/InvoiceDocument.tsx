@@ -4,7 +4,6 @@ import type { InvoiceLine, InvoiceRecord } from './invoiceMath'
 import { invoiceTotals, parseInvoiceType } from './invoiceMath'
 
 const NAVY = '#17375e'
-const CREAM = '#f4f1ea'
 const PALE = '#e8eef6'
 const LABEL = '#5c6e82'
 
@@ -60,9 +59,6 @@ export function InvoiceDocument({
   return (
     <div className="flex justify-center">
       <div>
-        <p className="mb-3 text-[11px] font-medium tracking-[0.08em] print:hidden" style={{ color: LABEL }}>
-          Invoice Document · A4
-        </p>
         <article className="invoice-a4-page overflow-hidden bg-white shadow-[0_1px_8px_rgba(23,55,94,0.08)]">
           <div className="px-[14mm] pb-[14mm] pt-8">
             <div className="flex items-start justify-between gap-6">
@@ -98,52 +94,28 @@ export function InvoiceDocument({
             </div>
 
             <div className="mt-8 grid grid-cols-2 gap-x-6 gap-y-5 sm:grid-cols-5">
-              <div>
-                <p className="text-[12px] font-medium" style={{ color: LABEL }}>
-                  Amount due
-                </p>
-                <p className="mt-1 text-[22px] font-semibold leading-none" style={{ color: NAVY }}>
-                  {money(totals.total)}
-                </p>
-              </div>
-              <div>
-                <p className="text-[12px] font-medium" style={{ color: LABEL }}>
-                  Due date
-                </p>
-                <p className="mt-1 text-[22px] font-semibold leading-none" style={{ color: NAVY }}>
-                  {formatDate(invoice.due_date)}
-                </p>
-              </div>
-              <div>
-                <p className="text-[12px] font-medium" style={{ color: LABEL }}>
-                  Issue date
-                </p>
-                <p className="mt-1 text-sm font-semibold" style={{ color: NAVY }}>
-                  {formatDate(invoice.issue_date)}
-                </p>
-              </div>
-              <div>
-                <p className="text-[12px] font-medium" style={{ color: LABEL }}>
-                  Invoice number
-                </p>
-                <p className="mt-1 text-sm font-semibold" style={{ color: NAVY }}>
-                  {invoice.invoice_number || '—'}
-                </p>
-              </div>
-              <div>
-                <p className="text-[12px] font-medium" style={{ color: LABEL }}>
-                  Reference
-                </p>
-                <p className="mt-1 text-sm font-semibold" style={{ color: NAVY }}>
-                  {invoice.reference || invoice.invoice_number || '—'}
-                </p>
-              </div>
+              {[
+                ['Amount due', money(totals.total)],
+                ['Due date', formatDate(invoice.due_date)],
+                ['Issue date', formatDate(invoice.issue_date)],
+                ['Invoice number', invoice.invoice_number || '—'],
+                ['Reference', invoice.reference || invoice.invoice_number || '—'],
+              ].map(([label, value]) => (
+                <div key={label}>
+                  <p className="text-[12px] font-medium" style={{ color: LABEL }}>
+                    {label}
+                  </p>
+                  <p className="mt-1 text-sm font-semibold leading-none" style={{ color: NAVY }}>
+                    {value}
+                  </p>
+                </div>
+              ))}
             </div>
 
             <div className="mt-6 overflow-hidden rounded-[10px] border border-[#d8dee8]">
               <div
                 className={`grid ${gridClass} px-3 py-2.5 text-[10px] font-semibold`}
-                style={{ backgroundColor: CREAM, color: NAVY }}
+                style={{ backgroundColor: NAVY, color: '#ffffff' }}
               >
                 <span>Employee Name</span>
                 {employer ? (
@@ -190,31 +162,35 @@ export function InvoiceDocument({
               )}
             </div>
 
-            <div className="mt-6 ml-auto w-full max-w-[240px] space-y-2 text-xs" style={{ color: NAVY }}>
-              <div className="flex justify-between">
-                <span>Subtotal</span>
-                <span className="tabular-nums">{amount(totals.subtotal)}</span>
+            <div className="mt-6 flex items-start justify-between gap-6">
+              <div
+                className="w-full max-w-[280px] rounded-[8px] px-4 py-3 text-[11px]"
+                style={{ backgroundColor: PALE, color: NAVY }}
+              >
+                <p className="font-semibold">Bank Details</p>
+                <p className="mt-2">Sort Code: {details.bank_sort_code || '—'}</p>
+                <p>Account Number: {details.bank_account_number || '—'}</p>
+                <p>Account Holder: {details.bank_account_holder || '—'}</p>
+                <p>Bank Name: {details.bank_name || '—'}</p>
               </div>
-              <div className="flex justify-between">
-                <span>Total VAT {vatRate}%</span>
-                <span className="tabular-nums">{amount(totals.vatTotal)}</span>
+              <div className="w-full max-w-[240px] space-y-2 text-xs" style={{ color: NAVY }}>
+                <div className="flex justify-between">
+                  <span>Subtotal</span>
+                  <span className="tabular-nums">{amount(totals.subtotal)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Total VAT {vatRate}%</span>
+                  <span className="tabular-nums">{amount(totals.vatTotal)}</span>
+                </div>
+                <div className="flex justify-between font-semibold">
+                  <span>Total</span>
+                  <span className="tabular-nums">{amount(totals.total)}</span>
+                </div>
+                <div className="flex justify-between text-sm font-semibold">
+                  <span>Amount due</span>
+                  <span className="tabular-nums">{money(totals.total)}</span>
+                </div>
               </div>
-              <div className="flex justify-between font-semibold">
-                <span>Total</span>
-                <span className="tabular-nums">{amount(totals.total)}</span>
-              </div>
-              <div className="flex justify-between text-sm font-semibold">
-                <span>Amount due</span>
-                <span className="tabular-nums">{money(totals.total)}</span>
-              </div>
-            </div>
-
-            <div className="mt-6 max-w-[280px] rounded-[8px] px-4 py-3 text-[11px]" style={{ backgroundColor: PALE, color: NAVY }}>
-              <p className="font-semibold">Bank Details</p>
-              <p className="mt-2">Sort Code: {details.bank_sort_code || '—'}</p>
-              <p>Account Number: {details.bank_account_number || '—'}</p>
-              <p>Account Holder: {details.bank_account_holder || '—'}</p>
-              <p>Bank Name: {details.bank_name || '—'}</p>
             </div>
           </div>
         </article>

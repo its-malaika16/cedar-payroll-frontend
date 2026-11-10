@@ -19,7 +19,15 @@ import { fullName, idOf } from '../../lib/format'
 import type { CalendarDay, Employee } from '../../types'
 import { RotaMonthGrid, RotaWeekGrid } from './rota/RotaGrid'
 import type { ShiftAction } from './rota/ShiftCard'
-import { ShiftModal, formFromShift, selectedEmployeeIds, shiftPayload, type ShiftFormValue, type ShiftModalMode } from './rota/ShiftModal'
+import {
+  ShiftModal,
+  formFromShift,
+  selectedEmployeeIds,
+  shiftPayload,
+  shiftPayloads,
+  type ShiftFormValue,
+  type ShiftModalMode,
+} from './rota/ShiftModal'
 import {
   addDays,
   dateKey,
@@ -206,7 +214,9 @@ export function ShiftsPage() {
       mode: 'create',
       initial: {
         employee_id: employeeId ?? '',
+        employee_ids: employeeId ? [employeeId] : [],
         date: dateKey(date),
+        dates: [dateKey(date)],
         time: '9:00 am - 5:00 pm',
         role: person ? jobTitleOf(person) ?? '' : '',
       },
@@ -224,24 +234,27 @@ export function ShiftsPage() {
     setError(null)
     setNotice(null)
     try {
-      const payload = shiftPayload(form)
       if (modal.mode === 'create') {
         const employeeIds = selectedEmployeeIds(form)
-        const body = {
-          shift_date: payload.shift_date,
-          start_time: payload.start_time,
-          end_time: payload.end_time,
-          role_name: payload.role_name,
-          notes: payload.notes,
-        }
-        if (employeeIds.length === 0) {
-          await hrApi.createShift(companyId, null, body)
-        } else {
-          for (const employeeId of employeeIds) {
-            await hrApi.createShift(companyId, employeeId, body)
+        const payloads = shiftPayloads(form)
+        for (const payload of payloads) {
+          const body = {
+            shift_date: payload.shift_date,
+            start_time: payload.start_time,
+            end_time: payload.end_time,
+            role_name: payload.role_name,
+            notes: payload.notes,
+          }
+          if (employeeIds.length === 0) {
+            await hrApi.createShift(companyId, null, body)
+          } else {
+            for (const employeeId of employeeIds) {
+              await hrApi.createShift(companyId, employeeId, body)
+            }
           }
         }
       } else if (modal.shiftId) {
+        const payload = shiftPayload(form)
         const body: Record<string, unknown> = {
           shift_date: payload.shift_date,
           start_time: payload.start_time,
@@ -491,6 +504,7 @@ export function ShiftsPage() {
           mode={modal.mode}
           people={people}
           roles={roles}
+          weekDates={weekDaysList.map(dateKey)}
           initial={modal.initial}
           saving={saving}
           error={error}

@@ -82,6 +82,7 @@ export function PayTypeEditor({
   onSave,
   locked,
   error,
+  mode = 'create',
 }: {
   kind: PayTypeKind
   draft: PayTypeDraft
@@ -90,9 +91,17 @@ export function PayTypeEditor({
   onSave: () => void
   locked: boolean
   error?: string | null
+  mode?: 'create' | 'edit'
 }) {
   const isAddition = kind === 'addition'
-  const title = isAddition ? 'New Addition Type' : 'New Deduction Type'
+  const title =
+    mode === 'edit'
+      ? isAddition
+        ? 'Edit Addition Type'
+        : 'Edit Deduction Type'
+      : isAddition
+        ? 'New Addition Type'
+        : 'New Deduction Type'
   const percent = isPercentageMethod(draft.calculationMethod)
   const set = <K extends keyof PayTypeDraft>(key: K, value: PayTypeDraft[K]) =>
     onChange({ ...draft, [key]: value })
@@ -111,13 +120,7 @@ export function PayTypeEditor({
         {title}
       </button>
 
-      <form
-        className="space-y-6"
-        onSubmit={(event) => {
-          event.preventDefault()
-          onSave()
-        }}
-      >
+      <div className="space-y-6">
         {error ? <p className="text-sm font-medium text-brand">{error}</p> : null}
 
         <div className="grid gap-4 sm:grid-cols-2">
@@ -256,11 +259,16 @@ export function PayTypeEditor({
           <Button type="button" variant="secondary" className="min-w-[108px]" onClick={onCancel}>
             Cancel
           </Button>
-          <Button type="submit" className="min-w-[108px]" disabled={locked || !draft.name.trim()}>
+          <Button
+            type="button"
+            className="min-w-[108px]"
+            disabled={locked || !draft.name.trim()}
+            onClick={onSave}
+          >
             Save
           </Button>
         </div>
-      </form>
+      </div>
     </section>
   )
 }

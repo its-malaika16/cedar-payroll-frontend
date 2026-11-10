@@ -8,19 +8,20 @@ import {
   RefreshCw,
   SlidersHorizontal,
 } from 'lucide-react'
-import { payrollApi } from '../../api'
+import { companiesApi, payrollApi } from '../../api'
 import { useAuth } from '../../auth/AuthContext'
 import { Alert, Button, Loading } from '../../components/ui'
 import { BrandIcon } from '../../components/BrandIcon'
 import { formatLongDate, fullName, idOf, isEmployeeOnPayrollRun, sortByEmployeeName } from '../../lib/format'
-import type { PayrollDeductionLine, PayrollRecord, PayrollRun } from '../../types'
+import type { Company, PayrollDeductionLine, PayrollRecord, PayrollRun } from '../../types'
 import iconPerson from '../../assets/brand/icon-person.png'
 import { CreateSendMenu, toolbarBtn } from './CreateSendMenu'
 import { PayrollCsvImportHost } from './PayrollCsvImportHost'
 import { PayrollMoreMenu } from './PayrollMoreMenu'
 import { PayrollSchedulesMenu } from './PayrollSchedulesMenu'
-import { ADDITION_ITEMS, DEDUCTION_ITEMS } from './payslipMenus'
+import { ADDITION_ITEMS } from './payslipMenus'
 import { loadSavedPayTypes, rememberPayType } from './payTypes'
+import { entryFromDraft, hasPayType, resolveCompanyPayTypes } from './companyPayTypes'
 import { payrollListPathFromRun } from './payrollNavigation'
 
 const ZERO_FIELDS = [
@@ -106,11 +107,18 @@ export function BulkPayslipActionPage() {
   const periodLabel = (run?.pay_frequency ?? '').toUpperCase().includes('MONTH')
     ? 'Month Ending'
     : 'Week Ending'
-  const savedTypes = companyId
-    ? loadSavedPayTypes(companyId).filter((item) =>
-        action === 'deduction' ? item.kind === 'deduction' : item.kind === 'addition',
-      )
-    : []
+  const companyQuery = useQuery({
+    queryKey: ['company', companyId],
+    queryFn: () => companiesApi.get(companyId!),
+    enabled: Boolean(companyId),
+  })
+  const payCatalog = useMemo(
+    () =>
+      resolveCompanyPayTypes(
+        (companyQuery.data?.data as Company | undefined)?.employer_defaults,
+      ),
+    [companyQuery.data],
+  )
 
   useEffect(() => {
     setSelected(recordIds ? recordIds.split('|') : [])
@@ -130,14 +138,8 @@ export function BulkPayslipActionPage() {
     return () => document.removeEventListener('mousedown', onPointer)
   }, [])
 
-  const additionOptions = useMemo(
-    () => [...ADDITION_ITEMS.map((item) => item.label), ...savedTypes.map((item) => item.name)],
-    [savedTypes],
-  )
-  const deductionOptions = useMemo(
-    () => [...DEDUCTION_ITEMS, ...savedTypes.map((item) => item.name)],
-    [savedTypes],
-  )
+  const additionOptions = payCatalog.additions.map((item) => item.name)
+  const deductionOptions = payCatalog.deductions.map((item) => item.name)
   const typeOptions = action === 'deduction' ? deductionOptions : additionOptions
   const allSelected = records.length > 0 && selected.length === records.length
   const currentId = focusedId || selected[0] || (records[0] ? idOf(records[0]) : '')
@@ -213,6 +215,32 @@ export function BulkPayslipActionPage() {
             notional: false,
             reuse: 'remember',
           })
+          if (!hasPayType(payCatalog.additions, label)) {
+            await companiesApi.update(companyId, {
+              employer_defaults: {
+                pay_types: {
+                  additions: [
+                    ...payCatalog.additions,
+                    entryFromDraft({
+                      name: label,
+                      amount,
+                      calculationMethod: 'Basic amount',
+                      repetition: 'Include in this period only',
+                      tax: true,
+                      nics: true,
+                      employeePension: false,
+                      employerPension: false,
+                      minWage: true,
+                      notional: false,
+                      reuse: 'remember',
+                    }),
+                  ],
+                  deductions: payCatalog.deductions,
+                },
+              },
+            })
+            await queryClient.invalidateQueries({ queryKey: ['company', companyId] })
+          }
         }
         if (!field) {
           throw new Error(
@@ -240,6 +268,32 @@ export function BulkPayslipActionPage() {
             notional: false,
             reuse: 'remember',
           })
+          if (!hasPayType(payCatalog.deductions, label)) {
+            await companiesApi.update(companyId, {
+              employer_defaults: {
+                pay_types: {
+                  additions: payCatalog.additions,
+                  deductions: [
+                    ...payCatalog.deductions,
+                    entryFromDraft({
+                      name: label,
+                      amount,
+                      calculationMethod: 'Basic amount',
+                      repetition: 'Include in this period only',
+                      tax: true,
+                      nics: true,
+                      employeePension: false,
+                      employerPension: false,
+                      minWage: false,
+                      notional: false,
+                      reuse: 'remember',
+                    }),
+                  ],
+                },
+              },
+            })
+            await queryClient.invalidateQueries({ queryKey: ['company', companyId] })
+          }
         }
         await applyToSelected((record) => {
           const saved =

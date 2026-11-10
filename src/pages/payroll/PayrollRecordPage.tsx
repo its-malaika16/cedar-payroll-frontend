@@ -19,7 +19,7 @@ import {
   UserX,
   Wallet,
 } from 'lucide-react'
-import { employeesApi, payrollApi } from '../../api'
+import { companiesApi, employeesApi, payrollApi } from '../../api'
 import { useAuth } from '../../auth/AuthContext'
 import { Alert, Button, Loading } from '../../components/ui'
 import { BrandIcon } from '../../components/BrandIcon'
@@ -37,7 +37,7 @@ import {
   sortByEmployeeName,
 } from '../../lib/format'
 import { assessHourlyMinimumWage } from '../../lib/minimumWage'
-import type { Employee, PayrollPayLine, PayrollRecord, PayrollRun, PayrollSchedule, PayrollYearToDate } from '../../types'
+import type { Company, Employee, PayrollPayLine, PayrollRecord, PayrollRun, PayrollSchedule, PayrollYearToDate } from '../../types'
 import iconPerson from '../../assets/brand/icon-person.png'
 import {
   asPayFrequency,
@@ -51,7 +51,6 @@ import {
 } from './scheduleWizard/payDateRules'
 import {
   ADDITION_ITEMS,
-  DEDUCTION_ITEMS,
   DEDUCTION_LINKS,
   payBenefitItems,
   taxableAdditionsFromRecord,
@@ -72,14 +71,19 @@ import {
   flagsFromPayLine,
   isCustomDeductionLine,
   isRepeatingRepetition,
-  loadSavedPayTypes,
   rememberPayType,
   resolvePayTypeAmount,
   type PayTypeDraft,
   type PayTypeKind,
-  type SavedPayType,
 } from './payTypes'
 import { payrollListPathFromRun, payslipReturnPath } from './payrollNavigation'
+import {
+  entryFromDraft,
+  hasPayType,
+  isCustomCompanyPayType,
+  resolveCompanyPayTypes,
+  type CompanyPayTypeEntry,
+} from './companyPayTypes'
 import { CreateSendMenu, toolbarBtn } from './CreateSendMenu'
 import { PayrollMoreMenu, payrollMoreMenuItem } from './PayrollMoreMenu'
 import { PayrollSchedulesMenu } from './PayrollSchedulesMenu'
@@ -314,7 +318,6 @@ export function PayrollRecordPage() {
   const [typeEditor, setTypeEditor] = useState<PayTypeKind | null>(null)
   const [typeDraft, setTypeDraft] = useState<PayTypeDraft>(emptyPayTypeDraft)
   const [typeError, setTypeError] = useState<string | null>(null)
-  const [savedTypes, setSavedTypes] = useState<SavedPayType[]>([])
   const [customAdditions, setCustomAdditions] = useState<CustomAdditionLine[]>([])
   const [suppressedRepeating, setSuppressedRepeating] = useState<string[]>([])
   const [customDeductions, setCustomDeductions] = useState<CustomDeductionLine[]>([])
@@ -363,6 +366,20 @@ export function PayrollRecordPage() {
     queryFn: () => employeesApi.get(companyId!, employeeId),
     enabled: Boolean(companyId && employeeId),
   })
+  const companyQuery = useQuery({
+    queryKey: ['company', companyId],
+    queryFn: () => companiesApi.get(companyId!),
+    enabled: Boolean(companyId),
+  })
+  const payCatalog = useMemo(
+    () =>
+      resolveCompanyPayTypes(
+        (companyQuery.data?.data as Company | undefined)?.employer_defaults,
+      ),
+    [companyQuery.data],
+  )
+  const additionMenu = payCatalog.additions
+  const deductionMenu = payCatalog.deductions
 
   const employee = (employeeQuery.data?.data as Employee | undefined) ?? record?.employees
   const records = sortByEmployeeName(
@@ -523,11 +540,6 @@ export function PayrollRecordPage() {
   useEffect(() => {
     return () => window.clearTimeout(calcTimer.current)
   }, [])
-
-  useEffect(() => {
-    if (!companyId) return
-    setSavedTypes(loadSavedPayTypes(companyId))
-  }, [companyId])
 
   useEffect(() => {
     function onPointer(event: MouseEvent) {
@@ -1293,42 +1305,77 @@ export function PayrollRecordPage() {
     })
   }
 
-  function openTypeEditor(kind: PayTypeKind) {
+  function applyCompanyPayType(kind: PayTypeKind, entry: CompanyPayTypeEntry) {
     setOpenMenu(null)
-    setTypeError(null)
-    setTypeDraft(emptyPayTypeDraft())
-    setTypeEditor(kind)
-  }
-
-  function applySavedType(item: SavedPayType) {
-    setOpenMenu(null)
-    if (item.kind === 'addition') {
+    const name = entry.name.trim()
+    const amount = entry.amount?.trim() || '0.00'
+    const flags = {
+      tax: entry.tax ?? true,
+      nics: entry.nics ?? true,
+      employeePension: entry.employeePension ?? false,
+      employerPension: entry.employerPension ?? false,
+      notional: entry.notional ?? false,
+      minWage: entry.minWage ?? true,
+    }
+    if (kind === 'addition') {
       setCustomAdditions((current) => {
-        const next = current.some((row) => row.name === item.name)
+        const next = current.some((row) => row.name === name)
           ? current
-          : [...current, { name: item.name, amount: item.amount, calculationMethod: item.calculationMethod, repetition: item.repetition, ...flagsFromDraft(item) }]
+          : [
+              ...current,
+              {
+                name,
+                amount,
+                calculationMethod: entry.calculationMethod,
+                repetition: entry.repetition,
+                ...flags,
+              },
+            ]
         void persistPayLines(extraPay, next)
         return next
       })
       return
     }
     setCustomDeductions((current) => {
-      const next = current.some((row) => row.name === item.name)
+      const next = current.some((row) => row.name === name)
         ? current
         : [
             ...current,
             {
-              name: item.name,
-              amount: item.amount,
-              calculationMethod: item.calculationMethod,
-              repetition: item.repetition,
-              ...flagsFromDraft(item),
+              name,
+              amount,
+              calculationMethod: entry.calculationMethod,
+              repetition: entry.repetition,
+              ...flags,
             },
           ]
       latestRef.current = { ...latestRef.current, customDeductions: next }
       void persistDeductions(visibleDeductions, deductionAmounts, next)
       return next
     })
+  }
+
+  function pickCompanyAddition(entry: CompanyPayTypeEntry) {
+    if (isCustomCompanyPayType(entry)) {
+      applyCompanyPayType('addition', entry)
+      return
+    }
+    addAddition(entry.name)
+  }
+
+  function pickCompanyDeduction(entry: CompanyPayTypeEntry) {
+    if (isCustomCompanyPayType(entry)) {
+      applyCompanyPayType('deduction', entry)
+      return
+    }
+    addDeduction(entry.name)
+  }
+
+  function openTypeEditor(kind: PayTypeKind) {
+    setOpenMenu(null)
+    setTypeError(null)
+    setTypeDraft(emptyPayTypeDraft())
+    setTypeEditor(kind)
   }
 
   function savePayTypeForm() {
@@ -1406,7 +1453,19 @@ export function PayrollRecordPage() {
       })
     }
     if (typeDraft.reuse === 'remember' && companyId && typeEditor) {
-      setSavedTypes(rememberPayType(companyId, typeEditor, { ...typeDraft, name, amount }))
+      rememberPayType(companyId, typeEditor, { ...typeDraft, name, amount })
+      const current =
+        typeEditor === 'addition' ? payCatalog.additions : payCatalog.deductions
+      if (!hasPayType(current, name)) {
+        const entry = entryFromDraft({ ...typeDraft, name, amount })
+        const pay_types =
+          typeEditor === 'addition'
+            ? { additions: [...payCatalog.additions, entry], deductions: payCatalog.deductions }
+            : { additions: payCatalog.additions, deductions: [...payCatalog.deductions, entry] }
+        void companiesApi
+          .update(companyId, { employer_defaults: { pay_types } })
+          .then(() => queryClient.invalidateQueries({ queryKey: ['company', companyId] }))
+      }
     }
     setTypeEditor(null)
     setTypeError(null)
@@ -1955,26 +2014,15 @@ export function PayrollRecordPage() {
               }
             >
                   <div className="py-1">
-                    {ADDITION_ITEMS.map((item) => (
+                    {additionMenu.map((item) => (
                       <MenuItem
-                        key={item.label}
+                        key={item.name}
                         icon={<ArrowIcon />}
-                        onClick={() => addAddition(item.label)}
+                        onClick={() => pickCompanyAddition(item)}
                       >
-                        {item.label}
+                        {item.name}
                       </MenuItem>
                     ))}
-                    {savedTypes
-                      .filter((item) => item.kind === 'addition')
-                      .map((item) => (
-                        <MenuItem
-                          key={item.id}
-                          icon={<ArrowIcon />}
-                          onClick={() => applySavedType(item)}
-                        >
-                          {item.name}
-                        </MenuItem>
-                      ))}
                     <MenuItem
                       tone="blue"
                       onClick={() => openTypeEditor('addition')}
@@ -1983,22 +2031,15 @@ export function PayrollRecordPage() {
                     </MenuItem>
                   </div>
                   <div className="py-1">
-                    {DEDUCTION_ITEMS.map((label) => (
-                      <MenuItem key={label} icon={<ArrowIcon />} onClick={() => addDeduction(label)}>
-                        {label}
+                    {deductionMenu.map((item) => (
+                      <MenuItem
+                        key={item.name}
+                        icon={<ArrowIcon />}
+                        onClick={() => pickCompanyDeduction(item)}
+                      >
+                        {item.name}
                       </MenuItem>
                     ))}
-                    {savedTypes
-                      .filter((item) => item.kind === 'deduction')
-                      .map((item) => (
-                        <MenuItem
-                          key={item.id}
-                          icon={<ArrowIcon />}
-                          onClick={() => applySavedType(item)}
-                        >
-                          {item.name}
-                        </MenuItem>
-                      ))}
                     <MenuItem tone="blue" onClick={() => openTypeEditor('deduction')}>
                       New deduction type...
                     </MenuItem>

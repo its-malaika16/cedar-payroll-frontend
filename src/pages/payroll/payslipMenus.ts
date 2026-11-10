@@ -107,6 +107,9 @@ export const DEDUCTION_ITEMS = [
   'Staff Loan',
 ] as const
 
+export const DEFAULT_ADDITION_LABELS = ADDITION_ITEMS.map((item) => item.label)
+export const DEFAULT_DEDUCTION_LABELS = [...DEDUCTION_ITEMS]
+
 const BEFORE_NIC_DEDUCTION_LABELS = new Set([
   'salary sacrifice',
   'holiday adj',

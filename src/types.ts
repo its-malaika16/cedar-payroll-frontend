@@ -154,6 +154,10 @@ export type EmployerDefaults = {
     phone?: string
     fax?: string
   }
+  pay_types?: {
+    additions?: Array<string | Record<string, unknown>>
+    deductions?: Array<string | Record<string, unknown>>
+  }
 }
 
 export type Company = {

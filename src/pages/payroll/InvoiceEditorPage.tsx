@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type InputHTMLAttributes, type ReactNode } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { CalendarDays, ChevronDown, ChevronLeft, Trash2, User } from 'lucide-react'
+import { CalendarDays, ChevronDown, ChevronLeft, GripVertical, Trash2, User } from 'lucide-react'
 import { invoicesApi, payrollApi } from '../../api'
 import { useAuth } from '../../auth/AuthContext'
 import { Alert, Button, Loading } from '../../components/ui'
@@ -20,14 +20,14 @@ import {
   periodsFromSavedSchedule,
 } from './scheduleWizard/payDateRules'
 import {
+  composeInvoiceNumber,
   displayInvoiceNumber,
   headingLine,
   invoiceLineFromAmount,
+  invoiceNumberSuffix,
   invoiceTotals,
-  invoiceTypeLabel,
   mapApiLines,
   parseInvoiceType,
-  sortInvoiceEmployeeLines,
   withLineTotals,
   type InvoiceLine,
   type InvoiceRecord,
@@ -150,7 +150,8 @@ export function InvoiceEditorPage() {
     bank_name: '',
   })
   const [addOpen, setAddOpen] = useState(false)
-  const [headingOpen, setHeadingOpen] = useState(false)
+  const [dragKey, setDragKey] = useState<string | null>(null)
+  const [dragOverKey, setDragOverKey] = useState<string | null>(null)
   const [savedId, setSavedId] = useState(invoiceId)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [dirty, setDirty] = useState(!invoiceId)
@@ -297,11 +298,10 @@ export function InvoiceEditorPage() {
   ])
 
   const totals = useMemo(() => invoiceTotals(lines), [lines])
-  const displayLines = useMemo(() => sortInvoiceEmployeeLines(lines), [lines])
   const employerInvoice = invoiceType === 'EMPLOYER_ONCOST'
   const lineGrid = employerInvoice
-    ? 'grid-cols-[minmax(11rem,1.3fr)_8.5rem_8rem_6.5rem_7.5rem_8rem_2.75rem]'
-    : 'grid-cols-[minmax(12rem,1.5fr)_7.5rem_7.5rem_8rem_8.5rem_2.75rem]'
+    ? 'grid-cols-[2.25rem_minmax(11rem,1.3fr)_8.5rem_8rem_6.5rem_7.5rem_8rem_2.75rem]'
+    : 'grid-cols-[2.25rem_minmax(12rem,1.5fr)_7.5rem_7.5rem_8rem_8.5rem_2.75rem]'
   const loading =
     schedulesQuery.isLoading ||
     (invoiceId ? invoiceQuery.isLoading : metaQuery.isLoading) ||
@@ -326,6 +326,20 @@ export function InvoiceEditorPage() {
     setPeriodKey(nextKey)
   }
 
+  function moveLine(fromKey: string, toKey: string) {
+    if (!fromKey || !toKey || fromKey === toKey) return
+    setDirty(true)
+    setLines((current) => {
+      const from = current.findIndex((line) => line.key === fromKey)
+      const to = current.findIndex((line) => line.key === toKey)
+      if (from < 0 || to < 0 || from === to) return current
+      const next = [...current]
+      const [item] = next.splice(from, 1)
+      next.splice(to, 0, item)
+      return next
+    })
+  }
+
   function updateLine(key: string, patch: Partial<InvoiceLine>) {
     setDirty(true)
     setLines((current) =>
@@ -343,10 +357,11 @@ export function InvoiceEditorPage() {
       contact_name: contact,
       issue_date: issueDate || undefined,
       due_date: dueDate || null,
+      invoice_number: composeInvoiceNumber(invoiceNumber) || undefined,
       reference,
       heading,
       ...bank,
-      lines: sortInvoiceEmployeeLines(lines).map((line) => ({
+      lines: lines.map((line) => ({
         id: line.id,
         employee_id: line.employee_id,
         kind: line.kind,
@@ -579,7 +594,22 @@ export function InvoiceEditorPage() {
           </label>
           <label className="block min-w-0">
             <span className="mb-1.5 block text-sm font-medium text-navy">Invoice number</span>
-            <InvoiceInput value={displayInvoiceNumber(invoiceNumber)} readOnly />
+            <div className="flex min-w-0 overflow-hidden rounded-[10px] border border-[#d9d9d9] bg-white focus-within:border-navy">
+              <span className="flex h-[42px] shrink-0 items-center bg-[#f7f5f1] px-3 text-sm font-semibold text-navy">
+                INV-
+              </span>
+              <input
+                value={invoiceNumberSuffix(invoiceNumber)}
+                disabled={locked}
+                placeholder="0008"
+                maxLength={32}
+                className="h-[42px] min-w-0 flex-1 border-0 bg-transparent px-3 text-sm font-medium text-navy outline-none placeholder:text-[#9b9a9a]"
+                onChange={(e) => {
+                  setDirty(true)
+                  setInvoiceNumber(composeInvoiceNumber(e.target.value))
+                }}
+              />
+            </div>
           </label>
           <label className="block min-w-0 sm:col-span-2 xl:col-span-1">
             <span className="mb-1.5 block text-sm font-medium text-navy">Reference</span>
@@ -595,42 +625,10 @@ export function InvoiceEditorPage() {
           </label>
         </div>
 
-        <div className="mt-5">
-          <p className="mb-1.5 text-sm font-medium text-navy">Description</p>
-          <div className="relative inline-block">
-            <button
-              type="button"
-              className="flex h-[38px] items-center gap-2 rounded-[10px] border border-navy bg-white px-3 text-sm font-medium text-navy"
-              disabled={locked}
-              onClick={() => setHeadingOpen((open) => !open)}
-            >
-              Heading
-              <ChevronDown size={14} />
-            </button>
-            {headingOpen ? (
-              <div className="absolute z-20 mt-1 w-56 rounded-[10px] border border-[#d9d9d9] bg-white p-1 shadow-lg">
-                <button
-                  type="button"
-                  className="block w-full rounded-[8px] px-3 py-2 text-left text-sm text-navy hover:bg-cream"
-                  onClick={() => {
-                    setDirty(true)
-                    setLines((current) => [
-                      headingLine(heading || invoiceTypeLabel(invoiceType)),
-                      ...current.filter((line) => line.kind !== 'HEADING'),
-                    ])
-                    setHeadingOpen(false)
-                  }}
-                >
-                  Insert heading row
-                </button>
-              </div>
-            ) : null}
-          </div>
-        </div>
-
         <div className="mt-5 overflow-x-auto rounded-[12px] border border-[#eceae6]">
           <div className={employerInvoice ? 'min-w-[56rem]' : 'min-w-[48rem]'}>
           <div className={`grid ${lineGrid} bg-[#f7f5f1] px-4 py-3 text-[12px] font-semibold text-navy`}>
+            <span />
             <span>Employee Name</span>
             {employerInvoice ? (
               <>
@@ -646,11 +644,43 @@ export function InvoiceEditorPage() {
             <span />
           </div>
           <div className="max-h-[min(420px,46vh)] overflow-y-auto">
-            {displayLines.map((line) => (
+            {lines.map((line) => (
               <div
                 key={line.key}
-                className={`grid ${lineGrid} items-center gap-2 border-t border-[#f0eeea] px-4 py-2.5`}
+                className={`grid ${lineGrid} items-center gap-2 border-t border-[#f0eeea] px-4 py-2.5 ${
+                  dragOverKey === line.key ? 'bg-[#e8eef6]' : ''
+                }`}
+                onDragOver={(event) => {
+                  if (locked) return
+                  event.preventDefault()
+                  event.dataTransfer.dropEffect = 'move'
+                  if (dragOverKey !== line.key) setDragOverKey(line.key)
+                }}
+                onDrop={(event) => {
+                  event.preventDefault()
+                  moveLine(dragKey || event.dataTransfer.getData('text/plain'), line.key)
+                  setDragKey(null)
+                  setDragOverKey(null)
+                }}
               >
+                <button
+                  type="button"
+                  className="flex h-9 w-9 cursor-grab items-center justify-center text-[#9b9a9a] active:cursor-grabbing disabled:cursor-not-allowed disabled:opacity-40"
+                  draggable={!locked}
+                  disabled={locked}
+                  aria-label="Move row"
+                  onDragStart={(event) => {
+                    setDragKey(line.key)
+                    event.dataTransfer.effectAllowed = 'move'
+                    event.dataTransfer.setData('text/plain', line.key)
+                  }}
+                  onDragEnd={() => {
+                    setDragKey(null)
+                    setDragOverKey(null)
+                  }}
+                >
+                  <GripVertical size={16} />
+                </button>
                 <InvoiceInput
                   value={line.description}
                   disabled={locked}

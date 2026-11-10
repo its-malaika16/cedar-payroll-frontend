@@ -197,24 +197,7 @@ export function mapApiLines(
       employer_pension: Number(line.employer_pension ?? 0),
     }, type)
   })
-  return sortInvoiceEmployeeLines(mapped)
-}
-
-export function sortInvoiceEmployeeLines(lines: InvoiceLine[]) {
-  const headings = lines.filter((line) => line.kind === 'HEADING')
-  const items = lines
-    .filter((line) => line.kind !== 'HEADING')
-    .sort((left, right) => compareInvoiceEmployeeLabel(left.description, right.description))
-  return [...headings, ...items]
-}
-
-function compareInvoiceEmployeeLabel(left: string, right: string) {
-  const leftKey = String(left ?? '').trim()
-  const rightKey = String(right ?? '').trim()
-  if (!leftKey && !rightKey) return 0
-  if (!leftKey) return 1
-  if (!rightKey) return -1
-  return leftKey.localeCompare(rightKey, 'en-GB', { sensitivity: 'base' })
+  return mapped
 }
 
 export function invoiceStatusLabel(status?: string | null) {
@@ -236,8 +219,22 @@ export function invoiceBadgeStatus(status?: string | null, dueDate?: string | nu
   return isInvoiceOverdue(status, dueDate) ? 'OVERDUE' : status ?? undefined
 }
 
+export const INVOICE_NUMBER_PREFIX = 'INV-'
+
+export function invoiceNumberSuffix(value?: string | null) {
+  return String(value ?? '')
+    .trim()
+    .replace(/^#\s*/i, '')
+    .replace(/^INV-?/i, '')
+}
+
+export function composeInvoiceNumber(value?: string | null) {
+  const suffix = invoiceNumberSuffix(value)
+  return suffix ? `${INVOICE_NUMBER_PREFIX}${suffix}` : ''
+}
+
 export function displayInvoiceNumber(value?: string | null) {
-  const raw = String(value ?? '').trim()
-  if (!raw) return ''
-  return raw.startsWith('#') ? raw : `#${raw}`
+  const composed = composeInvoiceNumber(value)
+  if (!composed) return ''
+  return composed.startsWith('#') ? composed : `#${composed}`
 }

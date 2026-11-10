@@ -1,10 +1,12 @@
 import type { Company, EmployerDefaults } from '../../types'
+import { resolveCompanyPayTypes, type CompanyPayTypeEntry } from '../payroll/companyPayTypes'
 
 export const SETTINGS_TABS = [
   'Basic Details',
   'PAYE Registration',
   'Typical Employee',
   'RTI',
+  'Additions and Deductions',
 ] as const
 
 export type SettingsTab = (typeof SETTINGS_TABS)[number]
@@ -89,12 +91,14 @@ export type EmployerForm = {
   latitude: string
   longitude: string
   attendance_radius_meters: string
+  pay_additions: CompanyPayTypeEntry[]
+  pay_deductions: CompanyPayTypeEntry[]
 }
 
 const WEEKDAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday']
 
 export function emptyEmployerDefaults(): Required<
-  Omit<EmployerDefaults, 'rti_contact'>
+  Omit<EmployerDefaults, 'rti_contact' | 'pay_types'>
 > & { rti_contact: NonNullable<EmployerDefaults['rti_contact']> } {
   return {
     typical_pay_frequency: 'MONTHLY',
@@ -173,6 +177,7 @@ export function formFromCompany(company: Company): EmployerForm {
   const longitude = coord(company.longitude)
   const hasSavedPoint =
     Boolean(latitude && longitude) && !(Number(latitude) === 0 && Number(longitude) === 0)
+  const payTypes = resolveCompanyPayTypes(company.employer_defaults)
   return {
     company_name: company.company_name ?? '',
     trading_name: str(company.trading_name),
@@ -224,6 +229,8 @@ export function formFromCompany(company: Company): EmployerForm {
     attendance_radius_meters: String(
       clampAttendanceRadius(company.attendance_radius_meters || DEFAULT_ATTENDANCE_RADIUS_METERS),
     ),
+    pay_additions: payTypes.additions,
+    pay_deductions: payTypes.deductions,
   }
 }
 
@@ -294,6 +301,10 @@ export function payloadFromForm(form: EmployerForm) {
         email: form.rti_email.trim(),
         phone: form.rti_phone.trim(),
         fax: form.rti_fax.trim(),
+      },
+      pay_types: {
+        additions: form.pay_additions,
+        deductions: form.pay_deductions,
       },
     },
   }
