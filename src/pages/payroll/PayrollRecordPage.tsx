@@ -165,7 +165,11 @@ const mappedAdditionFields = new Set(
 function extraPayFromRecord(record: PayrollRecord, hasHours: boolean): ExtraPay[] {
   const lines = (record.pay_lines ?? []).filter(
     (line): line is PayrollPayLine & { kind: ExtraPay['kind'] } =>
-      line.kind === 'daily' || line.kind === 'monthly' || line.kind === 'benefit',
+      (line.kind === 'daily' || line.kind === 'monthly' || line.kind === 'benefit') &&
+      !(
+        String(line.id ?? '').startsWith('leave-pay-') &&
+        /sick|ssp|maternity|smp|paternity|spp|parental|parenting|shpp/i.test(String(line.label ?? ''))
+      ),
   )
   if (lines.length === 0) return hasHours ? [] : [emptyMonthlyPay()]
   return lines.map((line) => ({
@@ -573,7 +577,10 @@ export function PayrollRecordPage() {
   const leaveAmounts = (leaveSummary.amounts ?? {}) as Record<string, number>
   const paidLeaveItems = (
     Array.isArray(leaveSummary.paid_items) ? leaveSummary.paid_items : []
-  ) as Array<{ leave_type?: string; days?: number; per_day?: number; amount?: number }>
+  ).filter((item) => {
+    const type = String((item as { leave_type?: string }).leave_type ?? '').toLowerCase()
+    return !/sick|ssp|maternity|smp|paternity|spp|parental|parenting|shpp/.test(type)
+  }) as Array<{ leave_type?: string; days?: number; per_day?: number; amount?: number }>
   const hasPaidAnnual = paidLeaveItems.some((item) =>
     /annual|holiday/i.test(String(item.leave_type ?? '')),
   )

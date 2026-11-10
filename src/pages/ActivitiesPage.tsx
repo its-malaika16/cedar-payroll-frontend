@@ -1,5 +1,7 @@
+import { useMemo, useState } from 'react'
 import { Navigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
+import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { get } from '../api/client'
 import { useAuth } from '../auth/AuthContext'
 import { Card, EmptyState, Loading, PageHeader } from '../components/ui'
@@ -17,6 +19,26 @@ type ActivityRow = {
   email: string
   role: string
   company_name: string
+}
+
+function monthKeyFromDate(date: Date) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
+}
+
+function shiftMonth(key: string, delta: number) {
+  const [year, month] = key.split('-').map(Number)
+  const next = new Date(year, (month || 1) - 1 + delta, 1)
+  return monthKeyFromDate(next)
+}
+
+function monthMeta(key: string) {
+  const [year, month] = key.split('-').map(Number)
+  const days = new Date(year, month, 0).getDate()
+  const label = new Date(year, (month || 1) - 1, 1).toLocaleString('en-GB', {
+    month: 'long',
+    year: 'numeric',
+  })
+  return { days, label }
 }
 
 function activityLines(row: ActivityRow) {
@@ -50,11 +72,14 @@ function when(value?: string | null) {
 
 export function ActivitiesPage() {
   const auth = useAuth()
-  const { companyId, isBureauAdmin } = auth
+  const { companyId, isBureauAdmin, companies } = auth
+  const [month, setMonth] = useState(() => monthKeyFromDate(new Date()))
+  const meta = useMemo(() => monthMeta(month), [month])
+  const companyName = companies.find((company) => company.id === companyId)?.name
 
   const query = useQuery({
-    queryKey: ['activities', companyId],
-    queryFn: () => get<ActivityRow[]>(`/companies/${companyId}/activities`),
+    queryKey: ['activities', companyId, month],
+    queryFn: () => get<ActivityRow[]>(`/companies/${companyId}/activities?month=${month}`),
     enabled: Boolean(companyId && isBureauAdmin),
   })
   const list = (query.data?.data as ActivityRow[] | undefined) ?? []
@@ -65,15 +90,43 @@ export function ActivitiesPage() {
     <div className="flex min-h-0 flex-1 flex-col overflow-y-auto pb-6">
       <PageHeader
         title="Activities"
-        subtitle="Every action taken in the system by bureau, company, and employee users."
+        subtitle={
+          companyName
+            ? `Actions for ${companyName} from 1 to ${meta.days} ${meta.label}.`
+            : `Actions for the selected company from 1 to ${meta.days} ${meta.label}.`
+        }
+        actions={
+          <div className="flex items-center gap-2 text-sm font-semibold text-navy">
+            <button
+              type="button"
+              className="rounded-[10px] border border-[#d9d9d9] bg-white p-2 hover:bg-cream"
+              aria-label="Previous month"
+              onClick={() => setMonth((current) => shiftMonth(current, -1))}
+            >
+              <ChevronLeft size={18} />
+            </button>
+            <span className="min-w-[168px] text-center">
+              {meta.label}
+              <span className="mt-0.5 block text-xs font-medium text-muted">{meta.days} days</span>
+            </span>
+            <button
+              type="button"
+              className="rounded-[10px] border border-[#d9d9d9] bg-white p-2 hover:bg-cream"
+              aria-label="Next month"
+              onClick={() => setMonth((current) => shiftMonth(current, 1))}
+            >
+              <ChevronRight size={18} />
+            </button>
+          </div>
+        }
       />
       <Card>
         {query.isLoading ? (
           <Loading />
         ) : list.length === 0 ? (
           <EmptyState
-            title="No activities yet"
-            body="Assigning a shift, adding leave, or other changes will appear here with the person’s name, role, and company."
+            title="No activities this month"
+            body={`Nothing was recorded for ${companyName || 'this company'} between 1 and ${meta.days} ${meta.label}.`}
           />
         ) : (
           <div className="overflow-x-auto">
