@@ -12,6 +12,8 @@ const fieldClass =
 export function AddLeaveModal({
   people,
   initialEmployeeId,
+  initialStartDate,
+  initialEndDate,
   quote,
   quoting,
   submitting,
@@ -22,6 +24,8 @@ export function AddLeaveModal({
 }: {
   people: Employee[]
   initialEmployeeId?: string
+  initialStartDate?: string
+  initialEndDate?: string
   quote?: LeavePayQuote
   quoting?: boolean
   submitting?: boolean
@@ -48,8 +52,8 @@ export function AddLeaveModal({
     initialEmployeeId ? [initialEmployeeId] : [],
   )
   const [leaveType, setLeaveType] = useState<(typeof LEAVE_TYPES)[number]['id']>('Annual Leave')
-  const [startDate, setStartDate] = useState('')
-  const [endDate, setEndDate] = useState('')
+  const [startDate, setStartDate] = useState(initialStartDate ?? '')
+  const [endDate, setEndDate] = useState(initialEndDate || initialStartDate || '')
   const [isPaid, setIsPaid] = useState(true)
   const [paidPerDay, setPaidPerDay] = useState('')
   const [reason, setReason] = useState('')

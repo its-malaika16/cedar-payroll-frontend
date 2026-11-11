@@ -21,8 +21,19 @@ import { ytdFieldValue } from './ytdValues'
 
 function parseAmount(value: string) {
   if (!value || value === '—') return null
-  const amount = Number(value.replace(/[^0-9.-]/g, ''))
+  const trimmed = value.trim()
+  const compact = trimmed.replace(/\s/g, '')
+  const moneyLike = /^£?-?[0-9,]+(\.[0-9]+)?$/.test(compact)
+  const numberLike = /^-?[0-9]+(\.[0-9]+)?$/.test(trimmed)
+  if (!moneyLike && !numberLike) return null
+  const amount = Number(trimmed.replace(/[£,\s]/g, ''))
   return Number.isNaN(amount) ? null : amount
+}
+
+function formatColumnTotal(sum: number, asMoney: boolean) {
+  if (asMoney) return money(sum)
+  const rounded = Math.round(sum * 100) / 100
+  return Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(2)
 }
 
 export function ReportPreviewPage({ kind }: { kind: AnalysisBuilderKind }) {
@@ -191,13 +202,16 @@ function EmployeeReportPreviewPage({ kind }: { kind: AnalysisBuilderKind }) {
   function columnTotal(fieldId: string) {
     let sum = 0
     let countable = false
+    let asMoney = false
     for (const employee of employees) {
-      const amount = parseAmount(cellValue(employee, fieldId))
+      const value = cellValue(employee, fieldId)
+      const amount = parseAmount(value)
       if (amount == null) continue
       countable = true
+      if (value.includes('£')) asMoney = true
       sum += amount
     }
-    return countable ? money(sum) : null
+    return countable ? formatColumnTotal(sum, asMoney) : ''
   }
 
   async function persist(published?: boolean) {
@@ -229,7 +243,7 @@ function EmployeeReportPreviewPage({ kind }: { kind: AnalysisBuilderKind }) {
     const header = columns.map((column) => column.label)
     const lines = employees.map((employee) => columns.map((column) => cellValue(employee, column.id)))
     if (spec?.showTotalsRow) {
-      lines.push(columns.map((column, index) => (index === 0 ? 'Total' : columnTotal(column.id) ?? '')))
+      lines.push(columns.map((column, index) => (index === 0 ? 'Total' : columnTotal(column.id))))
     }
     return { header, lines }
   }
@@ -313,13 +327,13 @@ function EmployeeReportPreviewPage({ kind }: { kind: AnalysisBuilderKind }) {
         ) : (
           <div className="min-h-0 flex-1 overflow-auto">
             <table className="w-max min-w-full text-left text-sm">
-              <thead>
+              <thead className="sticky top-0 z-20">
                 <tr className="border-b border-[#eceae6]">
                   {columns.map((column) => (
                     <th
                       key={column.id}
                       className={`min-w-[140px] max-w-[220px] bg-white px-4 py-3 font-semibold text-navy ${
-                        column.id === stickyId ? 'sticky left-0 z-10 shadow-[2px_0_0_#eceae6]' : ''
+                        column.id === stickyId ? 'sticky left-0 z-30 shadow-[2px_0_0_#eceae6]' : ''
                       }`}
                     >
                       <span className="block whitespace-normal leading-5">{column.label}</span>
@@ -329,7 +343,7 @@ function EmployeeReportPreviewPage({ kind }: { kind: AnalysisBuilderKind }) {
               </thead>
               <tbody>
                 {employees.map((employee) => (
-                  <tr key={idOf(employee)} className="border-b border-[#f3f1ec] last:border-b-0">
+                  <tr key={idOf(employee)} className="border-b border-[#f3f1ec]">
                     {columns.map((column) => (
                       <td
                         key={column.id}
@@ -342,21 +356,23 @@ function EmployeeReportPreviewPage({ kind }: { kind: AnalysisBuilderKind }) {
                     ))}
                   </tr>
                 ))}
-                {spec?.showTotalsRow ? (
-                  <tr className="border-t border-[#eceae6] bg-[#f8f7f4] font-semibold">
+              </tbody>
+              {spec?.showTotalsRow ? (
+                <tfoot className="sticky bottom-0 z-20">
+                  <tr className="border-t-2 border-[#d9d9d9] bg-[#f8f7f4] font-semibold shadow-[0_-4px_10px_rgba(23,55,94,0.06)]">
                     {columns.map((column, index) => (
                       <td
                         key={column.id}
-                        className={`min-w-[140px] px-4 py-3 text-navy ${
-                          column.id === stickyId ? 'sticky left-0 z-10 bg-[#f8f7f4] shadow-[2px_0_0_#eceae6]' : ''
+                        className={`min-w-[140px] bg-[#f8f7f4] px-4 py-3 text-navy ${
+                          column.id === stickyId ? 'sticky left-0 z-30 shadow-[2px_0_0_#eceae6]' : ''
                         }`}
                       >
-                        {index === 0 ? 'Total' : columnTotal(column.id) ?? ''}
+                        {index === 0 ? 'Total' : columnTotal(column.id)}
                       </td>
                     ))}
                   </tr>
-                ) : null}
-              </tbody>
+                </tfoot>
+              ) : null}
             </table>
           </div>
         )}

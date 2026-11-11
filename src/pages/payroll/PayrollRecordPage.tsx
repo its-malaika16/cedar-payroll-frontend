@@ -14,6 +14,7 @@ import {
   RefreshCw,
   Scale,
   SquareArrowUp,
+  Star,
   Trash2,
   User,
   UserX,
@@ -49,6 +50,7 @@ import {
   periodPayLabel,
   periodsFromSavedSchedule,
 } from './scheduleWizard/payDateRules'
+import { payslipProgress } from './payslipProgress'
 import {
   ADDITION_ITEMS,
   DEDUCTION_LINKS,
@@ -613,9 +615,9 @@ export function PayrollRecordPage() {
           ] as [string, unknown, unknown, string],
       ),
       ['Unpaid leave', leaveSummary.unpaid, leaveAmounts.unpaid, 'Deducted from basic pay'],
-      ['Sick leave (SSP)', leaveSummary.sick, leaveAmounts.sick ?? leaveSummary.sick_pay, leaveSummary.offsets_contractual_pay === false ? 'Statutory sick pay' : 'Replaces contractual pay · statutory sick pay'],
-      ['Maternity leave (SMP)', leaveSummary.maternity, leaveAmounts.maternity ?? leaveSummary.maternity_pay, leaveSummary.offsets_contractual_pay === false ? 'Statutory maternity pay' : 'Replaces contractual pay · statutory maternity pay'],
-      ['Paternity leave (SPP)', leaveSummary.paternity, leaveAmounts.paternity ?? leaveSummary.paternity_pay, leaveSummary.offsets_contractual_pay === false ? 'Statutory paternity pay' : 'Replaces contractual pay · statutory paternity pay'],
+      ['Sick leave', leaveSummary.sick, null, 'Paid under Statutory Pay'],
+      ['Maternity leave', leaveSummary.maternity, null, 'Paid under Statutory Pay'],
+      ['Paternity leave', leaveSummary.paternity, null, 'Paid under Statutory Pay'],
       ['Absent', leaveSummary.absent, leaveAmounts.absent, 'Deducted from basic pay'],
       ['On strike', leaveSummary.on_strike, leaveAmounts.on_strike, 'Deducted from basic pay'],
       ['Parenting leave', leaveSummary.parenting, leaveAmounts.parenting, 'Paid — already in basic pay'],
@@ -1511,15 +1513,6 @@ export function PayrollRecordPage() {
           <button
             type="button"
             className={toolbarBtn}
-            disabled={recordFinalised || runFullyLocked}
-            onClick={() => void markCurrentDone()}
-          >
-            <Check size={16} />
-            Finalise
-          </button>
-          <button
-            type="button"
-            className={toolbarBtn}
             disabled={!recordFinalised && !runLocked}
             onClick={() => {
               if (recordFinalised && !runFullyLocked) {
@@ -1614,6 +1607,7 @@ export function PayrollRecordPage() {
             {sidebarRecords.map((item, index) => {
               const selected = idOf(item) === recordId
               const itemName = fullName(item.employees?.first_name, item.employees?.last_name)
+              const marker = payslipProgress(item.status, runLocked)
               return (
                 <Link
                   key={idOf(item)}
@@ -1632,10 +1626,15 @@ export function PayrollRecordPage() {
                   <span className="min-w-0 flex-1 truncate">
                     {itemName === '—' ? 'Employee Name' : itemName}
                   </span>
-                  {(item.status ?? '').toUpperCase() === 'FINALISED' ? (
+                  {marker === 'tick' ? (
                     <Check
                       size={12}
                       className={selected ? 'text-white' : 'text-navy'}
+                    />
+                  ) : marker === 'star' ? (
+                    <Star
+                      size={12}
+                      className={selected ? 'fill-white text-white' : 'fill-navy text-navy'}
                     />
                   ) : item.is_starter || item.is_leaver ? (
                     <Flag
@@ -1850,7 +1849,9 @@ export function PayrollRecordPage() {
                         {hint ? ` · ${hint}` : ''}
                       </span>
                     </span>
-                    <span className="tabular-nums font-semibold">{money(amount)}</span>
+                    <span className="tabular-nums font-semibold">
+                      {amount == null || amount === '' ? '' : money(amount)}
+                    </span>
                   </div>
                 ))}
               </div>

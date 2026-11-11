@@ -110,13 +110,13 @@ export function EmployeeCsvImport({
       }
       if (email) seenEmails.add(email)
       try {
-        const rawTitle = value('title')
-        const rawJobTitle = value('job_title')
+        const rawTitle = value('title').trim()
+        const rawJobTitle = value('job_title').trim()
         const title = rawTitle && rawTitle.length <= 20 ? rawTitle : undefined
         const jobTitle = rawJobTitle || (rawTitle.length > 20 ? rawTitle : undefined)
         const worksNumber = value('employee_code').trim()
         const created = await employeesApi.create(companyId, {
-          title: title || undefined,
+          ...(title ? { title } : {}),
           first_name: firstName,
           middle_name: value('middle_name') || undefined,
           last_name: lastName,

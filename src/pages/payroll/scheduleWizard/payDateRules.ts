@@ -371,6 +371,40 @@ export function asPayFrequency(value?: string | null): PayFrequency {
   return 'WEEKLY'
 }
 
+function mondayWeekStart(date: Date) {
+  return addDays(date, -((date.getDay() + 6) % 7))
+}
+
+function cadenceBucketStart(date: Date, frequency: PayFrequency) {
+  const day = new Date(date.getFullYear(), date.getMonth(), date.getDate())
+  if (frequency === 'MONTHLY') return new Date(day.getFullYear(), day.getMonth(), 1)
+  if (frequency === 'QUARTERLY') return new Date(day.getFullYear(), Math.floor(day.getMonth() / 3) * 3, 1)
+  if (frequency === 'YEARLY') return new Date(day.getFullYear(), 0, 1)
+  const weekStart = mondayWeekStart(day)
+  const length = periodLengthDays(frequency)
+  if (length <= 7) return weekStart
+  const epoch = mondayWeekStart(new Date(2020, 0, 6))
+  const days = Math.round((weekStart.getTime() - epoch.getTime()) / 86_400_000)
+  const offset = ((days % length) + length) % length
+  return addDays(weekStart, -offset)
+}
+
+export function payrollCadenceLabel(frequency?: string | null) {
+  const unit = FREQUENCY_META[asPayFrequency(frequency)].unit
+  return `Payroll This ${unit.charAt(0).toUpperCase()}${unit.slice(1)}`
+}
+
+export function isDateInCurrentPayrollCadence(
+  value?: string | null,
+  frequency?: string | null,
+  now = new Date(),
+) {
+  const key = String(value ?? '').slice(0, 10)
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(key)) return false
+  const freq = asPayFrequency(frequency)
+  return cadenceBucketStart(parseDateKey(key), freq).getTime() === cadenceBucketStart(now, freq).getTime()
+}
+
 export function periodEndFromStart(start: Date, frequency: PayFrequency): Date {
   if (isCalendarFrequency(frequency)) {
     const months = frequency === 'MONTHLY' ? 1 : frequency === 'QUARTERLY' ? 3 : 12

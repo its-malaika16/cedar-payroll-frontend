@@ -9,11 +9,29 @@ import {
 import type { Company, Employee, PayrollPayLine, PayrollRecord, PayrollRun } from '../../types'
 import { parsePayslipDisplayOptions, type PayslipDisplayOptions } from './payslipDisplayOptions'
 
+export type PayslipUnit = 'hours' | 'days'
+
 export type PayslipLine = {
   description: string
   hours?: number | null
   rate?: number | null
+  units?: PayslipUnit | null
   amount: number
+}
+
+export function payslipEarningsColumns(earnings: PayslipLine[]) {
+  const kinds = new Set(
+    earnings
+      .filter((line) => line.hours && line.hours > 0)
+      .map((line) => line.units)
+      .filter((unit): unit is PayslipUnit => unit === 'hours' || unit === 'days'),
+  )
+  const hasHours = kinds.has('hours')
+  const hasDays = kinds.has('days')
+  if (!hasHours && !hasDays) return { showUnits: false, unitsHeader: '' }
+  if (hasHours && hasDays) return { showUnits: true, unitsHeader: 'HOURS / DAYS' }
+  if (hasDays) return { showUnits: true, unitsHeader: 'DAYS' }
+  return { showUnits: true, unitsHeader: 'HOURS' }
 }
 
 export type PayslipViewModel = {
@@ -127,12 +145,15 @@ export function buildPayslipViewModel(
   const extraPay = record.pay_lines ?? []
   const extraLabels = new Set(extraPay.map((line) => payLineLabel(line).trim().toLowerCase()))
   const earnings: PayslipLine[] = []
+  const hourlyPay =
+    String(record.pay_basis ?? '').toUpperCase() === 'HOURLY' && amount(record.total_hours) > 0
 
   const pushEarning = (
     description: string,
     value: unknown,
     hours?: number | null,
     rate?: number | null,
+    units?: PayslipUnit | null,
   ) => {
     const n = amount(value)
     if (n === 0) return
@@ -140,22 +161,31 @@ export function buildPayslipViewModel(
       description,
       hours: hours && hours > 0 ? hours : null,
       rate: rate && rate > 0 ? rate : null,
+      units: hours && hours > 0 ? units ?? null : null,
       amount: n,
     })
   }
 
   const display = parsePayslipDisplayOptions(company?.payslip_display_options)
-  pushEarning('Basic Salary', record.basic_pay, amount(record.total_hours), hourlyRate)
+  pushEarning(
+    'Basic Salary',
+    record.basic_pay,
+    hourlyPay ? amount(record.total_hours) : null,
+    hourlyPay ? hourlyRate : null,
+    hourlyPay ? 'hours' : null,
+  )
   for (const line of extraPay) {
     if (!display.benefitDescriptions && line.kind === 'benefit') continue
     const n = payLineAmount(line)
     if (n === 0) continue
     const description = payLineLabel(line)
-    const isHolidayPay = description.trim().toLowerCase() === 'holiday pay'
+    const daily = line.kind === 'daily'
+    const showQty = daily && line.qty && line.qty > 0
     earnings.push({
       description,
-      hours: !isHolidayPay && line.qty && line.qty > 0 ? line.qty : null,
-      rate: !isHolidayPay && line.rate && line.rate > 0 ? line.rate : null,
+      hours: showQty ? line.qty : null,
+      rate: showQty && line.rate && line.rate > 0 ? line.rate : null,
+      units: showQty ? 'days' : null,
       amount: n,
     })
   }

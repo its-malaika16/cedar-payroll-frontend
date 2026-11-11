@@ -2,8 +2,10 @@ import { useMemo, useState, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { ArrowLeftRight, CalendarDays, ChevronLeft, ChevronRight, Clock3, Plane } from 'lucide-react'
-import { hrApi } from '../../api'
+import { employeesApi, hrApi } from '../../api'
 import { useAuth } from '../../auth/AuthContext'
+import { isWorkingDay, workingDaysFromEmployee } from '../../lib/workingDays'
+import type { Employee } from '../../types'
 import { Loading } from '../../components/ui'
 import {
   addDays,
@@ -147,11 +149,13 @@ function MonthCalendar({
   month,
   shifts,
   leave,
+  workingDays,
 }: {
   weeks: Date[][]
   month: number
   shifts: RotaShift[]
   leave: RotaLeave[]
+  workingDays?: string[]
 }) {
   const todayKey = dateKey(new Date())
   return (
@@ -174,7 +178,7 @@ function MonthCalendar({
             {week.map((day) => {
               const inMonth = day.getMonth() === month
               const key = dateKey(day)
-              const weekend = day.getDay() === 0 || day.getDay() === 6
+              const dayOff = !isWorkingDay(day, workingDays)
               const isToday = inMonth && key === todayKey
               const dayShifts = inMonth ? shifts.filter((shift) => shiftDateKey(shift) === key) : []
               const dayLeave = inMonth ? leave.find((item) => leaveCoversDate(item, key)) : undefined
@@ -182,7 +186,7 @@ function MonthCalendar({
                 <div
                   key={key}
                   className={`min-h-[124px] border-r border-b border-[#f1efeb] p-2.5 ${
-                    !inMonth ? 'bg-[#f7f6f3]' : weekend ? 'bg-[#fcfbf8]' : 'bg-white'
+                    !inMonth ? 'bg-[#f7f6f3]' : dayOff ? 'bg-[#fcfbf8]' : 'bg-white'
                   }`}
                 >
                   <span
@@ -241,6 +245,12 @@ export function EmployeeRotaPage() {
     queryFn: () => hrApi.myShifts(companyId!, employeeId!),
     enabled: Boolean(companyId && employeeId),
   })
+  const meQuery = useQuery({
+    queryKey: ['me', companyId, employeeId],
+    queryFn: () => employeesApi.me(companyId!, employeeId!),
+    enabled: Boolean(companyId && employeeId),
+  })
+  const workingDays = workingDaysFromEmployee(meQuery.data?.data as Employee | undefined)
 
   const payload = query.data as MyShiftsResponse | undefined
   const shifts = (payload?.data ?? []) as RotaShift[]
@@ -366,6 +376,7 @@ export function EmployeeRotaPage() {
           month={anchor.getMonth()}
           shifts={shifts}
           leave={leave}
+          workingDays={workingDays}
         />
       ) : (
       <div className="mt-4 overflow-hidden rounded-[16px] border border-[#e6e4df] bg-white">
@@ -378,12 +389,12 @@ export function EmployeeRotaPage() {
             const dayShifts = shifts.filter((shift) => shiftDateKey(shift) === key)
             const dayLeave = leave.find((item) => leaveCoversDate(item, key))
             const isToday = key === dateKey(new Date())
-            const weekend = day.getDay() === 0 || day.getDay() === 6
+            const dayOff = !isWorkingDay(day, workingDays)
             return (
               <div
                 key={key}
                 className={`grid grid-cols-1 items-stretch border-b border-[#f1efeb] last:border-b-0 sm:grid-cols-[220px_minmax(0,1fr)] ${
-                  weekend && !dayLeave && dayShifts.length === 0 ? 'bg-[#fcfbf8]' : 'bg-white'
+                  dayOff && !dayLeave && dayShifts.length === 0 ? 'bg-[#fcfbf8]' : 'bg-white'
                 }`}
               >
                 <div className="flex items-center gap-3 border-[#eceae6] px-5 py-3 sm:border-r">

@@ -106,6 +106,7 @@ export const PAYROLL_SUMMARY_SPEC: ReportSpec = {
   groups: PAYROLL_CATEGORY_GROUPS,
   fields: PAYROLL_SUMMARY_FIELDS,
   defaultFieldIds: [...DEFAULT_FIELD_IDS],
+  showTotalsRow: true,
 }
 
 export const PENSIONS_SPEC: ReportSpec = {
@@ -118,6 +119,7 @@ export const PENSIONS_SPEC: ReportSpec = {
   defaultFieldIds: [...DEFAULT_FIELD_IDS],
   defaultCategoryId: 'pensions',
   selectHint: HINT,
+  showTotalsRow: true,
 }
 
 export const YTD_SPEC: ReportSpec = {
@@ -130,6 +132,7 @@ export const YTD_SPEC: ReportSpec = {
   defaultFieldIds: [...DEFAULT_FIELD_IDS],
   defaultCategoryId: 'ytd',
   selectHint: HINT,
+  showTotalsRow: true,
 }
 
 export const HMRC_SPEC: ReportSpec = {

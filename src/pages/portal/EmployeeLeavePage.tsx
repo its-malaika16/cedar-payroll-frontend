@@ -16,10 +16,12 @@ import {
   X,
   XCircle,
 } from 'lucide-react'
-import { hrApi } from '../../api'
+import { employeesApi, hrApi } from '../../api'
 import { useAuth } from '../../auth/AuthContext'
 import { Alert, Loading } from '../../components/ui'
 import { idOf } from '../../lib/format'
+import { workingDaysFromEmployee } from '../../lib/workingDays'
+import type { Employee } from '../../types'
 import {
   addDays,
   dateKey,
@@ -172,11 +174,13 @@ function DurationChoice({
 
 function LeaveRequestModal({
   initial,
+  workingDays,
   onClose,
   onSubmit,
   error,
 }: {
   initial?: Partial<LeaveItem>
+  workingDays?: string[]
   onClose: () => void
   onSubmit: (body: Record<string, unknown>) => Promise<void>
   error: string | null
@@ -191,7 +195,12 @@ function LeaveRequestModal({
     attachment_name: initial?.attachment_name ?? '',
   })
   const [busy, setBusy] = useState(false)
-  const days = weekdayCount(form.start_date, form.end_date, form.duration_kind === 'PARTIAL_DAY')
+  const days = weekdayCount(
+    form.start_date,
+    form.end_date,
+    form.duration_kind === 'PARTIAL_DAY',
+    workingDays,
+  )
 
   return (
     <div className="fixed inset-0 z-40 flex items-center justify-center bg-navy/30 p-4">
@@ -359,17 +368,23 @@ function useEmployeeLeave() {
     queryFn: () => hrApi.leaveBalance(companyId!, employeeId!),
     enabled: Boolean(companyId && employeeId),
   })
+  const meQuery = useQuery({
+    queryKey: ['me', companyId, employeeId],
+    queryFn: () => employeesApi.me(companyId!, employeeId!),
+    enabled: Boolean(companyId && employeeId),
+  })
   const requests = ((query.data?.data as LeaveItem[] | undefined) ?? []).map((item) => ({
     ...item,
     id: idOf(item),
   }))
   const balance = (balanceQuery.data?.data as LeaveBalance | undefined) ?? query.data?.balance
-  return { companyId, employeeId, query, balanceQuery, requests, balance }
+  const workingDays = workingDaysFromEmployee(meQuery.data?.data as Employee | undefined)
+  return { companyId, employeeId, query, balanceQuery, requests, balance, workingDays }
 }
 
 export function EmployeeLeavePage() {
   const navigate = useNavigate()
-  const { companyId, employeeId, query, requests, balance } = useEmployeeLeave()
+  const { companyId, employeeId, query, requests, balance, workingDays } = useEmployeeLeave()
   const [error, setError] = useState<string | null>(null)
   const [view, setView] = useState<'week' | 'month'>('month')
   const [anchor, setAnchor] = useState(() => new Date())
@@ -650,6 +665,7 @@ export function EmployeeLeavePage() {
       {modal ? (
         <LeaveRequestModal
           initial={modal}
+          workingDays={workingDays}
           error={error}
           onClose={() => {
             setError(null)
@@ -755,7 +771,7 @@ function ApprovalTimeline({ item }: { item?: LeaveItem }) {
 export function EmployeeLeaveRequestsPage() {
   const navigate = useNavigate()
   const [params, setParams] = useSearchParams()
-  const { companyId, employeeId, query, requests } = useEmployeeLeave()
+  const { companyId, employeeId, query, requests, workingDays } = useEmployeeLeave()
   const [error, setError] = useState<string | null>(null)
   const [modal, setModal] = useState<Partial<LeaveItem> | null>(null)
   const selectedId = params.get('id')
@@ -858,7 +874,7 @@ export function EmployeeLeaveRequestsPage() {
                 <Row label="End Date" value={formatLeaveDayLong(selected.end_date)} />
                 <Row
                   label="Duration"
-                  value={`${selected.days ?? weekdayCount(String(selected.start_date), String(selected.end_date), selected.duration_kind === 'PARTIAL_DAY')} days`}
+                  value={`${selected.days ?? weekdayCount(String(selected.start_date), String(selected.end_date), selected.duration_kind === 'PARTIAL_DAY', workingDays)} days`}
                 />
                 <Row label="Leave Period" value={selected.duration_label || 'Full day'} />
                 <Row
@@ -930,6 +946,7 @@ export function EmployeeLeaveRequestsPage() {
       {modal ? (
         <LeaveRequestModal
           initial={modal}
+          workingDays={workingDays}
           error={error}
           onClose={() => {
             setError(null)

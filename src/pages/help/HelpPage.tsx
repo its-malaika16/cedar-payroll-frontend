@@ -1,6 +1,6 @@
 import { Navigate, useNavigate } from 'react-router-dom'
 import type { ReactNode } from 'react'
-import { Hash } from 'lucide-react'
+import { Building2 } from 'lucide-react'
 import { useAuth } from '../../auth/AuthContext'
 import { Card } from '../../components/ui'
 import { HrTitle } from '../hr/HrChrome'
@@ -51,7 +51,7 @@ export function HelpPage() {
       <Card className="mt-8 p-6 md:p-8">
         <div className="mb-6 flex items-start gap-3">
           <span className="flex size-10 items-center justify-center rounded-full bg-[#eef3fb] text-navy">
-            <Hash size={18} strokeWidth={2.2} />
+            <Building2 size={18} strokeWidth={2.2} />
           </span>
           <div>
             <h2 className="text-lg font-semibold text-navy">Company Support</h2>

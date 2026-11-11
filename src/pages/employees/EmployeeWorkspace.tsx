@@ -159,7 +159,7 @@ const emptyDraft = (company?: Company | null): Draft => {
       : ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday']
   const country = String(company?.country ?? '')
   return {
-  title: 'Mr',
+  title: '',
   first_name: '',
   middle_name: '',
   last_name: '',
@@ -560,7 +560,7 @@ export function EmployeeWorkspace() {
     }
 
     const personalBody = {
-      title: draft.title,
+      title: draft.title.trim() || null,
       first_name: draft.first_name,
       middle_name: draft.middle_name || undefined,
       last_name: draft.last_name,
@@ -859,8 +859,11 @@ export function EmployeeWorkspace() {
                   <div className="grid grid-cols-2 gap-x-4 gap-y-4 lg:grid-cols-[128px_minmax(0,1fr)_minmax(0,1fr)]">
                     <Field label="Title">
                       <Select value={draft.title} onChange={(e) => setDraft({ ...draft, title: e.target.value })}>
+                        <option value="">Select</option>
                         {TITLE_OPTIONS.map((option) => (
-                          <option key={option}>{option}</option>
+                          <option key={option} value={option}>
+                            {option}
+                          </option>
                         ))}
                       </Select>
                     </Field>
@@ -2375,7 +2378,7 @@ function draftFromEmployee(employee: Employee, schedules: PayrollSchedule[] = []
 
   return {
     ...emptyDraft(),
-    title: employee.title || 'Mr',
+    title: employee.title || '',
     first_name: employee.first_name || '',
     middle_name: employee.middle_name || '',
     last_name: employee.last_name || '',

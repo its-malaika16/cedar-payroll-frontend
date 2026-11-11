@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { ChevronLeft, ChevronRight, Plus, Search, Trash2, User } from 'lucide-react'
@@ -7,7 +7,8 @@ import { useAuth } from '../../auth/AuthContext'
 import { Alert, Button, Card, Loading } from '../../components/ui'
 import { fullName, idOf } from '../../lib/format'
 import type { Employee, LeavePayQuote } from '../../types'
-import { addDays, dateKey, formatMonthLabel, weeksInMonth } from './rota/rotaDates'
+import { isWorkingDay, workingDaysFromEmployee } from '../../lib/workingDays'
+import { dateKey, formatMonthLabel, weeksInMonth } from './rota/rotaDates'
 import { formatLeaveRange, LEAVE_TYPES, leaveTypeColor } from './leaveTypes'
 import { HrCrumbs, HrTitle, RequestsButton } from './HrChrome'
 import { AddLeaveModal } from './AddLeaveModal'
@@ -35,6 +36,23 @@ function coversDate(item: LeaveItem, key: string) {
   return start && start <= key && key <= end
 }
 
+function fromKey(key: string) {
+  const [year, month, day] = key.split('-').map(Number)
+  return new Date(year, (month || 1) - 1, day || 1)
+}
+
+function keysBetween(from: string, to: string) {
+  const start = fromKey(from <= to ? from : to)
+  const end = fromKey(from <= to ? to : from)
+  const keys: string[] = []
+  const cursor = new Date(start)
+  while (cursor.getTime() <= end.getTime()) {
+    keys.push(dateKey(cursor))
+    cursor.setDate(cursor.getDate() + 1)
+  }
+  return keys
+}
+
 export function LeavePage() {
   const { employeeId } = useParams()
   const navigate = useNavigate()
@@ -44,7 +62,9 @@ export function LeavePage() {
   const [error, setError] = useState<string | null>(null)
   const [view, setView] = useState<'month' | 'year'>('month')
   const [anchor, setAnchor] = useState(() => new Date())
-  const [modal, setModal] = useState(false)
+  const [modal, setModal] = useState<{ start?: string; end?: string } | null>(null)
+  const [picked, setPicked] = useState<string[]>([])
+  const drag = useRef<{ start: string } | null>(null)
   const [saving, setSaving] = useState(false)
   const [quoteKeys, setQuoteKeys] = useState({
     employee_id: employeeId ?? '',
@@ -118,6 +138,34 @@ export function LeavePage() {
     employee_id: String(item.employee_id ?? ''),
   }))
   const selected = people.find((person) => idOf(person) === employeeId)
+  const workingDays = workingDaysFromEmployee(selected)
+  const pickedSet = new Set(picked)
+
+  function beginPick(key: string, event: MouseEvent) {
+    event.preventDefault()
+    drag.current = { start: key }
+    setPicked([key])
+  }
+
+  function movePick(key: string) {
+    if (!drag.current) return
+    setPicked(keysBetween(drag.current.start, key))
+  }
+
+  useEffect(() => {
+    function endPick() {
+      if (!drag.current) return
+      drag.current = null
+      setPicked((current) => {
+        if (current.length === 0) return current
+        const sorted = [...current].sort()
+        setModal({ start: sorted[0], end: sorted[sorted.length - 1] })
+        return current
+      })
+    }
+    window.addEventListener('mouseup', endPick)
+    return () => window.removeEventListener('mouseup', endPick)
+  }, [])
   const filtered = people.filter((person) =>
     fullName(person.first_name, person.last_name).toLowerCase().includes(search.trim().toLowerCase()),
   )
@@ -192,7 +240,8 @@ export function LeavePage() {
       if (failures.length > 0) {
         setError(result.message || failures.map((item) => item.message).join(' '))
       }
-      setModal(false)
+      setModal(null)
+      setPicked([])
       await refreshLeave()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not add leave')
@@ -220,7 +269,8 @@ export function LeavePage() {
           <Button
             onClick={() => {
               setError(null)
-              setModal(true)
+              setPicked([])
+              setModal({})
             }}
           >
             <Plus size={16} />
@@ -344,17 +394,41 @@ export function LeavePage() {
               </div>
 
               <Card className="p-5">
-                <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+                <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <div className="flex items-center gap-2 text-sm font-semibold text-navy">
-                    <button type="button" onClick={() => setAnchor(addDays(anchor, view === 'month' ? -30 : -365))}>
+                    <button
+                      type="button"
+                      className="flex size-8 items-center justify-center rounded-[8px] hover:bg-cream"
+                      aria-label="Previous"
+                      onClick={() =>
+                        setAnchor((current) =>
+                          view === 'month'
+                            ? new Date(current.getFullYear(), current.getMonth() - 1, 1)
+                            : new Date(current.getFullYear() - 1, current.getMonth(), 1),
+                        )
+                      }
+                    >
                       <ChevronLeft size={18} />
                     </button>
-                    <span>{view === 'month' ? formatMonthLabel(anchor) : `${year} (This Year)`}</span>
-                    <button type="button" onClick={() => setAnchor(addDays(anchor, view === 'month' ? 30 : 365))}>
+                    <span className="min-w-[10rem] text-center">
+                      {view === 'month' ? formatMonthLabel(anchor) : `${year} (This Year)`}
+                    </span>
+                    <button
+                      type="button"
+                      className="flex size-8 items-center justify-center rounded-[8px] hover:bg-cream"
+                      aria-label="Next"
+                      onClick={() =>
+                        setAnchor((current) =>
+                          view === 'month'
+                            ? new Date(current.getFullYear(), current.getMonth() + 1, 1)
+                            : new Date(current.getFullYear() + 1, current.getMonth(), 1),
+                        )
+                      }
+                    >
                       <ChevronRight size={18} />
                     </button>
                   </div>
-                  <div className="inline-flex rounded-[10px] border border-[#d9d9d9] bg-white p-1 text-sm font-semibold">
+                  <div className="inline-flex self-start rounded-[10px] border border-[#d9d9d9] bg-white p-1 text-sm font-semibold sm:self-auto">
                     <button
                       type="button"
                       className={`rounded-[8px] px-3 py-1.5 ${view === 'month' ? 'bg-navy text-white' : 'text-navy'}`}
@@ -373,31 +447,66 @@ export function LeavePage() {
                 </div>
 
                 {view === 'month' ? (
-                  <div className="grid grid-cols-7 gap-1 text-center text-xs">
-                    {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((day) => (
-                      <div key={day} className="py-2 font-semibold text-muted">
-                        {day}
+                  <div className="overflow-x-auto">
+                    <p className="mb-2 text-xs text-muted">Click a day or drag across dates to assign leave.</p>
+                    <div className="min-w-[640px] select-none overflow-hidden rounded-[12px] border border-[#eceae6]">
+                      <div className="grid grid-cols-7 bg-[#f7f6f3] text-center text-[11px] font-semibold uppercase tracking-wide text-muted">
+                        {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((day) => (
+                          <div key={day} className="border-r border-[#eceae6] px-2 py-2 last:border-r-0">
+                            {day}
+                          </div>
+                        ))}
                       </div>
-                    ))}
-                    {monthWeeks.flat().map((day) => {
-                      const key = dateKey(day)
-                      const outside = day.getMonth() !== anchor.getMonth()
-                      const match = calendarLeave.find((item) => coversDate(item, key))
-                      return (
-                        <div
-                          key={key}
-                          className={`min-h-[62px] rounded-[8px] p-1 text-left ${outside ? 'text-muted/40' : 'text-navy'}`}
-                          style={match ? { background: `${leaveTypeColor(match.leave_type)}33` } : undefined}
-                        >
-                          <p className="text-xs font-semibold">{day.getDate()}</p>
-                          {match?.leave_type ? (
-                            <p className="mt-1 truncate text-[10px] font-medium leading-tight" title={match.leave_type}>
-                              {match.leave_type}
-                            </p>
-                          ) : null}
-                        </div>
-                      )
-                    })}
+                      <div className="grid grid-cols-7">
+                        {monthWeeks.flat().map((day) => {
+                          const key = dateKey(day)
+                          const outside = day.getMonth() !== anchor.getMonth()
+                          const today = !outside && key === dateKey(new Date())
+                          const off = !isWorkingDay(day, workingDays)
+                          const match = calendarLeave.find((item) => coversDate(item, key))
+                          const selectedDay = pickedSet.has(key)
+                          return (
+                            <div
+                              key={key}
+                              onMouseDown={(event) => beginPick(key, event)}
+                              onMouseEnter={() => movePick(key)}
+                              className={`min-h-[76px] cursor-pointer border-t border-r border-[#eceae6] p-1.5 [&:nth-child(7n)]:border-r-0 ${
+                                selectedDay
+                                  ? 'bg-[#dceaf6] text-navy'
+                                  : outside
+                                    ? 'bg-[#fbfaf8] text-[#c5c5c5]'
+                                    : off
+                                      ? 'bg-[#f7f6f3] text-navy/70'
+                                      : 'bg-white text-navy'
+                              }`}
+                              style={
+                                match && !outside && !selectedDay
+                                  ? { background: `${leaveTypeColor(match.leave_type)}33` }
+                                  : undefined
+                              }
+                            >
+                              <p
+                                className={`flex size-6 items-center justify-center text-xs font-semibold ${
+                                  today ? 'rounded-full bg-navy text-white' : ''
+                                }`}
+                              >
+                                {day.getDate()}
+                              </p>
+                              {match?.leave_type && !outside ? (
+                                <p
+                                  className="mt-1 truncate text-[10px] font-medium leading-tight text-navy"
+                                  title={match.leave_type}
+                                >
+                                  {match.leave_type}
+                                </p>
+                              ) : off && !outside && !match ? (
+                                <p className="mt-1 text-[10px] font-medium text-[#9b9a9a]">Day off</p>
+                              ) : null}
+                            </div>
+                          )
+                        })}
+                      </div>
+                    </div>
                   </div>
                 ) : (
                   <div className="grid grid-cols-4 gap-3 sm:grid-cols-6">
@@ -453,12 +562,15 @@ export function LeavePage() {
         <AddLeaveModal
           people={people}
           initialEmployeeId={employeeId}
+          initialStartDate={modal.start}
+          initialEndDate={modal.end}
           quote={quote}
           quoting={quoteQuery.isFetching}
           submitting={saving}
           error={error}
           onClose={() => {
-            setModal(false)
+            setModal(null)
+            setPicked([])
             setError(null)
           }}
           onQuoteKeys={handleQuoteKeys}

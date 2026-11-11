@@ -18,6 +18,8 @@ import {
   asPayFrequency,
   dateKey,
   hmrcPeriodLabel,
+  isDateInCurrentPayrollCadence,
+  payrollCadenceLabel,
   periodsFromSavedSchedule,
 } from './payroll/scheduleWizard/payDateRules'
 import { defaultPeriodKey, runScheduleId } from './payroll/PayslipPeriodSwitcher'
@@ -260,11 +262,13 @@ export function DashboardPage() {
   const scheduleRuns = payrollRuns.filter(
     (run) => !selectedScheduleId || runScheduleId(run) === selectedScheduleId,
   )
-  const runsThisMonth = scheduleRuns.filter((run) => {
-    const date = new Date(run.pay_date)
-    const now = new Date()
-    return date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear()
-  }).length
+  const payrollCadence = payrollCadenceLabel(selectedSchedule?.pay_frequency)
+  const runsThisCadence = scheduleRuns.filter((run) =>
+    isDateInCurrentPayrollCadence(
+      run.pay_date ?? run.period_end_date,
+      selectedSchedule?.pay_frequency,
+    ),
+  ).length
   const records = (breakdownQuery.data ?? []) as PayrollRecord[]
   const { slices, gross } = toSlices(records)
   const complianceList = (compliance.data?.data as Record<string, unknown>[] | undefined) ?? []
@@ -500,8 +504,8 @@ export function DashboardPage() {
               <span className="flex size-14 items-center justify-center rounded-full bg-navy">
                 <BrandIcon src={iconPayroll} alt="" className="size-8" tone="navy" />
               </span>
-              <p className="mt-6 text-[32px] font-semibold leading-none text-navy">{runsThisMonth}</p>
-              <p className="mt-1 text-sm font-semibold text-navy">Payroll This Month</p>
+              <p className="mt-6 text-[32px] font-semibold leading-none text-navy">{runsThisCadence}</p>
+              <p className="mt-1 text-sm font-semibold text-navy">{payrollCadence}</p>
               {auth.isCompanyAdmin ? (
                 <span className="mt-auto pt-8 text-sm font-semibold text-muted">This company</span>
               ) : (

@@ -1,7 +1,8 @@
 import { User } from 'lucide-react'
 import { fullName, idOf } from '../../../lib/format'
 import { AddShiftCell, LeaveCard, ShiftCard, type ShiftAction } from './ShiftCard'
-import { dateKey, isWeekend } from './rotaDates'
+import { isWorkingDay } from '../../../lib/workingDays'
+import { dateKey } from './rotaDates'
 import {
   employeeIdOf,
   isApprovedLeave,
@@ -83,6 +84,7 @@ function MonthDayCell({
   shifts,
   onLeave,
   leaveTitle,
+  showDayOff,
   onAdd,
   onAction,
 }: {
@@ -91,6 +93,7 @@ function MonthDayCell({
   shifts: RotaShift[]
   onLeave: boolean
   leaveTitle?: string
+  showDayOff?: boolean
   onAdd: () => void
   onAction: (shift: RotaShift, action: ShiftAction) => void
 }) {
@@ -123,7 +126,7 @@ function MonthDayCell({
             ))}
           </div>
         ) : (
-          <AddShiftCell compact onClick={onAdd} />
+          <AddShiftCell compact showDayOff={showDayOff} onClick={onAdd} />
         )}
       </div>
     </div>
@@ -137,6 +140,7 @@ function MonthPersonBlock({
   inRange,
   shiftsForDay,
   leaveForDay,
+  workingDays,
   onAdd,
   onAction,
 }: {
@@ -146,6 +150,7 @@ function MonthPersonBlock({
   inRange: (day: Date) => boolean
   shiftsForDay: (day: Date) => RotaShift[]
   leaveForDay?: (day: Date) => LeaveItem | undefined
+  workingDays?: string[]
   onAdd: (date: Date) => void
   onAction: (shift: RotaShift, action: ShiftAction) => void
 }) {
@@ -170,6 +175,7 @@ function MonthPersonBlock({
                 shifts={shiftsForDay(day)}
                 onLeave={Boolean(leaveForDay?.(day))}
                 leaveTitle={leaveForDay?.(day)?.leave_type ?? undefined}
+                showDayOff={Boolean(workingDays) && !isWorkingDay(day, workingDays)}
                 onAdd={() => onAdd(day)}
                 onAction={onAction}
               />
@@ -239,6 +245,7 @@ export function RotaMonthGrid({
             inRange={dayInRange}
             shiftsForDay={(day) => employeeShiftsOn(shifts, employeeId, dateKey(day))}
             leaveForDay={(day) => employeeOnLeave(leave, employeeId, dateKey(day))}
+            workingDays={employee.usual_working_days}
             onAdd={(day) => onAdd(employeeId, day)}
             onAction={onAction}
           />
@@ -344,7 +351,7 @@ export function RotaWeekGrid({
                     leaveTitle={employeeLeave(employeeId, key)?.leave_type ?? undefined}
                     compact={compact}
                     muted={muted}
-                    showDayOff={isWeekend(day)}
+                    showDayOff={!isWorkingDay(day, employee.usual_working_days)}
                     onAdd={() => onAdd(employeeId, day)}
                     onAction={onAction}
                   />

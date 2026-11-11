@@ -16,6 +16,7 @@ import { employeesApi, hrApi } from '../../api'
 import { useAuth } from '../../auth/AuthContext'
 import { Alert, Button, Loading, PageHeader } from '../../components/ui'
 import { fullName, idOf } from '../../lib/format'
+import { workingDaysFromEmployee } from '../../lib/workingDays'
 import type { CalendarDay, Employee } from '../../types'
 import { RotaMonthGrid, RotaWeekGrid } from './rota/RotaGrid'
 import type { ShiftAction } from './rota/ShiftCard'
@@ -138,13 +139,18 @@ export function ShiftsPage() {
 
   const people = useMemo(() => {
     const list = (employeesQuery.data?.data ?? []) as Employee[]
-    return [...list].sort((left, right) =>
-      fullName(left.first_name, left.last_name).localeCompare(
-        fullName(right.first_name, right.last_name),
-        'en-GB',
-        { sensitivity: 'base' },
-      ),
-    )
+    return [...list]
+      .sort((left, right) =>
+        fullName(left.first_name, left.last_name).localeCompare(
+          fullName(right.first_name, right.last_name),
+          'en-GB',
+          { sensitivity: 'base' },
+        ),
+      )
+      .map((person) => ({
+        ...person,
+        usual_working_days: workingDaysFromEmployee(person),
+      }))
   }, [employeesQuery.data])
   const shifts = ((shiftsQuery.data?.data as RotaShift[] | undefined) ?? []).map((shift) => ({
     ...shift,

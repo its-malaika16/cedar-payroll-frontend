@@ -7,6 +7,7 @@ export type RotaEmployee = {
   first_name?: string | null
   last_name?: string | null
   employee_code?: string | null
+  usual_working_days?: string[]
 }
 
 export type RotaShift = {

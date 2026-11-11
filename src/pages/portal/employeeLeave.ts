@@ -1,3 +1,5 @@
+import { countWorkingDays } from '../../lib/workingDays'
+
 export const EMPLOYEE_LEAVE_TYPES = [
   'Annual leave',
   'SSP leave',
@@ -90,20 +92,13 @@ export function formatLeaveRangeShort(start?: string | null, end?: string | null
   return `${formatLeaveDay(start)} – ${formatLeaveDay(end)}`
 }
 
-export function weekdayCount(start: string, end: string, partial = false) {
-  if (partial) return 0.5
-  const from = new Date(start)
-  const to = new Date(end)
-  if (Number.isNaN(from.getTime()) || Number.isNaN(to.getTime()) || to < from) return 0
-  let count = 0
-  const cursor = new Date(from.getFullYear(), from.getMonth(), from.getDate())
-  const last = new Date(to.getFullYear(), to.getMonth(), to.getDate())
-  while (cursor.getTime() <= last.getTime()) {
-    const day = cursor.getDay()
-    if (day !== 0 && day !== 6) count += 1
-    cursor.setDate(cursor.getDate() + 1)
-  }
-  return count
+export function weekdayCount(
+  start: string,
+  end: string,
+  partial = false,
+  usualWorkingDays?: string[] | null,
+) {
+  return countWorkingDays(start, end, usualWorkingDays, partial)
 }
 
 export function weeksLabel(value?: number) {

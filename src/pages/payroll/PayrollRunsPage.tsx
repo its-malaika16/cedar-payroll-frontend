@@ -4,6 +4,7 @@ import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-do
 import {
   Check,
   RefreshCw,
+  Star,
   Users,
 } from 'lucide-react'
 import { payrollApi } from '../../api'
@@ -28,6 +29,7 @@ import {
   hmrcPeriodLabel,
   periodsFromSavedSchedule,
 } from './scheduleWizard/payDateRules'
+import { payslipProgress } from './payslipProgress'
 import { CreateSendMenu, toolbarBtn } from './CreateSendMenu'
 import { PayrollCsvImportHost } from './PayrollCsvImportHost'
 import { PayrollMoreMenu, payrollMoreMenuItem } from './PayrollMoreMenu'
@@ -511,7 +513,9 @@ export function PayrollRunsPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {visibleRecords.map((record) => (
+                    {visibleRecords.map((record) => {
+                      const marker = payslipProgress(record.status, locked)
+                      return (
                       <tr key={idOf(record)} className="border-b border-[#eee] hover:bg-[#f0f5fe]">
                         <td className="truncate px-4 py-2.5 text-left">
                           <Link
@@ -520,8 +524,10 @@ export function PayrollRunsPage() {
                             className="inline-flex items-center gap-2 font-medium text-navy"
                           >
                             <span className="inline-flex size-3.5 shrink-0 items-center justify-center">
-                              {(record.status ?? '').toUpperCase() === 'FINALISED' ? (
+                              {marker === 'tick' ? (
                                 <Check size={14} className="text-navy" />
+                              ) : marker === 'star' ? (
+                                <Star size={14} className="fill-navy text-navy" />
                               ) : null}
                             </span>
                             {fullName(record.employees?.first_name, record.employees?.last_name)}
@@ -535,7 +541,8 @@ export function PayrollRunsPage() {
                         <td className="px-4 py-2.5 text-right tabular-nums">{money(record.take_home_pay)}</td>
                         <td className="px-4 py-2.5 text-right tabular-nums">{money(record.cost_to_employer)}</td>
                       </tr>
-                    ))}
+                      )
+                    })}
                   </tbody>
                 </table>
               </div>

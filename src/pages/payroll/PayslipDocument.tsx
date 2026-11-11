@@ -1,5 +1,5 @@
 import { money } from '../../lib/format'
-import type { PayslipViewModel } from './payslipViewModel'
+import { payslipEarningsColumns, type PayslipViewModel } from './payslipViewModel'
 
 const NAVY = '#17375e'
 const PALE = '#e8eef6'
@@ -52,6 +52,10 @@ function SummaryRow({
 }
 
 export function PayslipDocument({ model }: { model: PayslipViewModel }) {
+  const { showUnits, unitsHeader } = payslipEarningsColumns(model.earnings)
+  const earningsGrid = showUnits
+    ? 'grid-cols-[minmax(0,1fr)_7rem_6.5rem_7rem]'
+    : 'grid-cols-[minmax(0,1fr)_7rem]'
   const display = model.display
   const employerLine = [model.companyName, model.payeReference ? `Paye ref ${model.payeReference}` : '']
     .filter(Boolean)
@@ -130,34 +134,46 @@ export function PayslipDocument({ model }: { model: PayslipViewModel }) {
           </div>
           <div className="bg-white">
             <div
-              className="grid grid-cols-[minmax(0,1fr)_7rem_6.5rem_7rem] px-4 py-2 text-[10px] font-semibold tracking-[0.06em]"
+              className={`grid ${earningsGrid} px-4 py-2 text-[10px] font-semibold tracking-[0.06em]`}
               style={{ color: NAVY }}
             >
               <span>DESCRIPTION</span>
-              <span className="text-right">HOURS / UNITS</span>
-              <span className="text-right">RATE</span>
+              {showUnits ? (
+                <>
+                  <span className="text-right">{unitsHeader}</span>
+                  <span className="text-right">RATE</span>
+                </>
+              ) : null}
               <span className="text-right">AMOUNT</span>
             </div>
             {model.earnings.map((line, index) => (
                 <div
                   key={`${line.description}-${index}`}
-                  className="grid grid-cols-[minmax(0,1fr)_7rem_6.5rem_7rem] items-center px-4 py-2.5 text-sm"
+                  className={`grid ${earningsGrid} items-center px-4 py-2.5 text-sm`}
                   style={{ color: NAVY }}
                 >
                   <span>{line.description}</span>
-                  <span className="text-right tabular-nums">{hours(line.hours)}</span>
-                  <span className="text-right tabular-nums">{line.rate ? money(line.rate) : ''}</span>
+                  {showUnits ? (
+                    <>
+                      <span className="text-right tabular-nums">{hours(line.hours)}</span>
+                      <span className="text-right tabular-nums">{line.rate ? money(line.rate) : ''}</span>
+                    </>
+                  ) : null}
                   <span className="text-right font-semibold tabular-nums">{money(line.amount)}</span>
                 </div>
             ))}
             {hasMoney(model.totalEarnings) ? (
             <div
-              className="grid grid-cols-[minmax(0,1fr)_7rem_6.5rem_7rem] border-t px-4 py-3 text-sm font-semibold"
+              className={`grid ${earningsGrid} border-t px-4 py-3 text-sm font-semibold`}
               style={{ backgroundColor: PALE, borderColor: NAVY, color: NAVY }}
             >
               <span>TOTAL EARNINGS</span>
-              <span />
-              <span />
+              {showUnits ? (
+                <>
+                  <span />
+                  <span />
+                </>
+              ) : null}
               <span className="text-right tabular-nums">{money(model.totalEarnings)}</span>
             </div>
             ) : null}

@@ -8,6 +8,7 @@ import { Button, EmptyState, Loading } from '../../components/ui'
 import { fullName } from '../../lib/format'
 import { StatCard } from './timesheets/TimesheetStatusBadge'
 import { addDays, dateKey, formatWeekRange, startOfWeek } from './rota/rotaDates'
+import { formatClock, formatTimeRange } from './rota/rotaModel'
 import { HrTitle } from './HrChrome'
 
 type AttendanceStatus =
@@ -21,13 +22,18 @@ type AttendanceStatus =
 
 type DayCell = {
   date: string
+  scheduled_start?: string | null
+  scheduled_end?: string | null
   scheduled_shift: string
   scheduled_hours: number
+  check_in_at?: string | null
+  check_out_at?: string | null
   check_in: string
   check_out: string
   check_in_label: string
   break_minutes: number
   total_hours: number
+  overtime_hours?: number
   status: AttendanceStatus
 }
 
@@ -38,6 +44,7 @@ type AttendanceRow = DayCell & {
   days?: DayCell[]
   weekly_hours?: number
   weekly_scheduled?: number
+  weekly_overtime?: number
 }
 
 const STATUS_STYLE: Record<AttendanceStatus, string> = {
@@ -67,14 +74,44 @@ function hoursLabel(value?: number) {
   return `${hours}h ${String(minutes).padStart(2, '0')}m`
 }
 
+function clockLabel(iso?: string | null, fallback?: string) {
+  if (iso) {
+    const date = new Date(iso)
+    if (!Number.isNaN(date.getTime())) return formatClock(date)
+  }
+  return fallback && fallback !== '—' ? fallback : '—'
+}
+
+function shiftLabel(cell?: Pick<DayCell, 'scheduled_start' | 'scheduled_end' | 'scheduled_shift'>) {
+  if (cell?.scheduled_start && cell?.scheduled_end) {
+    const label = formatTimeRange(cell.scheduled_start, cell.scheduled_end)
+    if (label) return label
+  }
+  return cell?.scheduled_shift && cell.scheduled_shift !== '—' ? cell.scheduled_shift : '—'
+}
+
+function overtimeHours(cell?: Pick<DayCell, 'overtime_hours' | 'total_hours' | 'scheduled_hours'>) {
+  if (!cell) return 0
+  if (cell.overtime_hours != null && !Number.isNaN(cell.overtime_hours)) return Math.max(0, cell.overtime_hours)
+  return Math.max(0, (cell.total_hours ?? 0) - (cell.scheduled_hours ?? 0))
+}
+
+function overtimeLabel(cell?: Pick<DayCell, 'overtime_hours' | 'total_hours' | 'scheduled_hours'>) {
+  const value = overtimeHours(cell)
+  return value > 0.01 ? hoursLabel(value) : '—'
+}
+
 function personName(row: AttendanceRow) {
   return fullName(row.first_name, row.last_name)
 }
 
 function WeekCell({ cell }: { cell?: DayCell }) {
   const status = cell?.status ?? 'Day Off'
-  const hasClock = Boolean(cell?.check_in && cell.check_in !== '—')
-  const shift = cell?.scheduled_shift && cell.scheduled_shift !== '—' ? cell.scheduled_shift : null
+  const checkIn = clockLabel(cell?.check_in_at, cell?.check_in)
+  const checkOut = clockLabel(cell?.check_out_at, cell?.check_out)
+  const hasClock = checkIn !== '—'
+  const shift = shiftLabel(cell)
+  const shiftText = shift !== '—' ? shift : null
   const quiet = status === 'Day Off' || status === 'On Leave' || status === 'Absent'
 
   return (
@@ -86,7 +123,7 @@ function WeekCell({ cell }: { cell?: DayCell }) {
       ) : (
         <>
           <p className="font-medium leading-snug">
-            {hasClock ? `${cell?.check_in} – ${cell?.check_out === '—' ? 'now' : cell?.check_out}` : shift}
+            {hasClock ? `${checkIn} – ${checkOut === '—' ? 'now' : checkOut}` : shiftText}
           </p>
           {status === 'Late' || status === 'Working' ? (
             <p className="mt-0.5 text-[10px] font-semibold uppercase tracking-[0.08em]">{status}</p>
@@ -94,6 +131,9 @@ function WeekCell({ cell }: { cell?: DayCell }) {
           <p className="mt-1 font-semibold">
             {hoursLabel(hasClock ? cell?.total_hours : cell?.scheduled_hours)}
           </p>
+          {overtimeHours(cell) > 0.01 ? (
+            <p className="mt-0.5 text-[10px] font-semibold text-navy/70">OT {overtimeLabel(cell)}</p>
+          ) : null}
         </>
       )}
     </div>
@@ -235,7 +275,7 @@ export function AttendancePage() {
           <table className="w-full min-w-[920px] text-left text-sm">
             <thead className="border-b border-[#eceae6] bg-[#f7f6f3] text-xs font-semibold uppercase tracking-[0.08em] text-muted">
               <tr>
-                {['Employee', 'Scheduled Shift', 'Check In', 'Check Out', 'Break', 'Total Hours', 'Status'].map(
+                {['Employee', 'Scheduled Shift', 'Check In', 'Check Out', 'Break', 'Total Hours', 'Overtime', 'Status'].map(
                   (column) => (
                     <th key={column} className="px-4 py-3">
                       {column}
@@ -256,20 +296,23 @@ export function AttendancePage() {
                     </span>
                   </td>
                   <td className="px-4 py-3 whitespace-nowrap text-navy/80">
-                    {row.scheduled_shift}
+                    {shiftLabel(row)}
                     {row.scheduled_hours ? ` · ${hoursLabel(row.scheduled_hours)}` : ''}
                   </td>
                   <td className="px-4 py-3 whitespace-nowrap">
-                    {row.check_in}
+                    {clockLabel(row.check_in_at, row.check_in)}
                     {row.check_in_label !== '—' ? (
                       <span className="ml-1 text-xs text-muted">{row.check_in_label}</span>
                     ) : null}
                   </td>
-                  <td className="px-4 py-3 whitespace-nowrap text-navy/80">{row.check_out}</td>
+                  <td className="px-4 py-3 whitespace-nowrap text-navy/80">
+                    {clockLabel(row.check_out_at, row.check_out)}
+                  </td>
                   <td className="px-4 py-3 whitespace-nowrap text-navy/80">
                     {row.break_minutes ? `${row.break_minutes} min` : '—'}
                   </td>
                   <td className="px-4 py-3 whitespace-nowrap text-navy/80">{hoursLabel(row.total_hours)}</td>
+                  <td className="px-4 py-3 whitespace-nowrap text-navy/80">{overtimeLabel(row)}</td>
                   <td className="px-4 py-3">
                     <span
                       className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold ${STATUS_STYLE[row.status]}`}
@@ -329,6 +372,11 @@ export function AttendancePage() {
                     <span className="text-xs font-medium text-muted">
                       of {hoursLabel(row.weekly_scheduled)}
                     </span>
+                    {row.weekly_overtime && row.weekly_overtime > 0.01 ? (
+                      <span className="mt-1 block text-xs font-medium text-navy/70">
+                        OT {hoursLabel(row.weekly_overtime)}
+                      </span>
+                    ) : null}
                   </td>
                 </tr>
               ))}
