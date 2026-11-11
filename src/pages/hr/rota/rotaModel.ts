@@ -134,6 +134,45 @@ export function isApprovedLeave(leave: LeaveItem): boolean {
   return status === 'APPROVED' || status === 'CALENDAR'
 }
 
+export function isShiftOnLeaveError(message: string) {
+  return /on leave that day/i.test(message)
+}
+
+function formatUkLongDate(key: string) {
+  return parseDateKey(key).toLocaleDateString('en-GB', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  })
+}
+
+function joinDates(dates: string[]) {
+  const unique = [...new Set(dates)].sort()
+  const labels = unique.map(formatUkLongDate)
+  if (labels.length <= 1) return labels[0] ?? ''
+  if (labels.length === 2) return `${labels[0]} and ${labels[1]}`
+  return `${labels.slice(0, -1).join(', ')} and ${labels.at(-1)}`
+}
+
+export function summariseLeaveSkipMessage(
+  skipped: { name: string; date: string }[],
+  assignedOtherDays: boolean,
+) {
+  const byName = new Map<string, string[]>()
+  for (const item of skipped) {
+    const dates = byName.get(item.name) ?? []
+    dates.push(item.date)
+    byName.set(item.name, dates)
+  }
+  const parts = [...byName.entries()].map(([name, dates]) => {
+    const unique = [...new Set(dates)]
+    const dayWord = unique.length === 1 ? 'that day' : 'those days'
+    return `You can't assign a shift on ${joinDates(unique)} because ${name} is on leave ${dayWord}.`
+  })
+  if (assignedOtherDays) parts.push('The shift was assigned for the other days.')
+  return parts.join(' ')
+}
+
 const CALENDAR_LEAVE_LABELS: Record<string, string> = {
   ANNUAL: 'Annual leave',
   UNPAID: 'Unpaid leave',

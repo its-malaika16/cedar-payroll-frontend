@@ -8,8 +8,9 @@ import { fullName } from '../lib/format'
 import sidebarLogo from '../assets/brand/sidebar-logo.png'
 import iconEmployees from '../assets/brand/icon-employees.png'
 import iconPayroll from '../assets/brand/icon-payroll.png'
-import iconForms from '../assets/brand/icon-forms.png'
-import iconActivityDoc from '../assets/brand/icon-activity-doc.png'
+import iconHr from '../assets/brand/icon-hr.svg'
+import iconInvoice from '../assets/brand/icon-invoice.svg'
+import iconInvoiceRequest from '../assets/brand/icon-invoice-request.svg'
 import iconRota from '../assets/brand/icon-rota.png'
 import iconTimesheets from '../assets/brand/icon-timesheets.png'
 import iconOrg from '../assets/brand/icon-org.png'
@@ -60,21 +61,21 @@ const adminNav: NavItem[] = [
   {
     to: '/hr',
     label: 'HR',
-    icon: iconForms,
+    icon: iconHr,
     isActive: (pathname) =>
       pathname.startsWith('/hr') && !pathname.startsWith('/hr/shifts'),
   },
-  { to: '/payroll/invoices', label: 'Invoices', icon: iconActivityDoc },
+  { to: '/payroll/invoices', label: 'Invoices', icon: iconInvoice },
   {
     to: '/company-invoices',
     label: 'Invoices',
-    icon: iconActivityDoc,
+    icon: iconInvoice,
     isActive: (pathname) => pathname.startsWith('/company-invoices'),
   },
   {
     to: '/requested-invoices',
     label: 'Requested Invoices',
-    icon: iconActivityDoc,
+    icon: iconInvoiceRequest,
     isActive: (pathname) => pathname.startsWith('/requested-invoices'),
   },
   {

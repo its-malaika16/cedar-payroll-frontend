@@ -74,6 +74,18 @@ export function endingDate(date: Date) {
   return date.toLocaleDateString('en-GB')
 }
 
+export function endingLongDate(date: Date) {
+  return date.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })
+}
+
+export function periodBlockHeading(noun: string, number: number, end: Date) {
+  return `${noun} ${number} (Ending ${endingLongDate(end)})`
+}
+
+export function periodRangeSummaryHeading(noun: string, from: number, to: number) {
+  return `${noun} ${from} to ${to} (Summary)`
+}
+
 /** Month 1 = April of the tax year, ending on the last calendar day of that month. */
 export function taxYearMonthEnd(taxYear: number, month: number) {
   const monthIndex = 3 + (month - 1)
@@ -96,10 +108,20 @@ export function yearFromSequenceNumber(sequence: number, current = taxYearStartF
   return current - (sequence - 1)
 }
 
-export function rangeNoun(grain: PeriodGrain, taxPeriod: boolean) {
-  if (grain === 'year') return taxPeriod ? 'Tax Year' : 'Year'
+export function rangeNoun(grain: PeriodGrain, taxPeriod: boolean, frequency?: string | null) {
+  if (taxPeriod) {
+    if (grain === 'year') return 'Tax Year'
+    if (grain === 'months') return 'Month'
+    return 'Tax Week'
+  }
+  if (frequency) {
+    const unit = FREQUENCY_META[asPayFrequency(frequency)].unit
+    if (unit === '4-week') return '4-Week Period'
+    return unit.charAt(0).toUpperCase() + unit.slice(1)
+  }
+  if (grain === 'year') return 'Year'
   if (grain === 'months') return 'Month'
-  return taxPeriod ? 'Tax Week' : 'Week'
+  return 'Week'
 }
 
 export function periodSelectLabel(prefix: 'From' | 'To', noun: string, number: number, end: Date) {
@@ -172,13 +194,16 @@ export function selectedPeriodChoices(
 ): { noun: string; choices: PeriodChoice[]; grain: PeriodGrain } {
   const grain = periodGrain(draft, schedules)
   const taxPeriod = draft.periodMode.startsWith('tax-')
-  const noun = rangeNoun(grain, taxPeriod)
   if (taxPeriod) {
-    return { noun, choices: taxPeriodChoices(grain, draft.taxYear), grain }
+    return { noun: rangeNoun(grain, true), choices: taxPeriodChoices(grain, draft.taxYear), grain }
   }
   const scheduleId = draft.scheduleId || scheduleIdFromMode(draft.periodMode)
   const schedule = schedules.find((item) => idOf(item) === scheduleId)
-  return { noun, choices: schedulePeriodChoices(schedule), grain }
+  return {
+    noun: rangeNoun(grain, false, schedule?.pay_frequency),
+    choices: schedulePeriodChoices(schedule),
+    grain,
+  }
 }
 
 export function selectedRangeValue(draft: AnalysisReportDraft, grain: PeriodGrain, which: 'from' | 'to') {
@@ -218,33 +243,31 @@ export function periodHint(draft: AnalysisReportDraft, grain: PeriodGrain) {
   return `Week ${draft.toWeek} ends ${endingDate(taxWeekEndDate(year, draft.toWeek))}`
 }
 
-export function reportPeriodHeading(draft: AnalysisReportDraft, grain: PeriodGrain) {
+export function reportPeriodHeading(
+  draft: AnalysisReportDraft,
+  grain: PeriodGrain,
+  frequency?: string | null,
+) {
   const taxPeriod = draft.periodMode.startsWith('tax-')
-  const noun = rangeNoun(grain, taxPeriod)
+  const noun = rangeNoun(grain, taxPeriod, frequency)
   if (grain === 'year') {
     const from = Math.min(draft.fromYear ?? draft.taxYear, draft.taxYear)
     const to = Math.max(draft.fromYear ?? draft.taxYear, draft.taxYear)
-    if (taxPeriod) {
-      if (from === to) {
-        return periodSelectLabel('From', noun, taxYearSequenceNumber(to), taxYearEndDate(to)).replace(/^From /, '')
-      }
-      return `${noun} ${taxYearSequenceNumber(from)} to ${taxYearSequenceNumber(to)}`
-    }
-    if (from === to) return `${noun} ${to}`
-    return `${noun}s ${from} to ${to}`
+    const fromNumber = taxPeriod ? taxYearSequenceNumber(from) : from
+    const toNumber = taxPeriod ? taxYearSequenceNumber(to) : to
+    if (from === to) return periodBlockHeading(noun, toNumber, taxYearEndDate(to))
+    return periodRangeSummaryHeading(noun, fromNumber, toNumber)
   }
   if (grain === 'months') {
     const from = Math.min(draft.fromMonth ?? 1, draft.toMonth ?? 1)
     const to = Math.max(draft.fromMonth ?? 1, draft.toMonth ?? 1)
-    const end = taxYearMonthEnd(draft.taxYear, to)
-    if (from === to) return periodSelectLabel('From', noun, to, end).replace(/^From /, '')
-    return `${noun}s ${from} to ${to}`
+    if (from === to) return periodBlockHeading(noun, to, taxYearMonthEnd(draft.taxYear, to))
+    return periodRangeSummaryHeading(noun, from, to)
   }
   const from = Math.min(draft.fromWeek, draft.toWeek)
   const to = Math.max(draft.fromWeek, draft.toWeek)
-  const end = taxWeekEndDate(draft.taxYear, to)
-  if (from === to) return periodSelectLabel('From', noun, to, end).replace(/^From /, '')
-  return `${noun} ${from}–${to}`
+  if (from === to) return periodBlockHeading(noun, to, taxWeekEndDate(draft.taxYear, to))
+  return periodRangeSummaryHeading(noun, from, to)
 }
 
 export function currentTaxMonth(date = new Date()) {

@@ -281,6 +281,8 @@ export function EmployeeCalendarPage() {
     await queryClient.invalidateQueries({
       queryKey: ['employee-calendar-impact', companyId, employeeId],
     })
+    await queryClient.invalidateQueries({ queryKey: ['leave', companyId] })
+    await queryClient.invalidateQueries({ queryKey: ['leave-upcoming', companyId] })
   }
 
   async function assign(dayType: string, label?: string) {
@@ -506,7 +508,6 @@ export function EmployeeCalendarPage() {
             {DAY_TYPES.map((item) => {
               const active = selected.every((key) => daysByDate.get(key)?.day_type === item.value)
               const unit = Number(impact?.units?.[item.value] ?? 0)
-              const preview = unit * selected.length
               const effect = impact?.effects?.[item.value]
               return (
               <button
@@ -523,8 +524,7 @@ export function EmployeeCalendarPage() {
                 <span className="text-left">
                   <span className="block leading-tight">{item.short}</span>
                   <span className="block text-[10px] font-semibold text-[#607080]">
-                    {effect?.kind === 'deduct' ? '−' : ''}
-                    {money(preview)}
+                    {money(effect?.kind === 'deduct' ? 0 : unit)}
                     {effect?.kind === 'ssp' ? ' SSP' : ''}
                     {effect?.kind === 'smp' ? ' SMP' : ''}
                     {effect?.kind === 'spp' ? ' SPP' : ''}
@@ -573,15 +573,19 @@ export function EmployeeCalendarPage() {
                   </>
                 ) : (
                   <>
-                    Daily rate {money(impact.daily_rate)}. Average weekly earnings{' '}
-                    {money(impact.awe ?? 0)} ({impact.tax_year ?? '2026/27'} HMRC rates). Sick leave
-                    pays the lower of 80% of AWE or {money(impact.ssp_weekly)} a week (
-                    {money(impact.ssp_daily)} a qualifying day, no waiting days). Maternity pay is
-                    90% of AWE for 6 weeks, then the lower of {money(impact.smp_weekly_standard ?? 0)}{' '}
-                    and 90% of AWE for up to 33 more weeks. Paternity pay is the lower of{' '}
-                    {money(impact.spp_weekly ?? 0)} and 90% of AWE for up to 2 weeks. Statutory leave
-                    replaces contractual pay on qualifying days and is added on the payroll record
-                    and payslip.
+                    Daily rate {money(impact.daily_rate)} (a week’s pay divided by{' '}
+                    {impact.qualifying_days_per_week ?? 5} usual working days). Average weekly
+                    earnings {money(impact.awe ?? 0)} ({impact.tax_year ?? '2026/27'} HMRC rates).
+                    Sick leave pays the lower of 80% of AWE and {money(impact.ssp_flat_weekly ?? 123.25)}{' '}
+                    a week from the first qualifying day ({money(impact.ssp_weekly)} this week,{' '}
+                    {money(impact.ssp_daily)} a qualifying day). Maternity pay is 90% of AWE for 6
+                    weeks ({money(impact.smp_daily_higher ?? impact.smp_daily ?? 0)} a qualifying
+                    day), then the lower of {money(impact.smp_weekly_standard ?? 0)} and 90% of AWE
+                    ({money(impact.smp_daily ?? 0)} a qualifying day) for up to 33 more weeks.
+                    Paternity pay is the lower of {money(impact.spp_weekly ?? 0)} and 90% of AWE for
+                    up to 2 weeks ({money(impact.spp_daily ?? 0)} a qualifying day). Unpaid leave,
+                    absence and strike days are unpaid. Statutory leave replaces contractual pay on
+                    qualifying days and is added on the payroll record and payslip.
                   </>
                 )}
               </p>

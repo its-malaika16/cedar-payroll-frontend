@@ -581,7 +581,10 @@ export type CalendarPayImpact = {
   tax_year?: string
   ssp_daily: number
   ssp_weekly: number
+  ssp_flat_weekly?: number
+  qualifying_days_per_week?: number
   smp_daily?: number
+  smp_daily_higher?: number
   smp_weekly_higher?: number
   smp_weekly_standard?: number
   spp_daily?: number

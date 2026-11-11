@@ -7,7 +7,12 @@ import { useAuth } from '../../auth/AuthContext'
 import { Alert, Button, Card, Loading } from '../../components/ui'
 import { fullName, idOf } from '../../lib/format'
 import { taxWeekEndDate, weeksInTaxYear } from '../../lib/hmrcTaxCalendar'
-import type { Employee, PayrollRecord, PayrollRun, PayrollSchedule } from '../../types'
+import type { PayrollRun, PayrollSchedule } from '../../types'
+import {
+  employeesFromFinalisedRuns,
+  finalisedPeriodChoices,
+  finalisedRunsInRange,
+} from './finalisedPayroll'
 import {
   EMPLOYEE_PERIOD_DEFAULT,
   PERIOD_MODES,
@@ -37,40 +42,6 @@ import { isHmrcKind, specFor } from './reportSpecs'
 
 const box =
   'w-full rounded-[10px] border border-[#d9d9d9] bg-white px-3 py-2.5 text-sm text-navy outline-none'
-
-function isLockedPayroll(status?: string | null) {
-  const value = (status ?? '').toUpperCase()
-  return value === 'LOCKED' || value === 'COMPLETED'
-}
-
-function latestLockedRun(runs: PayrollRun[], scheduleId?: string) {
-  const locked = runs.filter((run) => isLockedPayroll(run.status))
-  const scoped = scheduleId ? locked.filter((run) => String(run.schedule_id) === scheduleId) : locked
-  return scoped[0]
-}
-
-function employeesFromRun(run: PayrollRun | undefined, companyId: string): Employee[] {
-  const records = (run?.payroll_records ?? []) as PayrollRecord[]
-  const seen = new Set<string>()
-  const people: Employee[] = []
-  for (const record of records) {
-    const nested = record.employees
-    const id = nested ? idOf(nested) : String(record.employee_id ?? '')
-    if (!id || seen.has(id)) continue
-    seen.add(id)
-    people.push(
-      nested ?? {
-        id,
-        company_id: companyId,
-        first_name: null,
-        last_name: null,
-      },
-    )
-  }
-  return people.sort((a, b) =>
-    fullName(a.first_name, a.last_name).localeCompare(fullName(b.first_name, b.last_name), 'en-GB'),
-  )
-}
 
 function StepCard({
   step,
@@ -125,27 +96,50 @@ export function ReportBuilderPage({ kind }: { kind: AnalysisBuilderKind }) {
     (schedule) => schedule.is_active !== false,
   )
   const employeeGrain = periodGrain(draft, payrollSchedules)
-  const periodPicker = useMemo(
-    () => selectedPeriodChoices(draft, payrollSchedules),
-    [draft.periodMode, draft.scheduleId, draft.taxYear, payrollSchedules],
-  )
-  const fromPeriodValue = clampedRangeValue(draft, periodPicker.choices, periodPicker.grain, 'from')
-  const toPeriodValue = clampedRangeValue(draft, periodPicker.choices, periodPicker.grain, 'to')
+  const allRuns = (runsQuery.data?.data ?? []) as PayrollRun[]
   const selectedScheduleId = isSchedulePeriodMode(draft.periodMode)
     ? draft.scheduleId || scheduleIdFromMode(draft.periodMode)
     : ''
-  const lockedRun = useMemo(
-    () => latestLockedRun((runsQuery.data?.data ?? []) as PayrollRun[], selectedScheduleId || undefined),
-    [runsQuery.data, selectedScheduleId],
-  )
-  const lockedRunQuery = useQuery({
-    queryKey: ['payroll-run', companyId, lockedRun ? idOf(lockedRun) : ''],
-    queryFn: () => payrollApi.getRun(companyId!, idOf(lockedRun!)),
-    enabled: Boolean(companyId) && !hmrcLayout && Boolean(lockedRun),
+  const periodPicker = useMemo(() => {
+    const picker = selectedPeriodChoices(draft, payrollSchedules)
+    return {
+      ...picker,
+      choices: hmrcLayout
+        ? picker.choices
+        : finalisedPeriodChoices(picker.choices, allRuns, draft, picker.grain, selectedScheduleId),
+    }
+  }, [
+    allRuns,
+    draft.periodMode,
+    draft.scheduleId,
+    draft.taxYear,
+    hmrcLayout,
+    payrollSchedules,
+    selectedScheduleId,
+  ])
+  const fromPeriodValue = clampedRangeValue(draft, periodPicker.choices, periodPicker.grain, 'from')
+  const toPeriodValue = clampedRangeValue(draft, periodPicker.choices, periodPicker.grain, 'to')
+  const selectedRunsQuery = useQuery({
+    queryKey: [
+      'report-finalised-runs',
+      companyId,
+      selectedScheduleId,
+      draft.periodMode,
+      draft.taxYear,
+      fromPeriodValue,
+      toPeriodValue,
+      periodPicker.grain,
+    ],
+    queryFn: async () => {
+      const matching = finalisedRunsInRange(allRuns, draft, periodPicker.grain, selectedScheduleId)
+      const details = await Promise.all(matching.map((run) => payrollApi.getRun(companyId!, idOf(run))))
+      return details.map((item) => item.data as PayrollRun)
+    },
+    enabled: Boolean(companyId) && !hmrcLayout && Boolean(runsQuery.data),
   })
   const people = useMemo(
-    () => employeesFromRun(lockedRunQuery.data?.data as PayrollRun | undefined, companyId ?? ''),
-    [lockedRunQuery.data, companyId],
+    () => employeesFromFinalisedRuns(selectedRunsQuery.data ?? [], companyId ?? ''),
+    [selectedRunsQuery.data, companyId],
   )
   const hmrcPeriods = useMemo(
     () => generateHmrcPeriods(hmrcYears(draft.taxYear, draft.periodMode), draft.schedule ?? 'tax-months'),
@@ -325,8 +319,12 @@ export function ReportBuilderPage({ kind }: { kind: AnalysisBuilderKind }) {
       setError('Select at least one HMRC payment period.')
       return
     }
+    if (!hmrcLayout && periodPicker.choices.length === 0) {
+      setError('Finalise a payroll run before generating this report.')
+      return
+    }
     if (!hmrcLayout && draft.selectedEmployeeIds.length === 0) {
-      setError('Select at least one employee.')
+      setError('Select at least one employee from the finalised payroll for this period.')
       return
     }
     if (draft.selectedFieldIds.length === 0) {
@@ -461,7 +459,11 @@ export function ReportBuilderPage({ kind }: { kind: AnalysisBuilderKind }) {
                   </div>
                 </>
               ) : periodPicker.choices.length === 0 ? (
-                <p className="text-sm text-muted">No completed periods are available for this schedule yet.</p>
+                <p className="text-sm text-muted">
+                  {runsQuery.isLoading
+                    ? 'Loading finalised payroll periods…'
+                    : 'No finalised payroll is available for this schedule yet. Finalise a pay run to report on it.'}
+                </p>
               ) : (
                 <div className="grid gap-3">
                   <select
@@ -539,11 +541,11 @@ export function ReportBuilderPage({ kind }: { kind: AnalysisBuilderKind }) {
           </StepCard>
         ) : (
           <StepCard step={2} title="Preview Employees">
-          {runsQuery.isLoading || lockedRunQuery.isLoading ? (
+          {runsQuery.isLoading || selectedRunsQuery.isLoading ? (
             <Loading />
           ) : people.length === 0 ? (
             <p className="text-sm text-muted">
-              No employees from a locked payroll yet. Lock a payroll run to preview them here.
+              No employees on a finalised payroll for the selected period.
             </p>
           ) : (
             <div className="flex h-[240px] flex-col overflow-hidden rounded-[10px] border border-[#eceae6]">

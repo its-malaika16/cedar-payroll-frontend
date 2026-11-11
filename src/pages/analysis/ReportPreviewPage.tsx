@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { Fragment, useMemo, useState } from 'react'
 import { Link, Navigate, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { ArrowLeft } from 'lucide-react'
@@ -6,14 +6,28 @@ import { employeesApi, payrollApi } from '../../api'
 import { useAuth } from '../../auth/AuthContext'
 import { Alert, Button, Card, Loading } from '../../components/ui'
 import { idOf, money } from '../../lib/format'
-import { taxMonthFromDate, taxWeekEndDate } from '../../lib/hmrcTaxCalendar'
 import type { Employee, PayrollRecord, PayrollRun, PayrollSchedule, PensionAssessment } from '../../types'
 import { EMPLOYEE_PERIOD_DEFAULT, readReportDraft, writeReportDraft } from './employeeDetailsState'
 import { employeeFieldValue } from './employeeDetailsValues'
 import { HmrcPreviewPage } from './HmrcPreviewPage'
 import { mergePayrollRecords, payrollSummaryFieldValue } from './payrollSummaryValues'
 import { pensionReportFieldValue } from './pensionsValues'
-import { isSchedulePeriodMode, periodGrain, reportPeriodHeading, scheduleIdFromMode, selectedRangeValue } from './periodSelection'
+import {
+  employeesFromFinalisedRuns,
+  finalisedRunsInRange,
+  isFinalisedPayrollRecord,
+  runPeriodEnd,
+  runPeriodNumber,
+} from './finalisedPayroll'
+import {
+  isSchedulePeriodMode,
+  periodBlockHeading,
+  periodGrain,
+  periodRangeSummaryHeading,
+  rangeNoun,
+  reportPeriodHeading,
+  scheduleIdFromMode,
+} from './periodSelection'
 import { recordPreviousReport, updatePreviousReport } from './previousReports'
 import { isHmrcKind, specFor, usesPayrollRecords, type AnalysisBuilderKind } from './reportSpecs'
 import { downloadCsv, downloadReportPdf, ReportExportMenu, reportFileSlug } from './reportExport'
@@ -93,6 +107,7 @@ function EmployeeReportPreviewPage({ kind }: { kind: AnalysisBuilderKind }) {
       companyId,
       grain,
       selectedScheduleId,
+      draft.periodMode,
       draft.taxYear,
       draft.fromYear,
       draft.fromWeek,
@@ -101,41 +116,15 @@ function EmployeeReportPreviewPage({ kind }: { kind: AnalysisBuilderKind }) {
       draft.toMonth,
     ],
     queryFn: async () => {
-      const runs = (runsQuery.data?.data ?? []) as PayrollRun[]
-      const matching = runs.filter((run) => {
-        if (isSchedulePeriodMode(draft.periodMode)) {
-          if (selectedScheduleId && String(run.schedule_id) !== selectedScheduleId) return false
-          const period = Number(run.period_number)
-          const from = selectedRangeValue(draft, grain, 'from')
-          const to = selectedRangeValue(draft, grain, 'to')
-          const lo = Math.min(Number(from), Number(to))
-          const hi = Math.max(Number(from), Number(to))
-          if (kind === 'ytd-summary') return period >= 1 && period <= hi
-          return period >= lo && period <= hi
-        }
-        const year = Number(run.tax_year_start)
-        if (grain === 'year') {
-          const from = Math.min(draft.fromYear ?? draft.taxYear, draft.taxYear)
-          const to = Math.max(draft.fromYear ?? draft.taxYear, draft.taxYear)
-          return year >= from && year <= to
-        }
-        if (year !== draft.taxYear) return false
-        if (grain === 'months') {
-          const month = Number(
-            run.tax_month ?? taxMonthFromDate(taxWeekEndDate(year, Number(run.tax_week ?? 1))),
-          )
-          const lo = Math.min(draft.fromMonth ?? 1, draft.toMonth ?? 1)
-          const hi = Math.max(draft.fromMonth ?? 1, draft.toMonth ?? 1)
-          return month >= lo && month <= hi
-        }
-        const week = Number(run.tax_week ?? 0)
-        const hi = Math.max(draft.fromWeek, draft.toWeek)
-        if (kind === 'ytd-summary') return week >= 1 && week <= hi
-        const lo = Math.min(draft.fromWeek, draft.toWeek)
-        return week >= lo && week <= hi
-      })
+      const matching = finalisedRunsInRange(
+        (runsQuery.data?.data ?? []) as PayrollRun[],
+        draft,
+        grain,
+        selectedScheduleId,
+        kind,
+      )
       const details = await Promise.all(matching.map((run) => payrollApi.getRun(companyId!, idOf(run))))
-      return details.flatMap((item) => (item.data as PayrollRun).payroll_records ?? [])
+      return details.map((item) => item.data as PayrollRun)
     },
     enabled: Boolean(companyId) && payrollEnabled && Boolean(runsQuery.data),
   })
@@ -164,8 +153,31 @@ function EmployeeReportPreviewPage({ kind }: { kind: AnalysisBuilderKind }) {
         .filter(Boolean) as { id: string; label: string }[],
     [draft.selectedFieldIds, spec],
   )
-  const employees = detailsQuery.data ?? []
-  const records = (recordsQuery.data ?? []) as PayrollRecord[]
+  const payrollRuns = ((recordsQuery.data ?? []) as PayrollRun[]).slice().sort((left, right) => {
+    const year = Number(left.tax_year_start) - Number(right.tax_year_start)
+    if (year !== 0) return year
+    return Number(left.period_number) - Number(right.period_number)
+  })
+  const records = payrollRuns.flatMap((run) =>
+    (run.payroll_records ?? []).filter(isFinalisedPayrollRecord),
+  )
+  const selectedIds = new Set(draft.selectedEmployeeIds)
+  const payrollPeople = employeesFromFinalisedRuns(payrollRuns, companyId ?? '')
+  const employees = (detailsQuery.data ?? []).filter((employee) => selectedIds.has(idOf(employee)))
+  const reportEmployees =
+    payrollEnabled && payrollPeople.length > 0
+      ? employees.filter((employee) => payrollPeople.some((person) => idOf(person) === idOf(employee)))
+      : employees
+  const taxPeriod = draft.periodMode.startsWith('tax-')
+  const periodNoun = rangeNoun(grain, taxPeriod, payrollRuns[0]?.pay_frequency)
+  const periodBlocks = payrollRuns.map((run) => ({
+    number: runPeriodNumber(run, grain, taxPeriod),
+    end: runPeriodEnd(run),
+    records: (run.payroll_records ?? []).filter(
+      (record) => isFinalisedPayrollRecord(record) && selectedIds.has(String(record.employee_id)),
+    ),
+  }))
+  const grouped = payrollEnabled && kind !== 'ytd-summary' && periodBlocks.length > 1
   const stickyId = columns.some((column) => column.id === 'name') ? 'name' : columns[0]?.id
 
   if (!spec) return <Navigate to="/payroll/reports" replace />
@@ -174,10 +186,20 @@ function EmployeeReportPreviewPage({ kind }: { kind: AnalysisBuilderKind }) {
     return <Navigate to={isCompanyAdmin ? '/payroll/reports' : `/payroll/reports/${kind}`} replace />
   }
 
-  const periodLabel = reportPeriodHeading(draft, grain)
+  const periodLabel =
+    grouped && periodBlocks.length > 1
+      ? periodRangeSummaryHeading(periodNoun, periodBlocks[0].number, periodBlocks[periodBlocks.length - 1].number)
+      : periodBlocks.length === 1
+        ? periodBlockHeading(periodNoun, periodBlocks[0].number, periodBlocks[0].end)
+        : reportPeriodHeading(draft, grain, payrollRuns[0]?.pay_frequency)
 
-  function cellValue(employee: Employee, fieldId: string) {
-    const forEmployee = records.filter((record) => String(record.employee_id) === idOf(employee))
+  function employeesForRecords(source: PayrollRecord[]) {
+    const ids = new Set(source.map((record) => String(record.employee_id)))
+    return reportEmployees.filter((employee) => ids.has(idOf(employee)))
+  }
+
+  function cellValue(employee: Employee, fieldId: string, sourceRecords = records) {
+    const forEmployee = sourceRecords.filter((record) => String(record.employee_id) === idOf(employee))
     const merged = mergePayrollRecords(forEmployee)
     if (kind === 'payroll-summary' || kind === 'notes' || kind === 'additions' || kind === 'deductions') {
       if (fieldId.startsWith('ad_') || fieldId.startsWith('tot_') || fieldId.startsWith('oth_') || fieldId.startsWith('earn_') || fieldId.startsWith('ea_') || fieldId.startsWith('ed_') || fieldId.startsWith('stat_') || fieldId.startsWith('ben_')) {
@@ -199,12 +221,12 @@ function EmployeeReportPreviewPage({ kind }: { kind: AnalysisBuilderKind }) {
     return employeeFieldValue(employee, fieldId)
   }
 
-  function columnTotal(fieldId: string) {
+  function columnTotal(fieldId: string, people = reportEmployees, sourceRecords = records) {
     let sum = 0
     let countable = false
     let asMoney = false
-    for (const employee of employees) {
-      const value = cellValue(employee, fieldId)
+    for (const employee of people) {
+      const value = cellValue(employee, fieldId, sourceRecords)
       const amount = parseAmount(value)
       if (amount == null) continue
       countable = true
@@ -239,27 +261,65 @@ function EmployeeReportPreviewPage({ kind }: { kind: AnalysisBuilderKind }) {
     }
   }
 
-  function exportRows() {
-    const header = columns.map((column) => column.label)
-    const lines = employees.map((employee) => columns.map((column) => cellValue(employee, column.id)))
+  function tableRows(people: Employee[], sourceRecords: PayrollRecord[]) {
+    const lines = people.map((employee) =>
+      columns.map((column) => cellValue(employee, column.id, sourceRecords)),
+    )
     if (spec?.showTotalsRow) {
-      lines.push(columns.map((column, index) => (index === 0 ? 'Total' : columnTotal(column.id))))
+      lines.push(
+        columns.map((column, index) =>
+          index === 0 ? 'TOTAL' : columnTotal(column.id, people, sourceRecords),
+        ),
+      )
     }
-    return { header, lines }
+    return lines
+  }
+
+  function exportSections() {
+    const header = columns.map((column) => column.label)
+    if (!grouped) {
+      return [{ heading: periodLabel, headers: header, rows: tableRows(reportEmployees, records) }]
+    }
+    const sections = periodBlocks
+      .filter((block) => block.records.length > 0)
+      .map((block) => {
+        const people = employeesForRecords(block.records)
+        return {
+          heading: periodBlockHeading(periodNoun, block.number, block.end),
+          headers: header,
+          rows: tableRows(people, block.records),
+        }
+      })
+    sections.push({
+      heading: periodRangeSummaryHeading(
+        periodNoun,
+        periodBlocks[0].number,
+        periodBlocks[periodBlocks.length - 1].number,
+      ),
+      headers: header,
+      rows: tableRows(reportEmployees, records),
+    })
+    return sections
   }
 
   function exportCsv() {
-    const { header, lines } = exportRows()
-    downloadCsv(reportFileSlug(draft.reportName), [header, ...lines])
+    const sections = exportSections()
+    const lines: string[][] = []
+    for (const section of sections) {
+      if (lines.length) lines.push([])
+      if (section.heading) lines.push([section.heading])
+      lines.push(section.headers)
+      lines.push(...section.rows)
+    }
+    downloadCsv(reportFileSlug(draft.reportName), lines)
   }
 
   function exportPdf() {
-    const { header, lines } = exportRows()
     downloadReportPdf({
       filename: reportFileSlug(draft.reportName),
       title: draft.reportName || spec?.title || 'Report',
-      subtitle: periodLabel,
-      sections: [{ headers: header, rows: lines }],
+      subtitle: grouped ? undefined : periodLabel,
+      sections: exportSections(),
     })
   }
 
@@ -310,7 +370,7 @@ function EmployeeReportPreviewPage({ kind }: { kind: AnalysisBuilderKind }) {
               </Button>
             </>
           )}
-          <ReportExportMenu onCsv={exportCsv} onPdf={exportPdf} disabled={loading || employees.length === 0} />
+          <ReportExportMenu onCsv={exportCsv} onPdf={exportPdf} disabled={loading || reportEmployees.length === 0} />
           {isCompanyAdmin ? null : <Button onClick={() => void persist(true)}>Publish Report</Button>}
         </div>
       </div>
@@ -321,7 +381,9 @@ function EmployeeReportPreviewPage({ kind }: { kind: AnalysisBuilderKind }) {
       ) : null}
 
       <Card className="flex min-h-0 flex-1 flex-col overflow-hidden">
-        <div className="border-b border-[#eceae6] px-5 py-3 text-sm font-semibold text-navy">{periodLabel}</div>
+        {grouped ? null : (
+          <div className="border-b border-[#eceae6] px-5 py-3 text-sm font-semibold text-navy">{periodLabel}</div>
+        )}
         {loading ? (
           <Loading />
         ) : (
@@ -342,20 +404,96 @@ function EmployeeReportPreviewPage({ kind }: { kind: AnalysisBuilderKind }) {
                 </tr>
               </thead>
               <tbody>
-                {employees.map((employee) => (
-                  <tr key={idOf(employee)} className="border-b border-[#f3f1ec]">
-                    {columns.map((column) => (
-                      <td
-                        key={column.id}
-                        className={`min-w-[140px] bg-white px-4 py-3 text-navy ${
-                          column.id === stickyId ? 'sticky left-0 z-10 shadow-[2px_0_0_#eceae6]' : ''
-                        }`}
-                      >
-                        {cellValue(employee, column.id)}
-                      </td>
+                {grouped
+                  ? periodBlocks
+                      .filter((block) => block.records.length > 0)
+                      .map((block) => {
+                        const people = employeesForRecords(block.records)
+                        return (
+                          <Fragment key={`${block.number}-${block.end.toISOString()}`}>
+                            <tr className="border-b border-[#eceae6]">
+                              <td
+                                colSpan={columns.length}
+                                className="sticky left-0 bg-[#eef3f8] px-4 py-2.5 font-semibold text-navy"
+                              >
+                                {periodBlockHeading(periodNoun, block.number, block.end)}
+                              </td>
+                            </tr>
+                            {people.map((employee) => (
+                              <tr key={`${block.number}-${idOf(employee)}`} className="border-b border-[#f3f1ec]">
+                                {columns.map((column) => (
+                                  <td
+                                    key={column.id}
+                                    className={`min-w-[140px] bg-white px-4 py-3 text-navy ${
+                                      column.id === stickyId ? 'sticky left-0 z-10 shadow-[2px_0_0_#eceae6]' : ''
+                                    }`}
+                                  >
+                                    {cellValue(employee, column.id, block.records)}
+                                  </td>
+                                ))}
+                              </tr>
+                            ))}
+                            {spec?.showTotalsRow ? (
+                              <tr className="border-b-2 border-[#d9d9d9] bg-[#f8f7f4] font-semibold">
+                                {columns.map((column, index) => (
+                                  <td
+                                    key={column.id}
+                                    className={`min-w-[140px] bg-[#f8f7f4] px-4 py-3 text-navy ${
+                                      column.id === stickyId ? 'sticky left-0 z-10 shadow-[2px_0_0_#eceae6]' : ''
+                                    }`}
+                                  >
+                                    {index === 0 ? 'TOTAL' : columnTotal(column.id, people, block.records)}
+                                  </td>
+                                ))}
+                              </tr>
+                            ) : null}
+                          </Fragment>
+                        )
+                      })
+                  : reportEmployees.map((employee) => (
+                      <tr key={idOf(employee)} className="border-b border-[#f3f1ec]">
+                        {columns.map((column) => (
+                          <td
+                            key={column.id}
+                            className={`min-w-[140px] bg-white px-4 py-3 text-navy ${
+                              column.id === stickyId ? 'sticky left-0 z-10 shadow-[2px_0_0_#eceae6]' : ''
+                            }`}
+                          >
+                            {cellValue(employee, column.id)}
+                          </td>
+                        ))}
+                      </tr>
                     ))}
-                  </tr>
-                ))}
+                {grouped ? (
+                  <>
+                    <tr className="border-b border-[#eceae6]">
+                      <td
+                        colSpan={columns.length}
+                        className="sticky left-0 bg-[#eef3f8] px-4 py-2.5 font-semibold text-navy"
+                      >
+                        {periodRangeSummaryHeading(
+                          periodNoun,
+                          periodBlocks[0].number,
+                          periodBlocks[periodBlocks.length - 1].number,
+                        )}
+                      </td>
+                    </tr>
+                    {reportEmployees.map((employee) => (
+                      <tr key={`summary-${idOf(employee)}`} className="border-b border-[#f3f1ec]">
+                        {columns.map((column) => (
+                          <td
+                            key={column.id}
+                            className={`min-w-[140px] bg-white px-4 py-3 text-navy ${
+                              column.id === stickyId ? 'sticky left-0 z-10 shadow-[2px_0_0_#eceae6]' : ''
+                            }`}
+                          >
+                            {cellValue(employee, column.id)}
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                  </>
+                ) : null}
               </tbody>
               {spec?.showTotalsRow ? (
                 <tfoot className="sticky bottom-0 z-20">
@@ -367,7 +505,7 @@ function EmployeeReportPreviewPage({ kind }: { kind: AnalysisBuilderKind }) {
                           column.id === stickyId ? 'sticky left-0 z-30 shadow-[2px_0_0_#eceae6]' : ''
                         }`}
                       >
-                        {index === 0 ? 'Total' : columnTotal(column.id)}
+                        {index === 0 ? 'TOTAL' : columnTotal(column.id)}
                       </td>
                     ))}
                   </tr>

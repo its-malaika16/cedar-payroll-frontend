@@ -4,7 +4,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { ChevronLeft, ChevronRight, Plus, Search, Trash2, User } from 'lucide-react'
 import { employeesApi, hrApi } from '../../api'
 import { useAuth } from '../../auth/AuthContext'
-import { Alert, Button, Card, Loading } from '../../components/ui'
+import { Alert, Button, Card, ConfirmDialog, Loading } from '../../components/ui'
 import { fullName, idOf } from '../../lib/format'
 import type { Employee, LeavePayQuote } from '../../types'
 import { isWorkingDay, workingDaysFromEmployee } from '../../lib/workingDays'
@@ -23,6 +23,7 @@ type LeaveItem = {
   is_paid?: boolean
   days?: number
   employees?: { first_name?: string | null; last_name?: string | null }
+  parts?: LeaveItem[]
 }
 
 function hoursLabel(value?: number) {
@@ -39,6 +40,79 @@ function coversDate(item: LeaveItem, key: string) {
 function fromKey(key: string) {
   const [year, month, day] = key.split('-').map(Number)
   return new Date(year, (month || 1) - 1, day || 1)
+}
+
+function leaveDay(value?: string) {
+  return String(value ?? '').slice(0, 10)
+}
+
+function leaveGroupKey(type?: string) {
+  const value = String(type ?? '').trim().toLowerCase()
+  if (value.includes('maternity') || value.includes('smp')) return 'maternity'
+  if (value.includes('paternity') || value.includes('spp')) return 'paternity'
+  if (value.includes('sick') || value.includes('ssp')) return 'sick'
+  if (value.includes('annual') || value.includes('holiday')) return 'annual'
+  if (value.includes('parental') || value.includes('parenting')) return 'parental'
+  return value
+}
+
+function hasWeekdayGap(from: string, to: string) {
+  if (!from || !to || to <= from) return false
+  const cursor = fromKey(from)
+  cursor.setDate(cursor.getDate() + 1)
+  const until = fromKey(to)
+  while (cursor.getTime() < until.getTime()) {
+    const weekday = cursor.getDay()
+    if (weekday !== 0 && weekday !== 6) return true
+    cursor.setDate(cursor.getDate() + 1)
+  }
+  return false
+}
+
+function groupSameLeave(items: LeaveItem[]) {
+  const buckets = new Map<string, LeaveItem[]>()
+  for (const item of items) {
+    const start = leaveDay(item.start_date)
+    const end = leaveDay(item.end_date) || start
+    const key = [
+      String(item.employee_id ?? ''),
+      leaveGroupKey(item.leave_type),
+      item.is_paid === false ? 'unpaid' : 'paid',
+    ].join('|')
+    const list = buckets.get(key) ?? []
+    list.push({
+      ...item,
+      start_date: start,
+      end_date: end,
+      days: Number(item.days ?? 0),
+      parts: [item],
+    })
+    buckets.set(key, list)
+  }
+
+  const spells: LeaveItem[] = []
+  for (const list of buckets.values()) {
+    list.sort((left, right) => leaveDay(left.start_date).localeCompare(leaveDay(right.start_date)))
+    for (const item of list) {
+      const current = spells[spells.length - 1]
+      const sameGroup =
+        current &&
+        String(current.employee_id ?? '') === String(item.employee_id ?? '') &&
+        leaveGroupKey(current.leave_type) === leaveGroupKey(item.leave_type) &&
+        (current.is_paid === false) === (item.is_paid === false)
+      if (sameGroup && !hasWeekdayGap(leaveDay(current.end_date), leaveDay(item.start_date))) {
+        if (leaveDay(item.end_date) > leaveDay(current.end_date)) {
+          current.end_date = item.end_date
+        }
+        current.days = Number(current.days ?? 0) + Number(item.days ?? 0)
+        current.parts = [...(current.parts ?? []), ...(item.parts ?? [item])]
+        continue
+      }
+      spells.push(item)
+    }
+  }
+
+  return spells.sort((left, right) => leaveDay(left.start_date).localeCompare(leaveDay(right.start_date)))
 }
 
 function keysBetween(from: string, to: string) {
@@ -63,6 +137,7 @@ export function LeavePage() {
   const [view, setView] = useState<'month' | 'year'>('month')
   const [anchor, setAnchor] = useState(() => new Date())
   const [modal, setModal] = useState<{ start?: string; end?: string } | null>(null)
+  const [pendingRemove, setPendingRemove] = useState<LeaveItem | null>(null)
   const [picked, setPicked] = useState<string[]>([])
   const drag = useRef<{ start: string } | null>(null)
   const [saving, setSaving] = useState(false)
@@ -86,11 +161,6 @@ export function LeavePage() {
     queryKey: ['leave', companyId],
     queryFn: () => hrApi.leaveAll(companyId!),
     enabled: Boolean(companyId),
-  })
-  const upcomingQuery = useQuery({
-    queryKey: ['leave-upcoming', companyId],
-    queryFn: () => hrApi.upcomingLeave(companyId!),
-    enabled: Boolean(companyId) && !employeeId,
   })
   const balanceQuery = useQuery({
     queryKey: ['leave-balance', companyId, employeeId],
@@ -132,11 +202,6 @@ export function LeavePage() {
     id: idOf(item),
     employee_id: String(item.employee_id ?? idOf(item.employees) ?? ''),
   }))
-  const upcoming = ((upcomingQuery.data?.data as LeaveItem[] | undefined) ?? []).map((item) => ({
-    ...item,
-    id: idOf(item),
-    employee_id: String(item.employee_id ?? ''),
-  }))
   const selected = people.find((person) => idOf(person) === employeeId)
   const workingDays = workingDaysFromEmployee(selected)
   const pickedSet = new Set(picked)
@@ -166,12 +231,29 @@ export function LeavePage() {
     window.addEventListener('mouseup', endPick)
     return () => window.removeEventListener('mouseup', endPick)
   }, [])
-  const filtered = people.filter((person) =>
-    fullName(person.first_name, person.last_name).toLowerCase().includes(search.trim().toLowerCase()),
-  )
+  const filtered = people
+    .filter((person) =>
+      fullName(person.first_name, person.last_name).toLowerCase().includes(search.trim().toLowerCase()),
+    )
+    .sort((left, right) =>
+      fullName(left.first_name, left.last_name).localeCompare(
+        fullName(right.first_name, right.last_name),
+        'en-GB',
+        { sensitivity: 'base' },
+      ),
+    )
   const personLeave = leave.filter((item) => item.employee_id === employeeId)
-  const assignedLeave = personLeave.filter((item) => String(item.status ?? '').toUpperCase() === 'APPROVED')
-  const calendarLeave = assignedLeave
+  const approvedLeave = personLeave.filter((item) => String(item.status ?? '').toUpperCase() === 'APPROVED')
+  const assignedLeave = groupSameLeave(approvedLeave)
+  const calendarLeave = approvedLeave
+  const todayKey = dateKey(new Date())
+  const upcoming = groupSameLeave(
+    leave.filter((item) => {
+      if (String(item.status ?? '').toUpperCase() !== 'APPROVED') return false
+      const end = leaveDay(item.end_date) || leaveDay(item.start_date)
+      return Boolean(end && end >= todayKey)
+    }),
+  )
   const balance = balanceQuery.data?.data as
     | { hours_entitled?: number; hours_used?: number; hours_remaining?: number }
     | undefined
@@ -201,14 +283,19 @@ export function LeavePage() {
   }
 
   async function removeLeave(item: LeaveItem) {
-    if (!companyId || !item.id) return
-    const type = item.leave_type || 'leave'
-    if (!window.confirm(`Remove ${type} from ${formatLeaveRange(item.start_date, item.end_date)}?`)) return
+    if (!companyId) return
+    const parts = item.parts?.length ? item.parts : item.id ? [item] : []
+    if (parts.length === 0) return
     try {
       setError(null)
-      await hrApi.removeLeave(companyId, String(item.id))
+      for (const part of parts) {
+        if (!part.id) continue
+        await hrApi.removeLeave(companyId, String(part.id))
+      }
+      setPendingRemove(null)
       await refreshLeave()
     } catch (err) {
+      setPendingRemove(null)
       setError(err instanceof Error ? err.message : 'Could not remove leave')
     }
   }
@@ -333,15 +420,17 @@ export function LeavePage() {
                 <h2 className="text-base font-semibold text-navy">Upcoming Leave</h2>
                 <span className="text-sm font-semibold text-navy/70">View All</span>
               </div>
-              {upcomingQuery.isLoading ? (
+              {leaveQuery.isLoading ? (
                 <Loading />
               ) : upcoming.length === 0 ? (
                 <Card className="p-8 text-center text-sm text-muted">No upcoming leave yet.</Card>
               ) : (
                 <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                  {upcoming.slice(0, 8).map((item) => (
+                  {upcoming.slice(0, 8).map((item) => {
+                    const person = people.find((entry) => idOf(entry) === String(item.employee_id))
+                    return (
                     <button
-                      key={item.id}
+                      key={`${item.employee_id}-${leaveGroupKey(item.leave_type)}-${item.is_paid === false ? 'unpaid' : 'paid'}`}
                       type="button"
                       onClick={() => navigate(`/hr/leave/${item.employee_id}`)}
                       className="rounded-[16px] border border-[#e6e4df] bg-white p-4 text-left"
@@ -350,7 +439,10 @@ export function LeavePage() {
                         <User size={14} />
                       </span>
                       <p className="mt-3 font-semibold text-navy">
-                        {fullName(item.employees?.first_name, item.employees?.last_name)}
+                        {fullName(
+                          item.employees?.first_name ?? person?.first_name,
+                          item.employees?.last_name ?? person?.last_name,
+                        )}
                       </p>
                       <p className="mt-1 text-sm text-muted">{item.leave_type}</p>
                       <p className="text-sm text-navy">{formatLeaveRange(item.start_date, item.end_date)}</p>
@@ -358,7 +450,8 @@ export function LeavePage() {
                         {item.is_paid === false ? 'Unpaid' : 'Paid'}
                       </span>
                     </button>
-                  ))}
+                    )
+                  })}
                 </div>
               )}
               <Card className="flex min-h-[220px] items-center justify-center p-8 text-sm text-muted">
@@ -544,7 +637,7 @@ export function LeavePage() {
                             {item.is_paid === false ? ' · Unpaid' : ' · Paid'}
                           </p>
                         </div>
-                        <Button variant="secondary" onClick={() => void removeLeave(item)}>
+                        <Button variant="secondary" onClick={() => setPendingRemove(item)}>
                           <Trash2 size={14} />
                           Remove
                         </Button>
@@ -557,6 +650,17 @@ export function LeavePage() {
           )}
         </div>
       </div>
+
+      {pendingRemove ? (
+        <ConfirmDialog
+          title="Remove this leave?"
+          message={`Remove ${pendingRemove.leave_type || 'leave'} from ${formatLeaveRange(pendingRemove.start_date, pendingRemove.end_date)}?`}
+          confirmLabel="Remove"
+          danger
+          onClose={() => setPendingRemove(null)}
+          onConfirm={() => void removeLeave(pendingRemove)}
+        />
+      ) : null}
 
       {modal ? (
         <AddLeaveModal

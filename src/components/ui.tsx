@@ -247,3 +247,45 @@ export function Loading() {
     </div>
   )
 }
+
+export function ConfirmDialog({
+  title,
+  message,
+  confirmLabel = 'OK',
+  cancelLabel = 'Cancel',
+  danger = false,
+  busy = false,
+  onConfirm,
+  onClose,
+}: {
+  title: string
+  message?: string
+  confirmLabel?: string
+  cancelLabel?: string
+  danger?: boolean
+  busy?: boolean
+  onConfirm: () => void | Promise<void>
+  onClose: () => void
+}) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-navy/40 px-4">
+      <div className="w-full max-w-[420px] rounded-[16px] bg-white p-6 shadow-xl">
+        <h2 className="text-lg font-semibold text-navy">{title}</h2>
+        {message ? <p className="mt-3 text-sm leading-6 text-navy/80">{message}</p> : null}
+        <div className="mt-5 flex justify-end gap-2">
+          <Button type="button" variant="secondary" onClick={onClose} disabled={busy}>
+            {cancelLabel}
+          </Button>
+          <Button
+            type="button"
+            variant={danger ? 'danger' : 'primary'}
+            disabled={busy}
+            onClick={() => void onConfirm()}
+          >
+            {confirmLabel}
+          </Button>
+        </div>
+      </div>
+    </div>
+  )
+}

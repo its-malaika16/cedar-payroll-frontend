@@ -109,9 +109,78 @@ function toSlices(records: PayrollRecord[]): { slices: Slice[]; gross: number } 
   return { slices, gross }
 }
 
-function donutBackground(slices: Slice[]) {
-  const stops = slices.map((slice) => `${slice.color} ${slice.start}% ${slice.start + slice.pct}%`)
-  return `conic-gradient(from -90deg, ${stops.join(', ')})`
+function donutSlicePath(startPct: number, pct: number, cx = 100, cy = 100, outer = 100, inner = 56) {
+  const sweep = Math.min(Math.max(pct, 0), 99.999)
+  if (sweep <= 0) return ''
+  const start = (startPct / 100) * 360
+  const end = ((startPct + sweep) / 100) * 360
+  const large = sweep > 50 ? 1 : 0
+  const point = (radius: number, angle: number) => {
+    const rad = ((angle - 90) * Math.PI) / 180
+    return `${cx + radius * Math.cos(rad)} ${cy + radius * Math.sin(rad)}`
+  }
+  return `M ${point(outer, start)} A ${outer} ${outer} 0 ${large} 1 ${point(outer, end)} L ${point(inner, end)} A ${inner} ${inner} 0 ${large} 0 ${point(inner, start)} Z`
+}
+
+function PayrollDonut({ slices, gross }: { slices: Slice[]; gross: number }) {
+  const [hover, setHover] = useState<Slice | null>(null)
+  return (
+    <div className="relative size-full" onMouseLeave={() => setHover(null)}>
+      {gross ? (
+        <svg viewBox="0 0 200 200" className="size-full overflow-visible">
+          {slices
+            .filter((slice) => slice.pct > 0)
+            .map((slice) => (
+              <path
+                key={slice.label}
+                d={donutSlicePath(slice.start, slice.pct)}
+                fill={slice.color}
+                className="cursor-pointer transition-opacity"
+                opacity={hover && hover.label !== slice.label ? 0.45 : 1}
+                onMouseEnter={() => setHover(slice)}
+                onFocus={() => setHover(slice)}
+              >
+                <title>{`${slice.label}: ${money(slice.amount)} (${slice.pct.toFixed(1)}%)`}</title>
+              </path>
+            ))}
+        </svg>
+      ) : (
+        <div className="size-full rounded-full" style={{ background: '#e8e4dc' }} />
+      )}
+      <div className="pointer-events-none absolute inset-[22%] flex flex-col items-center justify-center rounded-full bg-white text-center">
+        <p className="text-[22px] font-semibold text-navy">{money(hover?.amount ?? gross)}</p>
+        <p className="text-sm font-medium text-muted">{hover?.label ?? 'Gross Pay'}</p>
+      </div>
+      {gross
+        ? slices.map((slice) => {
+            if (slice.pct < 3) return null
+            const angle = ((slice.start + slice.pct / 2) / 100) * 2 * Math.PI - Math.PI / 2
+            const radius = 88
+            return (
+              <span
+                key={slice.label}
+                className="pointer-events-none absolute text-[11px] font-semibold"
+                style={{
+                  left: `calc(50% + ${Math.cos(angle) * radius}px)`,
+                  top: `calc(50% + ${Math.sin(angle) * radius}px)`,
+                  color: isDarkSlice(slice.color) ? '#ffffff' : '#17375e',
+                  transform: 'translate(-50%, -50%)',
+                }}
+              >
+                {slice.pct.toFixed(1)}%
+              </span>
+            )
+          })
+        : null}
+      {hover ? (
+        <div className="pointer-events-none absolute top-2 left-1/2 z-10 w-max -translate-x-1/2 rounded-[10px] bg-navy px-3 py-2 text-center shadow-lg">
+          <p className="text-xs font-medium text-white/80">{hover.label}</p>
+          <p className="text-sm font-semibold text-white">{money(hover.amount)}</p>
+          <p className="text-[11px] text-white/70">{hover.pct.toFixed(1)}% of breakdown</p>
+        </div>
+      ) : null}
+    </div>
+  )
 }
 
 export function DashboardPage() {
@@ -427,37 +496,7 @@ export function DashboardPage() {
             </div>
             <div className="flex min-h-0 flex-1 flex-wrap items-center justify-center gap-10 lg:justify-between">
               <div className="relative size-[min(260px,70vw)] shrink-0">
-                <div
-                  className="size-full rounded-full"
-                  style={{
-                    background: gross ? donutBackground(slices) : '#e8e4dc',
-                  }}
-                />
-                <div className="absolute inset-[22%] flex flex-col items-center justify-center rounded-full bg-white text-center">
-                  <p className="text-[22px] font-semibold text-navy">{money(gross)}</p>
-                  <p className="text-sm font-medium text-muted">Gross Pay</p>
-                </div>
-                {gross
-                  ? slices.map((slice) => {
-                      if (slice.pct < 3) return null
-                      const angle = ((slice.start + slice.pct / 2) / 100) * 2 * Math.PI - Math.PI / 2
-                      const radius = 88
-                      return (
-                        <span
-                          key={slice.label}
-                          className="pointer-events-none absolute text-[11px] font-semibold"
-                          style={{
-                            left: `calc(50% + ${Math.cos(angle) * radius}px)`,
-                            top: `calc(50% + ${Math.sin(angle) * radius}px)`,
-                            color: isDarkSlice(slice.color) ? '#ffffff' : '#17375e',
-                            transform: 'translate(-50%, -50%)',
-                          }}
-                        >
-                          {slice.pct.toFixed(1)}%
-                        </span>
-                      )
-                    })
-                  : null}
+                <PayrollDonut slices={slices} gross={gross} />
               </div>
               <ul className="min-w-[250px] flex-1">
                 {slices.map((slice, index) => (

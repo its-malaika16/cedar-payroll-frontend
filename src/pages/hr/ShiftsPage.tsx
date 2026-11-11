@@ -14,7 +14,7 @@ import {
 } from 'lucide-react'
 import { employeesApi, hrApi } from '../../api'
 import { useAuth } from '../../auth/AuthContext'
-import { Alert, Button, Loading, PageHeader } from '../../components/ui'
+import { Alert, Button, ConfirmDialog, Loading, PageHeader } from '../../components/ui'
 import { fullName, idOf } from '../../lib/format'
 import { workingDaysFromEmployee } from '../../lib/workingDays'
 import type { CalendarDay, Employee } from '../../types'
@@ -44,7 +44,9 @@ import {
   employeeIdOf,
   hoursBetween,
   isApprovedLeave,
+  isShiftOnLeaveError,
   leaveCoversDate,
+  summariseLeaveSkipMessage,
   shiftDateKey,
   type LeaveItem,
   type RotaShift,
@@ -93,6 +95,8 @@ export function ShiftsPage() {
   const [anchor, setAnchor] = useState(() => startOfWeek(new Date()))
   const [error, setError] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
+  const [leaveSkipNotice, setLeaveSkipNotice] = useState<string | null>(null)
+  const [pendingDelete, setPendingDelete] = useState<RotaShift | null>(null)
   const [saving, setSaving] = useState(false)
   const [modal, setModal] = useState<{
     mode: ShiftModalMode
@@ -243,6 +247,8 @@ export function ShiftsPage() {
       if (modal.mode === 'create') {
         const employeeIds = selectedEmployeeIds(form)
         const payloads = shiftPayloads(form)
+        const skipped: { name: string; date: string }[] = []
+        let created = 0
         for (const payload of payloads) {
           const body = {
             shift_date: payload.shift_date,
@@ -253,11 +259,31 @@ export function ShiftsPage() {
           }
           if (employeeIds.length === 0) {
             await hrApi.createShift(companyId, null, body)
+            created += 1
           } else {
             for (const employeeId of employeeIds) {
-              await hrApi.createShift(companyId, employeeId, body)
+              try {
+                await hrApi.createShift(companyId, employeeId, body)
+                created += 1
+              } catch (err) {
+                const message = err instanceof Error ? err.message : 'Could not save shift'
+                if (isShiftOnLeaveError(message)) {
+                  const person = people.find((item) => idOf(item) === employeeId)
+                  skipped.push({
+                    name: fullName(person?.first_name, person?.last_name) || 'this employee',
+                    date: payload.shift_date,
+                  })
+                  continue
+                }
+                throw err
+              }
             }
           }
+        }
+        if (skipped.length > 0) {
+          const leaveNote = summariseLeaveSkipMessage(skipped, created > 0)
+          setLeaveSkipNotice(leaveNote)
+          if (created === 0) return
         }
       } else if (modal.shiftId) {
         const payload = shiftPayload(form)
@@ -274,7 +300,12 @@ export function ShiftsPage() {
       setModal(null)
       await refresh()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not save shift')
+      const message = err instanceof Error ? err.message : 'Could not save shift'
+      if (isShiftOnLeaveError(message)) {
+        setLeaveSkipNotice(message)
+      } else {
+        setError(message)
+      }
     } finally {
       setSaving(false)
     }
@@ -294,9 +325,7 @@ export function ShiftsPage() {
         return
       }
       if (action === 'delete') {
-        if (!window.confirm('Delete this shift?')) return
-        await hrApi.deleteShift(companyId, idOf(shift))
-        await refresh()
+        setPendingDelete(shift)
         return
       }
       if (action === 'open') {
@@ -504,6 +533,41 @@ export function ShiftsPage() {
           On Leave
         </span>
       </div>
+
+      {leaveSkipNotice ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-navy/40 px-4">
+          <div className="w-full max-w-[440px] rounded-[16px] bg-white p-6 shadow-xl">
+            <h2 className="text-lg font-semibold text-navy">Could not assign some shifts</h2>
+            <p className="mt-3 text-sm leading-6 text-navy/80">{leaveSkipNotice}</p>
+            <div className="mt-5 flex justify-end">
+              <Button type="button" onClick={() => setLeaveSkipNotice(null)}>
+                OK
+              </Button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {pendingDelete ? (
+        <ConfirmDialog
+          title="Delete this shift?"
+          message="This shift will be removed from the rota."
+          confirmLabel="Delete"
+          danger
+          onClose={() => setPendingDelete(null)}
+          onConfirm={async () => {
+            if (!companyId || !pendingDelete) return
+            try {
+              await hrApi.deleteShift(companyId, idOf(pendingDelete))
+              setPendingDelete(null)
+              await refresh()
+            } catch (err) {
+              setPendingDelete(null)
+              setError(err instanceof Error ? err.message : 'Could not delete this shift')
+            }
+          }}
+        />
+      ) : null}
 
       {modal ? (
         <ShiftModal

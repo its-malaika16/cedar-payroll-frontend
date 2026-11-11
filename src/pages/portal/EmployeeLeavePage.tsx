@@ -18,7 +18,7 @@ import {
 } from 'lucide-react'
 import { employeesApi, hrApi } from '../../api'
 import { useAuth } from '../../auth/AuthContext'
-import { Alert, Loading } from '../../components/ui'
+import { Alert, ConfirmDialog, Loading } from '../../components/ui'
 import { idOf } from '../../lib/format'
 import { workingDaysFromEmployee } from '../../lib/workingDays'
 import type { Employee } from '../../types'
@@ -31,6 +31,9 @@ import {
 } from '../hr/rota/rotaDates'
 import {
   coversDate,
+  leaveOnShiftConfirmMessage,
+  shiftDatesOverlappingLeave,
+  visibleOnLeaveCalendar,
   EMPLOYEE_LEAVE_TYPES,
   formatLeaveDay,
   formatLeaveDayLong,
@@ -175,12 +178,14 @@ function DurationChoice({
 function LeaveRequestModal({
   initial,
   workingDays,
+  shiftDates,
   onClose,
   onSubmit,
   error,
 }: {
   initial?: Partial<LeaveItem>
   workingDays?: string[]
+  shiftDates?: string[]
   onClose: () => void
   onSubmit: (body: Record<string, unknown>) => Promise<void>
   error: string | null
@@ -195,6 +200,10 @@ function LeaveRequestModal({
     attachment_name: initial?.attachment_name ?? '',
   })
   const [busy, setBusy] = useState(false)
+  const [shiftConfirm, setShiftConfirm] = useState<{
+    message: string
+    body: Record<string, unknown>
+  } | null>(null)
   const days = weekdayCount(
     form.start_date,
     form.end_date,
@@ -224,17 +233,27 @@ function LeaveRequestModal({
           className="px-6 py-6"
           onSubmit={async (event) => {
             event.preventDefault()
+            const body = {
+              leave_type: form.leave_type,
+              start_date: form.start_date,
+              end_date: form.end_date || form.start_date,
+              duration_kind: form.duration_kind,
+              partial_period: form.duration_kind === 'PARTIAL_DAY' ? form.partial_period : null,
+              reason: form.reason.trim() || null,
+              attachment_name: form.attachment_name || null,
+            }
+            const overlapping = shiftDatesOverlappingLeave(
+              shiftDates ?? [],
+              form.start_date,
+              form.end_date,
+            )
+            if (overlapping.length > 0) {
+              setShiftConfirm({ message: leaveOnShiftConfirmMessage(overlapping), body })
+              return
+            }
             setBusy(true)
             try {
-              await onSubmit({
-                leave_type: form.leave_type,
-                start_date: form.start_date,
-                end_date: form.end_date || form.start_date,
-                duration_kind: form.duration_kind,
-                partial_period: form.duration_kind === 'PARTIAL_DAY' ? form.partial_period : null,
-                reason: form.reason.trim() || null,
-                attachment_name: form.attachment_name || null,
-              })
+              await onSubmit(body)
             } finally {
               setBusy(false)
             }
@@ -351,6 +370,25 @@ function LeaveRequestModal({
           </div>
         </form>
       </div>
+      {shiftConfirm ? (
+        <ConfirmDialog
+          title="Shift on this date"
+          message={shiftConfirm.message}
+          confirmLabel="Request leave"
+          cancelLabel="Cancel"
+          busy={busy}
+          onClose={() => setShiftConfirm(null)}
+          onConfirm={async () => {
+            setBusy(true)
+            try {
+              await onSubmit(shiftConfirm.body)
+              setShiftConfirm(null)
+            } finally {
+              setBusy(false)
+            }
+          }}
+        />
+      ) : null}
     </div>
   )
 }
@@ -373,18 +411,26 @@ function useEmployeeLeave() {
     queryFn: () => employeesApi.me(companyId!, employeeId!),
     enabled: Boolean(companyId && employeeId),
   })
+  const shiftsQuery = useQuery({
+    queryKey: ['my-shifts', companyId, employeeId],
+    queryFn: () => hrApi.myShifts(companyId!, employeeId!),
+    enabled: Boolean(companyId && employeeId),
+  })
   const requests = ((query.data?.data as LeaveItem[] | undefined) ?? []).map((item) => ({
     ...item,
     id: idOf(item),
   }))
   const balance = (balanceQuery.data?.data as LeaveBalance | undefined) ?? query.data?.balance
   const workingDays = workingDaysFromEmployee(meQuery.data?.data as Employee | undefined)
-  return { companyId, employeeId, query, balanceQuery, requests, balance, workingDays }
+  const shiftDates = (((shiftsQuery.data?.data as { shift_date?: string }[] | undefined) ?? []).map((shift) =>
+    String(shift.shift_date ?? '').slice(0, 10),
+  )).filter(Boolean)
+  return { companyId, employeeId, query, balanceQuery, requests, balance, workingDays, shiftDates }
 }
 
 export function EmployeeLeavePage() {
   const navigate = useNavigate()
-  const { companyId, employeeId, query, requests, balance, workingDays } = useEmployeeLeave()
+  const { companyId, employeeId, query, requests, balance, workingDays, shiftDates } = useEmployeeLeave()
   const [error, setError] = useState<string | null>(null)
   const [view, setView] = useState<'week' | 'month'>('month')
   const [anchor, setAnchor] = useState(() => new Date())
@@ -405,8 +451,10 @@ export function EmployeeLeavePage() {
         })}`
       : `${weekStart.toLocaleDateString('en-GB', { day: 'numeric', month: 'long' })} - ${addDays(weekStart, 6).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}`
   const todayKey = dateKey(new Date())
-  const recent = requests.slice(0, 3)
-  const timelineItem = requests.find((item) => leaveStatus(item.status) === 'PENDING') ?? requests[0]
+  const calendarRequests = requests.filter(visibleOnLeaveCalendar)
+  const recent = calendarRequests.slice(0, 3)
+  const timelineItem =
+    calendarRequests.find((item) => leaveStatus(item.status) === 'PENDING') ?? calendarRequests[0]
   const cards = [
     { label: 'Annual Leave Remaining', icon: Plane, value: balance?.annual },
     { label: 'SSP remaining', icon: BedDouble, value: balance?.ssp },
@@ -432,7 +480,7 @@ export function EmployeeLeavePage() {
 
   function openDay(day: Date) {
     const key = dateKey(day)
-    const existing = requests.find((item) => coversDate(item, key))
+    const existing = calendarRequests.find((item) => coversDate(item, key))
     if (existing) {
       navigate(`/portal/leave/requests?id=${idOfLeave(existing)}`)
       return
@@ -533,7 +581,7 @@ export function EmployeeLeavePage() {
                       const key = dateKey(day)
                       const outside = day.getMonth() !== anchor.getMonth()
                       const weekend = day.getDay() === 0 || day.getDay() === 6
-                      const match = requests.find((item) => coversDate(item, key))
+                      const match = calendarRequests.find((item) => coversDate(item, key))
                       const today = key === todayKey
                       return (
                         <button
@@ -568,7 +616,7 @@ export function EmployeeLeavePage() {
               <div className="grid min-w-[720px] grid-cols-7">
                 {weekDays.map((day) => {
                   const key = dateKey(day)
-                  const match = requests.find((item) => coversDate(item, key))
+                  const match = calendarRequests.find((item) => coversDate(item, key))
                   const today = key === todayKey
                   const weekend = day.getDay() === 0 || day.getDay() === 6
                   return (
@@ -666,6 +714,7 @@ export function EmployeeLeavePage() {
         <LeaveRequestModal
           initial={modal}
           workingDays={workingDays}
+          shiftDates={shiftDates}
           error={error}
           onClose={() => {
             setError(null)
@@ -771,7 +820,7 @@ function ApprovalTimeline({ item }: { item?: LeaveItem }) {
 export function EmployeeLeaveRequestsPage() {
   const navigate = useNavigate()
   const [params, setParams] = useSearchParams()
-  const { companyId, employeeId, query, requests, workingDays } = useEmployeeLeave()
+  const { companyId, employeeId, query, requests, workingDays, shiftDates } = useEmployeeLeave()
   const [error, setError] = useState<string | null>(null)
   const [modal, setModal] = useState<Partial<LeaveItem> | null>(null)
   const selectedId = params.get('id')
@@ -947,6 +996,7 @@ export function EmployeeLeaveRequestsPage() {
         <LeaveRequestModal
           initial={modal}
           workingDays={workingDays}
+          shiftDates={shiftDates}
           error={error}
           onClose={() => {
             setError(null)

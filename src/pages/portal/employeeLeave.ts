@@ -48,6 +48,10 @@ export function leaveStatus(value?: string): LeaveStatus {
   return 'PENDING'
 }
 
+export function visibleOnLeaveCalendar(item: LeaveItem) {
+  return leaveStatus(item.status) !== 'CANCELLED'
+}
+
 export function statusMeta(status: LeaveStatus) {
   return {
     PENDING: { label: 'Pending', className: 'bg-[#fff4e5] text-[#c2782a]', dot: 'bg-[#e2a334]' },
@@ -109,4 +113,24 @@ export function weeksLabel(value?: number) {
 
 export function idOfLeave(item: LeaveItem) {
   return String(item.id ?? item.request_code ?? '')
+}
+
+export function shiftDatesOverlappingLeave(shiftDates: string[], start?: string, end?: string) {
+  const from = String(start ?? '').slice(0, 10)
+    const to = String(end || start || '').slice(0, 10)
+  if (!from || !to) return []
+  const lo = from <= to ? from : to
+  const hi = from <= to ? to : from
+  return [...new Set(shiftDates.map((value) => value.slice(0, 10)).filter((key) => key && key >= lo && key <= hi))].sort()
+}
+
+export function leaveOnShiftConfirmMessage(dates: string[]) {
+  const formatted = dates.map((value) => formatLeaveDay(value))
+  if (formatted.length === 1) {
+    return `You have a shift on ${formatted[0]}. Do you still want to continue and request leave?`
+  }
+  if (formatted.length === 2) {
+    return `You have shifts on ${formatted[0]} and ${formatted[1]}. Do you still want to continue and request leave?`
+  }
+  return `You have shifts on ${formatted.slice(0, -1).join(', ')} and ${formatted.at(-1)}. Do you still want to continue and request leave?`
 }
