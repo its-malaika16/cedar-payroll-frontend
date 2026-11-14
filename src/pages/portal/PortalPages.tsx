@@ -57,6 +57,12 @@ export function PortalPayslipsPage() {
     queryFn: () => employeesApi.myPayslips(companyId!, employeeId!),
     enabled: Boolean(companyId && employeeId),
   })
+  const formsQuery = useQuery({
+    queryKey: ['my-forms', companyId, employeeId],
+    queryFn: () => employeesApi.myForms(companyId!, employeeId!),
+    enabled: Boolean(companyId && employeeId),
+  })
+  const forms = formsQuery.data?.data ?? []
   const list = ((query.data?.data as Record<string, unknown>[] | undefined) ?? [])
     .filter((item) => {
       const record = item.payroll_records as { take_home_pay?: unknown; net_pay?: unknown } | undefined
@@ -137,6 +143,76 @@ export function PortalPayslipsPage() {
                                 idOf(item),
                                 fileName,
                               )
+                            }
+                            className="inline-flex h-9 items-center gap-2 rounded-full bg-navy px-4 text-xs font-semibold text-white"
+                          >
+                            <Download size={14} />
+                            Download
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+      <h2 className="mt-10 text-[32px] font-semibold text-navy">Forms</h2>
+      <p className="mt-1 text-sm text-muted">View and download forms generated for you by your employer.</p>
+      <div className="mt-6 overflow-hidden rounded-[16px] border border-[#eceae6] bg-white">
+        {formsQuery.isLoading ? (
+          <div className="px-5 py-8">
+            <Loading />
+          </div>
+        ) : forms.length === 0 ? (
+          <EmptyState title="No forms yet" body="Forms appear here after your employer generates them." />
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[640px] text-left text-sm">
+              <thead>
+                <tr className="border-b border-[#eceae6] text-sm font-medium text-muted">
+                  <th className="px-6 py-4 font-medium">Form</th>
+                  <th className="px-6 py-4 font-medium">Date generated</th>
+                  <th className="px-6 py-4 font-medium">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {forms.map((item) => {
+                  const id = String(item.id)
+                  const year =
+                    item.tax_year_start && item.tax_year_end
+                      ? ` ${item.tax_year_start}/${String(item.tax_year_end).slice(-2)}`
+                      : ''
+                  const filename = `${item.form_name || 'form'}${year}.html`.replaceAll(' ', '-')
+                  return (
+                    <tr key={id} className="border-b border-[#f0eeea] last:border-b-0">
+                      <td className="px-6 py-5 font-medium text-navy">
+                        {item.form_name || 'Form'}
+                        {year}
+                      </td>
+                      <td className="px-6 py-5 text-navy">{formatDate(item.generated_at)}</td>
+                      <td className="px-6 py-5">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              void employeesApi.myFormHtml(companyId!, employeeId!, id).then((blob) => {
+                                const url = URL.createObjectURL(blob as Blob)
+                                window.open(url, '_blank')
+                                window.setTimeout(() => URL.revokeObjectURL(url), 60_000)
+                              })
+                            }
+                            className="inline-flex h-9 items-center gap-2 rounded-full border border-navy px-4 text-xs font-semibold text-navy"
+                          >
+                            <Eye size={14} />
+                            View
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              void employeesApi.myFormHtml(companyId!, employeeId!, id, filename)
                             }
                             className="inline-flex h-9 items-center gap-2 rounded-full bg-navy px-4 text-xs font-semibold text-white"
                           >

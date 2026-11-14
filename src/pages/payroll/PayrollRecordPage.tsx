@@ -320,6 +320,8 @@ export function PayrollRecordPage() {
   const [typeEditor, setTypeEditor] = useState<PayTypeKind | null>(null)
   const [typeDraft, setTypeDraft] = useState<PayTypeDraft>(emptyPayTypeDraft)
   const [typeError, setTypeError] = useState<string | null>(null)
+  const [payslipTypeEdit, setPayslipTypeEdit] = useState(false)
+  const [editingPayslipName, setEditingPayslipName] = useState<string | null>(null)
   const [customAdditions, setCustomAdditions] = useState<CustomAdditionLine[]>([])
   const [suppressedRepeating, setSuppressedRepeating] = useState<string[]>([])
   const [customDeductions, setCustomDeductions] = useState<CustomDeductionLine[]>([])
@@ -771,6 +773,7 @@ export function PayrollRecordPage() {
   }, [employee?.starters_leavers, record?.year_to_date])
 
   function toggleMenu(id: string) {
+    if (locked) return
     setOpenMenu((current) => (current === id ? null : id))
   }
 
@@ -1127,6 +1130,7 @@ export function PayrollRecordPage() {
   }
 
   function addPayLine(kind: PayBenefitId) {
+    if (locked) return
     setOpenMenu(null)
     if (kind === 'hourly' || kind === 'daily') {
       if (employeeId && employeeQuery.isPending) return
@@ -1285,6 +1289,7 @@ export function PayrollRecordPage() {
   }
 
   function addAddition(label: string) {
+    if (locked) return
     setOpenMenu(null)
     const item = ADDITION_ITEMS.find((entry) => entry.label === label)
     setVisibleAdditions((current) => (current.includes(label) ? current : [...current, label]))
@@ -1295,6 +1300,7 @@ export function PayrollRecordPage() {
   }
 
   function addDeduction(label: string, amount = '0.00') {
+    if (locked) return
     setOpenMenu(null)
     setVisibleDeductions((current) => {
       const next = current.includes(label) ? current : [...current, label]
@@ -1308,6 +1314,7 @@ export function PayrollRecordPage() {
   }
 
   function applyCompanyPayType(kind: PayTypeKind, entry: CompanyPayTypeEntry) {
+    if (locked) return
     setOpenMenu(null)
     const name = entry.name.trim()
     const amount = entry.amount?.trim() || '0.00'
@@ -1374,13 +1381,116 @@ export function PayrollRecordPage() {
   }
 
   function openTypeEditor(kind: PayTypeKind) {
+    if (locked) return
     setOpenMenu(null)
     setTypeError(null)
+    setPayslipTypeEdit(false)
+    setEditingPayslipName(null)
     setTypeDraft(emptyPayTypeDraft())
     setTypeEditor(kind)
   }
 
+  function openPayslipTypeEditor(
+    kind: PayTypeKind,
+    name: string,
+    amount: string,
+    line?: CustomAdditionLine | CustomDeductionLine | null,
+  ) {
+    if (locked) return
+    setOpenMenu(null)
+    setTypeError(null)
+    setPayslipTypeEdit(true)
+    setEditingPayslipName(name)
+    const catalog =
+      kind === 'addition'
+        ? payCatalog.additions.find((item) => item.name === name)
+        : payCatalog.deductions.find((item) => item.name === name)
+    const source = line ?? catalog
+    const empty = emptyPayTypeDraft()
+    setTypeDraft({
+      ...empty,
+      name,
+      amount: amount.trim() || empty.amount,
+      calculationMethod: source?.calculationMethod ?? empty.calculationMethod,
+      repetition: source?.repetition ?? empty.repetition,
+      tax: source?.tax ?? empty.tax,
+      nics: source?.nics ?? empty.nics,
+      employeePension: source?.employeePension ?? empty.employeePension,
+      employerPension: source?.employerPension ?? empty.employerPension,
+      notional: source?.notional ?? empty.notional,
+      minWage: source?.minWage ?? empty.minWage,
+      reuse: 'one-off',
+    })
+    setTypeEditor(kind)
+  }
+
+  function closeTypeEditor() {
+    setTypeEditor(null)
+    setTypeError(null)
+    setPayslipTypeEdit(false)
+    setEditingPayslipName(null)
+  }
+
+  function savePayslipTypeOverride() {
+    const name = typeDraft.name.trim()
+    if (!name) {
+      setTypeError('Enter a name for this type.')
+      return
+    }
+    const amount = resolvePayTypeAmount(typeDraft, record)
+    const flags = flagsFromDraft(typeDraft)
+    const original = editingPayslipName ?? name
+    const entry = {
+      name,
+      amount,
+      calculationMethod: typeDraft.calculationMethod,
+      repetition: typeDraft.repetition,
+      ...flags,
+    }
+    if (typeEditor === 'addition') {
+      const nextVisible = visibleAdditions.filter((item) => item !== original)
+      const nextAmounts = { ...additionAmounts }
+      delete nextAmounts[original]
+      setVisibleAdditions(nextVisible)
+      setAdditionAmounts(nextAmounts)
+      setCustomAdditions((current) => {
+        const next = [...current.filter((row) => row.name !== original), entry]
+        latestRef.current = {
+          ...latestRef.current,
+          customAdditions: next,
+          visibleAdditions: nextVisible,
+          additionAmounts: nextAmounts,
+        }
+        void persistPayLines(extraPay, next, nextVisible, nextAmounts)
+        return next
+      })
+    } else if (typeEditor === 'deduction') {
+      const nextVisible = visibleDeductions.filter((item) => item !== original)
+      const nextAmounts = { ...deductionAmounts }
+      delete nextAmounts[original]
+      setVisibleDeductions(nextVisible)
+      setDeductionAmounts(nextAmounts)
+      setCustomDeductions((current) => {
+        const next = [...current.filter((row) => row.name !== original), entry]
+        latestRef.current = {
+          ...latestRef.current,
+          customDeductions: next,
+          visibleDeductions: nextVisible,
+          deductionAmounts: nextAmounts,
+        }
+        void persistDeductions(nextVisible, nextAmounts, next)
+        return next
+      })
+    }
+    closeTypeEditor()
+  }
+
   function savePayTypeForm() {
+    if (locked) return
+    if (payslipTypeEdit) {
+      savePayslipTypeOverride()
+      return
+    }
     const name = typeDraft.name.trim()
     if (!name) {
       setTypeError('Enter a name for this type.')
@@ -1469,8 +1579,7 @@ export function PayrollRecordPage() {
           .then(() => queryClient.invalidateQueries({ queryKey: ['company', companyId] }))
       }
     }
-    setTypeEditor(null)
-    setTypeError(null)
+    closeTypeEditor()
   }
 
   if (runQuery.isLoading || recordQuery.isLoading) return <Loading />
@@ -1785,6 +1894,7 @@ export function PayrollRecordPage() {
                 )
               })}
             </div>
+            {locked ? null : (
             <PortalMenu
               open={openMenu === 'pay'}
               width={280}
@@ -1797,6 +1907,7 @@ export function PayrollRecordPage() {
                 </div>
               ))}
             </PortalMenu>
+            )}
           </section>
 
           <section className="rounded-[10px] border border-[#d9d9d9] bg-white p-5">
@@ -1914,6 +2025,7 @@ export function PayrollRecordPage() {
                     value={row.amount}
                     locked={locked}
                     tone="addition"
+                    onEdit={() => openPayslipTypeEditor('addition', row.name, row.amount, row)}
                     onRemove={() => removeCustomAddition(row.name)}
                     onChange={(value) => {
                       setCustomAdditions((current) =>
@@ -1937,6 +2049,9 @@ export function PayrollRecordPage() {
                     value={additionAmounts[label] ?? '0.00'}
                     locked={locked}
                     tone="addition"
+                    onEdit={() =>
+                      openPayslipTypeEditor('addition', label, additionAmounts[label] ?? '0.00')
+                    }
                     onRemove={() => removeVisibleAddition(label)}
                     onChange={(value) => {
                       setAdditionAmounts((current) => ({ ...current, [label]: value }))
@@ -1960,6 +2075,7 @@ export function PayrollRecordPage() {
                     value={row.amount}
                     locked={locked}
                     tone="deduction"
+                    onEdit={() => openPayslipTypeEditor('deduction', row.name, row.amount, row)}
                     onRemove={() => removeCustomDeduction(row.name)}
                     onChange={(value) => {
                       setCustomDeductions((current) => {
@@ -1991,6 +2107,9 @@ export function PayrollRecordPage() {
                     value={deductionAmounts[label] ?? '0.00'}
                     locked={locked}
                     tone="deduction"
+                    onEdit={() =>
+                      openPayslipTypeEditor('deduction', label, deductionAmounts[label] ?? '0.00')
+                    }
                     onRemove={() => removeDeduction(label)}
                     onChange={(value) => {
                       setDeductionAmounts((current) => ({ ...current, [label]: value }))
@@ -2005,6 +2124,7 @@ export function PayrollRecordPage() {
                 ))}
               </PayLineGroup>
             ) : null}
+            {locked ? null : (
             <PortalMenu
               open={openMenu === 'additions'}
               width={430}
@@ -2059,6 +2179,7 @@ export function PayrollRecordPage() {
                     ))}
                   </div>
             </PortalMenu>
+            )}
           </section>
 
           <section className="rounded-[10px] border border-[#d9d9d9] bg-white p-5">
@@ -2098,7 +2219,7 @@ export function PayrollRecordPage() {
                 </label>
               ) : null}
             </div>
-            {showEmployeeNotes && showEmployerNotes ? null : (
+            {locked || (showEmployeeNotes && showEmployerNotes) ? null : (
             <PortalMenu
               open={openMenu === 'notes'}
               width={280}
@@ -2240,15 +2361,12 @@ export function PayrollRecordPage() {
           )}
         </aside>
       </div>
-      {typeEditor
+      {typeEditor && !locked
         ? createPortal(
             <div
               className="fixed inset-0 z-[80] flex items-start justify-center overflow-y-auto bg-navy/40 px-4 py-10"
               onMouseDown={(event) => {
-                if (event.target === event.currentTarget) {
-                  setTypeEditor(null)
-                  setTypeError(null)
-                }
+                if (event.target === event.currentTarget) closeTypeEditor()
               }}
             >
               <div className="w-full max-w-4xl pointer-events-auto">
@@ -2256,13 +2374,12 @@ export function PayrollRecordPage() {
                   kind={typeEditor}
                   draft={typeDraft}
                   onChange={setTypeDraft}
-                  onCancel={() => {
-                    setTypeEditor(null)
-                    setTypeError(null)
-                  }}
+                  onCancel={closeTypeEditor}
                   onSave={savePayTypeForm}
                   locked={locked}
                   error={typeError}
+                  mode={payslipTypeEdit ? 'edit' : 'create'}
+                  scope={payslipTypeEdit ? 'payslip' : 'company'}
                 />
               </div>
             </div>,
@@ -2566,6 +2683,7 @@ function AmountRow({
   tone = 'addition',
   onChange,
   onBlur,
+  onEdit,
   onRemove,
 }: {
   label: string
@@ -2574,23 +2692,34 @@ function AmountRow({
   tone?: 'addition' | 'deduction'
   onChange: (value: string) => void
   onBlur?: (value: string) => void
+  onEdit?: () => void
   onRemove?: () => void
 }) {
   const deduction = tone === 'deduction'
+  const actionClass = deduction
+    ? 'border-[#f0c7c9] text-brand hover:bg-white'
+    : 'border-[#c5d4ea] text-navy hover:bg-white'
   return (
     <div className={`flex items-center justify-between gap-3 text-xs ${deduction ? 'text-brand' : 'text-navy'}`}>
       <span className="min-w-0 truncate">{label}</span>
       <div className="flex shrink-0 items-center gap-1.5">
+        {!locked && onEdit ? (
+          <button
+            type="button"
+            title={`Edit ${label} for this payslip`}
+            aria-label={`Edit ${label} for this payslip`}
+            className={`flex size-6 items-center justify-center rounded-[6px] border ${actionClass}`}
+            onClick={onEdit}
+          >
+            <Pencil size={12} />
+          </button>
+        ) : null}
         {!locked && onRemove ? (
           <button
             type="button"
             title={`Remove ${label}`}
             aria-label={`Remove ${label}`}
-            className={`flex size-6 items-center justify-center rounded-[6px] border ${
-              deduction
-                ? 'border-[#f0c7c9] text-brand hover:bg-white'
-                : 'border-[#c5d4ea] text-navy hover:bg-white'
-            }`}
+            className={`flex size-6 items-center justify-center rounded-[6px] border ${actionClass}`}
             onClick={onRemove}
           >
             <Trash2 size={12} />

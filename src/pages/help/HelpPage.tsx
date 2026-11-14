@@ -26,8 +26,8 @@ const SUPPORT_TILES = [
   },
   {
     to: '/help/chat',
-    title: 'Direct message to employee/bureau',
-    description: 'Initiate direct message streams using any registered workforce.',
+    title: 'Messages',
+    description: 'Reply to employees in the company admin or bureau admin inbox.',
     action: 'Open chats',
   },
 ] as const

@@ -151,7 +151,14 @@ export function HmrcPreviewPage({ kind }: { kind: AnalysisBuilderKind }) {
 
   async function persist(published?: boolean) {
     if (!companyId || isCompanyAdmin) return
-    const payload = { ...draft, kind }
+    const payload = {
+      ...draft,
+      kind,
+      preview: {
+        title: draft.reportName || spec?.title || 'Report',
+        sections: exportSections(),
+      },
+    }
     try {
       if (draft.savedReportId) {
         await updatePreviousReport(companyId, draft.savedReportId, {

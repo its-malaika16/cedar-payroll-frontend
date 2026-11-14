@@ -211,7 +211,7 @@ function ContactAdmin() {
         className="inline-flex h-10 items-center gap-2 rounded-[8px] border border-[#d9d9d9] bg-white px-4 text-xs font-semibold text-navy"
       >
         <Mail size={14} />
-        Contact Us
+        Messages
       </Link>
     </div>
   )

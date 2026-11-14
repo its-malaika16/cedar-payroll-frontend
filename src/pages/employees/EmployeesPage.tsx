@@ -2,13 +2,13 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Link, Outlet, useMatch, useNavigate } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { CalendarDays, ChevronLeft, Filter, Search } from 'lucide-react'
-import { employeesApi, payrollApi } from '../../api'
+import { CalendarDays, ChevronLeft, Download, Eye, Filter, Search } from 'lucide-react'
+import { documentsApi, employeesApi, payrollApi } from '../../api'
 import { ApiError } from '../../api/client'
 import { useAuth } from '../../auth/AuthContext'
 import { Alert, Button, Loading, PageHeader } from '../../components/ui'
 import { BrandIcon } from '../../components/BrandIcon'
-import { employeeLeaveDate, fullName, idOf } from '../../lib/format'
+import { employeeLeaveDate, formatDate, fullName, idOf } from '../../lib/format'
 import type { Employee, PayrollSchedule } from '../../types'
 import iconPerson from '../../assets/brand/icon-person.png'
 import iconPlus from '../../assets/brand/icon-plus.svg'
@@ -17,10 +17,10 @@ import iconPensions from '../../assets/brand/icon-pensions.svg'
 import { EmployeeCsvImport } from './EmployeeCsvImport'
 import { guessCsvMapping, parseCsvText, type ParsedCsv } from './csvImport'
 import { EmployeesFormsMenu } from './EmployeesFormsMenu'
-import { formLabel, isFormType } from './formsOptions'
+import { FORM_TYPES, formLabel, isFormType } from './formsOptions'
 
 export function EmployeesPage() {
-  const { companyId } = useAuth()
+  const { companyId, isBureauAdmin, isCompanyAdmin } = useAuth()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const creating = Boolean(useMatch({ path: '/employees/new', end: true }))
@@ -73,6 +73,8 @@ export function EmployeesPage() {
   const [confirmingDelete, setConfirmingDelete] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [deleteError, setDeleteError] = useState<string | null>(null)
+  const [formActionId, setFormActionId] = useState<string | null>(null)
+  const [formFilter, setFormFilter] = useState<'all' | (typeof FORM_TYPES)[number]['value']>('all')
   const addMenuRef = useRef<HTMLDivElement>(null)
   const filterRef = useRef<HTMLDivElement>(null)
   const csvInputRef = useRef<HTMLInputElement>(null)
@@ -97,6 +99,49 @@ export function EmployeesPage() {
     queryFn: () => payrollApi.schedules(companyId!),
     enabled: Boolean(companyId),
   })
+  const generatedQuery = useQuery({
+    queryKey: ['generated-forms', companyId],
+    queryFn: () => documentsApi.list(companyId!),
+    enabled: Boolean(companyId),
+  })
+  const generatedForms = (generatedQuery.data?.data ?? []) as Array<{
+    id: string
+    form_name?: string
+    document_type?: string
+    generated_at?: string
+    employee_name?: string
+    tax_year_start?: number
+    tax_year_end?: number
+  }>
+  const visibleGeneratedForms = generatedForms.filter((item) => {
+    if (formFilter === 'all') return true
+    return String(item.document_type || item.form_name || '').toLowerCase() === formFilter
+  })
+
+  async function openGeneratedForm(item: (typeof generatedForms)[number], asDownload: boolean) {
+    if (!companyId) return
+    const id = String(item.id)
+    const filename = `${item.form_name || 'form'}-${item.employee_name || 'employee'}.html`.replaceAll(' ', '-')
+    setFormActionId(id)
+    setDeleteError(null)
+    try {
+      if (asDownload) {
+        await documentsApi.html(companyId, id, filename)
+        return
+      }
+      const blob = await documentsApi.html(companyId, id)
+      const url = URL.createObjectURL(blob as Blob)
+      const popup = window.open(url, '_blank')
+      if (!popup) {
+        setDeleteError('Allow pop-ups to view the form, or use Download instead.')
+      }
+      window.setTimeout(() => URL.revokeObjectURL(url), 60_000)
+    } catch (error) {
+      setDeleteError(error instanceof Error ? error.message : 'Could not open this form.')
+    } finally {
+      setFormActionId(null)
+    }
+  }
   const allEmployees = (query.data?.data ?? []) as Employee[]
   const schedules = ((schedulesQuery.data?.data ?? []) as PayrollSchedule[]).slice().sort((left, right) =>
     left.schedule_name.localeCompare(right.schedule_name, 'en-GB', { sensitivity: 'base' }),
@@ -311,10 +356,20 @@ export function EmployeesPage() {
           Benefits
         </Button>
       </Link>
-      <EmployeesFormsMenu
-        employeeId={selectedId}
-        active={inForms}
-      />
+      {isCompanyAdmin ? (
+        <Button
+          variant="secondary"
+          className="h-[47px] min-w-[129px] print:hidden"
+          onClick={() => navigate('/employees')}
+        >
+          Forms
+        </Button>
+      ) : (
+        <EmployeesFormsMenu
+          employeeId={selectedId}
+          active={inForms}
+        />
+      )}
       {addEmployeeMenu}
     </>
   )
@@ -614,8 +669,94 @@ export function EmployeesPage() {
           ) : creating || selectedId || inCalendar || inPensions || inBenefits || inForms ? (
             <Outlet />
           ) : (
-            <div className="flex h-full min-h-[520px] items-center justify-center">
-              <p className="text-[32px] font-medium text-muted">Select an employee</p>
+            <div className="flex h-full min-h-[520px] flex-col overflow-hidden rounded-[10px] bg-white p-6 shadow-[3px_4px_1.95px_rgba(0,0,0,0.09)]">
+              <h2 className="text-lg font-semibold text-navy">Generated forms</h2>
+              <p className="mt-1 text-sm text-muted">
+                {isBureauAdmin
+                  ? 'Forms generated for employees in this company.'
+                  : 'Forms generated for your employees.'}
+              </p>
+              <div className="mt-4 flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  className={`h-9 rounded-[8px] border px-3 text-sm font-semibold ${
+                    formFilter === 'all' ? 'border-navy bg-navy text-white' : 'border-[#d9d9d9] bg-white text-navy'
+                  }`}
+                  onClick={() => setFormFilter('all')}
+                >
+                  All
+                </button>
+                {FORM_TYPES.map((item) => (
+                  <button
+                    key={item.value}
+                    type="button"
+                    className={`h-9 rounded-[8px] border px-3 text-sm font-semibold ${
+                      formFilter === item.value ? 'border-navy bg-navy text-white' : 'border-[#d9d9d9] bg-white text-navy'
+                    }`}
+                    onClick={() => setFormFilter(item.value)}
+                  >
+                    {item.label}
+                  </button>
+                ))}
+              </div>
+              {generatedQuery.isLoading ? (
+                <Loading />
+              ) : generatedForms.length === 0 ? (
+                <p className="mt-8 text-sm text-muted">No forms have been generated yet.</p>
+              ) : visibleGeneratedForms.length === 0 ? (
+                <p className="mt-8 text-sm text-muted">
+                  No {formLabel(formFilter)} forms have been generated yet.
+                </p>
+              ) : (
+                <div className="mt-4 min-h-0 flex-1 overflow-auto">
+                  <table className="w-full min-w-[480px] text-left text-sm">
+                    <thead>
+                      <tr className="border-b border-[#eceae6] text-navy">
+                        <th className="py-3 pr-4 font-semibold">Form</th>
+                        <th className="py-3 pr-4 font-semibold">Employee</th>
+                        <th className="py-3 pr-4 font-semibold">Date generated</th>
+                        <th className="py-3 font-semibold">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {visibleGeneratedForms.map((item) => (
+                        <tr key={String(item.id)} className="border-b border-[#eceae6] last:border-b-0">
+                          <td className="py-3 pr-4 font-semibold text-navy">
+                            {item.form_name}
+                            {item.tax_year_start && item.tax_year_end
+                              ? ` ${item.tax_year_start}/${String(item.tax_year_end).slice(-2)}`
+                              : ''}
+                          </td>
+                          <td className="py-3 pr-4 text-navy">{item.employee_name}</td>
+                          <td className="py-3 pr-4 text-muted">{formatDate(item.generated_at)}</td>
+                          <td className="py-3">
+                            <div className="flex gap-2">
+                              <Button
+                                variant="secondary"
+                                className="h-9 px-3"
+                                disabled={formActionId === String(item.id)}
+                                onClick={() => void openGeneratedForm(item, false)}
+                              >
+                                <Eye size={14} />
+                                View
+                              </Button>
+                              <Button
+                                variant="secondary"
+                                className="h-9 px-3"
+                                disabled={formActionId === String(item.id)}
+                                onClick={() => void openGeneratedForm(item, true)}
+                              >
+                                <Download size={14} />
+                                Download
+                              </Button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
           )}
         </section>

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Download, Send, X } from 'lucide-react'
 import { documentsApi, employeesApi } from '../../api'
 import { useAuth } from '../../auth/AuthContext'
@@ -28,11 +28,14 @@ const P45_PARTS = [
 export function EmployeeFormsPage() {
   const { formType = 'p11', employeeId } = useParams()
   const navigate = useNavigate()
-  const { companyId } = useAuth()
+  const { companyId, isBureauAdmin } = useAuth()
+  const queryClient = useQueryClient()
   const year = currentTaxYear()
   const [p45Parts, setP45Parts] = useState(['1', '1A', '2', '3'])
   const [p45Ready, setP45Ready] = useState(false)
   const [notice, setNotice] = useState<string | null>(null)
+  const [generating, setGenerating] = useState(false)
+  const [generateError, setGenerateError] = useState<string | null>(null)
 
   const employeesQuery = useQuery({
     queryKey: ['employees', companyId],
@@ -102,6 +105,37 @@ export function EmployeeFormsPage() {
     )
   }
 
+  async function generateRecord() {
+    if (!companyId || !employeeId || !isFormType(formType)) return
+    setGenerating(true)
+    setNotice(null)
+    setGenerateError(null)
+    try {
+      const result = await documentsApi.generateForms(companyId, {
+        form_type: formType,
+        tax_year_start: year.start,
+        tax_year_end: year.end,
+        employee_ids: [employeeId],
+      })
+      await queryClient.invalidateQueries({ queryKey: ['generated-forms', companyId] })
+      const generated = result.data?.generated ?? 0
+      const reason = result.data?.failed?.[0]?.reason
+      if (generated === 0) {
+        setGenerateError(
+          reason || result.message || `This ${formLabel(formType)} could not be generated for the selected employee.`,
+        )
+        return
+      }
+      setNotice(result.message || `${formLabel(formType)} generated.`)
+    } catch (error) {
+      setGenerateError(
+        error instanceof Error ? error.message : `Could not generate the ${formLabel(formType)}.`,
+      )
+    } finally {
+      setGenerating(false)
+    }
+  }
+
   async function downloadForm() {
     if (printable && data) {
       try {
@@ -122,6 +156,11 @@ export function EmployeeFormsPage() {
   return (
     <div>
       <div className="mb-4 flex justify-end gap-2 print:hidden">
+        {isBureauAdmin ? (
+          <Button disabled={generating || !employeeId} onClick={() => void generateRecord()}>
+            {generating ? 'Generating…' : `Generate ${formLabel(type)}`}
+          </Button>
+        ) : null}
         <button
           type="button"
           className="flex size-10 items-center justify-center rounded-[8px] border border-[#d9d9d9] text-navy"
@@ -150,6 +189,20 @@ export function EmployeeFormsPage() {
       ) : null}
       {data && !ineligible && !needsParts ? (
         <FormDocument type={type} data={data} p45Parts={p45Parts} />
+      ) : null}
+
+      {generateError ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-navy/40 px-4 print:hidden">
+          <div className="w-full max-w-[420px] rounded-[16px] bg-white p-6 shadow-xl">
+            <h2 className="text-lg font-semibold text-navy">Could not generate {formLabel(type)}</h2>
+            <p className="mt-3 text-sm leading-6 text-navy/80">{generateError}</p>
+            <div className="mt-6 flex justify-end">
+              <Button type="button" onClick={() => setGenerateError(null)}>
+                OK
+              </Button>
+            </div>
+          </div>
+        </div>
       ) : null}
 
       {ineligible ? (

@@ -10,6 +10,13 @@ export const ADDITIONS_CATEGORY_GROUPS = [
       { id: 'totals', label: 'Totals' },
     ],
   },
+  {
+    label: 'Employer items',
+    categories: [
+      { id: 'employer_additions', label: 'Additions' },
+      { id: 'employer_deductions', label: 'Deductions' },
+    ],
+  },
 ]
 
 export const ADDITIONS_REPORT_FIELDS = [

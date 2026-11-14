@@ -48,52 +48,97 @@ type Summary = {
   invoices?: { count: number; raised: number; paid: number; outstanding: number }
 }
 
+function asAmount(value: unknown) {
+  const amount = Number(value ?? 0)
+  return Number.isFinite(amount) ? amount : 0
+}
+
 function Donut({ slices, total }: { slices: MoneySlice[]; total: number }) {
   const radius = 58
-  const circ = 2 * Math.PI * radius
+  const shown = slices.filter((slice) => asAmount(slice.amount) > 0)
   let offset = 0
-  if (!slices.length || total <= 0) {
-    return (
-      <svg viewBox="0 0 160 160" className="size-[180px]">
-        <circle cx="80" cy="80" r={radius} fill="none" stroke="#eef2f6" strokeWidth="22" />
-        <text x="80" y="76" textAnchor="middle" className="fill-navy" fontSize="11" fontWeight="600">
-          Staff cost
-        </text>
-        <text x="80" y="94" textAnchor="middle" className="fill-navy" fontSize="13" fontWeight="700">
-          {money(0)}
-        </text>
-      </svg>
-    )
-  }
   return (
-    <svg viewBox="0 0 160 160" className="size-[180px]">
+    <svg viewBox="0 0 160 160" className="size-[180px]" role="img" aria-label="Staff cost mix">
       <circle cx="80" cy="80" r={radius} fill="none" stroke="#eef2f6" strokeWidth="22" />
-      {slices.map((slice) => {
-        const length = circ * (slice.amount / total)
-        const dash = `${length} ${circ - length}`
-        const node = (
-          <circle
-            key={slice.label}
-            cx="80"
-            cy="80"
-            r={radius}
-            fill="none"
-            stroke={slice.color || '#17375e'}
-            strokeWidth="22"
-            strokeDasharray={dash}
-            strokeDashoffset={-offset}
-            transform="rotate(-90 80 80)"
-          />
-        )
-        offset += length
-        return node
-      })}
-      <text x="80" y="76" textAnchor="middle" className="fill-navy" fontSize="11" fontWeight="600">
+      {total > 0
+        ? shown.map((slice) => {
+            const pct = (asAmount(slice.amount) / total) * 100
+            const node = (
+              <circle
+                key={slice.label}
+                cx="80"
+                cy="80"
+                r={radius}
+                fill="none"
+                stroke={slice.color || '#17375e'}
+                strokeWidth="22"
+                pathLength={100}
+                strokeDasharray={`${pct} ${100 - pct}`}
+                strokeDashoffset={-offset}
+                transform="rotate(-90 80 80)"
+              />
+            )
+            offset += pct
+            return node
+          })
+        : null}
+      <text x="80" y="76" textAnchor="middle" fill="#17375e" fontSize="11" fontWeight="600">
         Staff cost
       </text>
-      <text x="80" y="94" textAnchor="middle" className="fill-navy" fontSize="13" fontWeight="700">
+      <text x="80" y="94" textAnchor="middle" fill="#17375e" fontSize="13" fontWeight="700">
         {money(total)}
       </text>
+    </svg>
+  )
+}
+
+function MonthStaffCostChart({
+  months,
+}: {
+  months: NonNullable<Summary['by_month']>
+}) {
+  const values = months.map((item) => asAmount(item.staff_cost))
+  const max = Math.max(...values, 0)
+  if (!months.length) {
+    return <p className="text-sm text-muted">No monthly staff cost yet.</p>
+  }
+  const width = 720
+  const height = 196
+  const labelH = 22
+  const chartH = height - labelH
+  const gap = 10
+  const barW = (width - gap * (months.length + 1)) / Math.max(months.length, 1)
+  return (
+    <svg viewBox={`0 0 ${width} ${height}`} className="h-48 w-full" role="img" aria-label="Monthly staff cost">
+      {months.map((item, index) => {
+        const value = values[index]
+        const h = max > 0 ? (value / max) * (chartH - 6) : 0
+        const x = gap + index * (barW + gap)
+        const y = chartH - Math.max(h, 0)
+        return (
+          <g key={`${item.label}-${index}`}>
+            {h > 0 ? (
+              <rect x={x} y={y} width={barW} height={h} rx={6} fill="#17375e">
+                <title>
+                  {item.label}: {money(value)}
+                </title>
+              </rect>
+            ) : (
+              <rect x={x} y={chartH - 3} width={barW} height={3} rx={1} fill="#e6e4df" />
+            )}
+            <text
+              x={x + barW / 2}
+              y={height - 6}
+              textAnchor="middle"
+              fill="#6b7a8d"
+              fontSize="12"
+              fontWeight="600"
+            >
+              {item.label}
+            </text>
+          </g>
+        )
+      })}
     </svg>
   )
 }
@@ -116,7 +161,7 @@ function CostList({
   rows: NamedCost[]
   empty: string
 }) {
-  const max = Math.max(...rows.map((item) => item.staff_cost), 1)
+  const max = Math.max(...rows.map((item) => asAmount(item.staff_cost)), 1)
   return (
     <Card className="p-5">
       <h2 className="mb-4 text-base font-semibold text-navy">{title}</h2>
@@ -161,9 +206,8 @@ export function FinancialReportPage() {
   const summary = summaryQuery.data?.data as Summary | undefined
   const totals = summary?.totals
   const months = summary?.by_month ?? []
-  const maxMonth = Math.max(...months.map((item) => item.staff_cost), 1)
   const composition = summary?.composition ?? []
-  const compositionTotal = composition.reduce((sum, item) => sum + item.amount, 0)
+  const compositionTotal = composition.reduce((sum, item) => sum + asAmount(item.amount), 0)
 
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-y-auto pb-6">
@@ -206,18 +250,7 @@ export function FinancialReportPage() {
           <div className="mb-4 grid gap-4 xl:grid-cols-[1.4fr_1fr]">
             <Card className="p-5">
               <h2 className="mb-4 text-base font-semibold text-navy">Monthly staff cost</h2>
-              <div className="flex h-48 items-end gap-2">
-                {months.map((item) => (
-                  <div key={item.label} className="flex flex-1 flex-col items-center justify-end gap-2">
-                    <div
-                      className="w-full rounded-t-[8px] bg-navy"
-                      style={{ height: `${Math.max(8, (item.staff_cost / maxMonth) * 100)}%` }}
-                      title={`${item.label}: ${money(item.staff_cost)}`}
-                    />
-                    <span className="text-[10px] font-semibold text-muted">{item.label}</span>
-                  </div>
-                ))}
-              </div>
+              <MonthStaffCostChart months={months} />
             </Card>
             <Card className="flex flex-wrap items-center gap-6 p-5">
               <Donut slices={composition} total={totals?.staff_cost || compositionTotal} />

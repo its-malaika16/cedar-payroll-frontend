@@ -2,11 +2,11 @@ import { Fragment, useMemo, useState } from 'react'
 import { Link, Navigate, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { ArrowLeft } from 'lucide-react'
-import { employeesApi, payrollApi } from '../../api'
+import { companiesApi, employeesApi, payrollApi } from '../../api'
 import { useAuth } from '../../auth/AuthContext'
 import { Alert, Button, Card, Loading } from '../../components/ui'
 import { idOf, money } from '../../lib/format'
-import type { Employee, PayrollRecord, PayrollRun, PayrollSchedule, PensionAssessment } from '../../types'
+import type { Company, Employee, PayrollRecord, PayrollRun, PayrollSchedule, PensionAssessment } from '../../types'
 import { EMPLOYEE_PERIOD_DEFAULT, readReportDraft, writeReportDraft } from './employeeDetailsState'
 import { employeeFieldValue } from './employeeDetailsValues'
 import { HmrcPreviewPage } from './HmrcPreviewPage'
@@ -29,6 +29,7 @@ import {
   scheduleIdFromMode,
 } from './periodSelection'
 import { recordPreviousReport, updatePreviousReport } from './previousReports'
+import { specWithCompanyPayTypes } from './employerPayTypeFields'
 import { isHmrcKind, specFor, usesPayrollRecords, type AnalysisBuilderKind } from './reportSpecs'
 import { downloadCsv, downloadReportPdf, ReportExportMenu, reportFileSlug } from './reportExport'
 import { ytdFieldValue } from './ytdValues'
@@ -56,8 +57,21 @@ export function ReportPreviewPage({ kind }: { kind: AnalysisBuilderKind }) {
 }
 
 function EmployeeReportPreviewPage({ kind }: { kind: AnalysisBuilderKind }) {
-  const spec = specFor(kind)
   const { companyId, isCompanyAdmin } = useAuth()
+  const companyQuery = useQuery({
+    queryKey: ['company', companyId],
+    queryFn: () => companiesApi.get(companyId!),
+    enabled: Boolean(companyId),
+  })
+  const spec = useMemo(
+    () => {
+      const base = specFor(kind)
+      return base
+        ? specWithCompanyPayTypes(base, (companyQuery.data?.data as Company | undefined)?.employer_defaults)
+        : base
+    },
+    [companyQuery.data, kind],
+  )
   const navigate = useNavigate()
   const draft = readReportDraft(
     kind,
@@ -238,7 +252,15 @@ function EmployeeReportPreviewPage({ kind }: { kind: AnalysisBuilderKind }) {
 
   async function persist(published?: boolean) {
     if (!companyId || isCompanyAdmin) return
-    const payload = { ...draft, kind }
+    const payload = {
+      ...draft,
+      kind,
+      preview: {
+        title: draft.reportName || spec?.title || 'Report',
+        subtitle: grouped ? undefined : periodLabel,
+        sections: exportSections(),
+      },
+    }
     try {
       if (draft.savedReportId) {
         await updatePreviousReport(companyId, draft.savedReportId, {

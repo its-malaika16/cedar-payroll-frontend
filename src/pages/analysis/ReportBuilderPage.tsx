@@ -2,12 +2,12 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link, Navigate, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { ArrowLeft, ArrowRight, CalendarDays, GripVertical, User, X } from 'lucide-react'
-import { payrollApi } from '../../api'
+import { companiesApi, payrollApi } from '../../api'
 import { useAuth } from '../../auth/AuthContext'
 import { Alert, Button, Card, Loading } from '../../components/ui'
 import { fullName, idOf } from '../../lib/format'
 import { taxWeekEndDate, weeksInTaxYear } from '../../lib/hmrcTaxCalendar'
-import type { PayrollRun, PayrollSchedule } from '../../types'
+import type { Company, PayrollRun, PayrollSchedule } from '../../types'
 import {
   employeesFromFinalisedRuns,
   finalisedPeriodChoices,
@@ -38,6 +38,7 @@ import {
   taxYearSequenceNumber,
 } from './periodSelection'
 import type { ReportSpec, AnalysisBuilderKind } from './reportSpecs'
+import { specWithCompanyPayTypes } from './employerPayTypeFields'
 import { isHmrcKind, specFor } from './reportSpecs'
 
 const box =
@@ -67,20 +68,34 @@ function StepCard({
 }
 
 export function ReportBuilderPage({ kind }: { kind: AnalysisBuilderKind }) {
-  const spec = specFor(kind) as ReportSpec
-  const hmrcLayout = spec.layout === 'hmrc' || isHmrcKind(kind)
-  const periodModes = spec.periodModes ?? PERIOD_MODES
+  const baseSpec = specFor(kind) as ReportSpec
+  const hmrcLayout = baseSpec.layout === 'hmrc' || isHmrcKind(kind)
+  const periodModes = baseSpec.periodModes ?? PERIOD_MODES
   const { companyId, isCompanyAdmin } = useAuth()
   const navigate = useNavigate()
   if (isCompanyAdmin) return <Navigate to="/payroll/reports" replace />
   const [draft, setDraft] = useState<AnalysisReportDraft>(() =>
-    readReportDraft(kind, spec.defaultName, spec.defaultFieldIds, hmrcLayout ? periodModes[0] : EMPLOYEE_PERIOD_DEFAULT),
+    readReportDraft(kind, baseSpec.defaultName, baseSpec.defaultFieldIds, hmrcLayout ? periodModes[0] : EMPLOYEE_PERIOD_DEFAULT),
   )
   const [categoryId, setCategoryId] = useState(
-    spec.defaultCategoryId ?? spec.groups[0]?.categories[0]?.id ?? '',
+    baseSpec.defaultCategoryId ?? baseSpec.groups[0]?.categories[0]?.id ?? '',
   )
   const [dragId, setDragId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+
+  const companyQuery = useQuery({
+    queryKey: ['company', companyId],
+    queryFn: () => companiesApi.get(companyId!),
+    enabled: Boolean(companyId),
+  })
+  const spec = useMemo(
+    () =>
+      specWithCompanyPayTypes(
+        baseSpec,
+        (companyQuery.data?.data as Company | undefined)?.employer_defaults,
+      ),
+    [baseSpec, companyQuery.data],
+  )
 
   const schedulesQuery = useQuery({
     queryKey: ['schedules', companyId],
@@ -147,15 +162,17 @@ export function ReportBuilderPage({ kind }: { kind: AnalysisBuilderKind }) {
   )
 
   useEffect(() => {
+    const nextSpec = specFor(kind) as ReportSpec
+    const nextHmrc = nextSpec.layout === 'hmrc' || isHmrcKind(kind)
     const next = readReportDraft(
       kind,
-      spec.defaultName,
-      spec.defaultFieldIds,
-      hmrcLayout ? (spec.periodModes?.[0] ?? PERIOD_MODES[0]) : EMPLOYEE_PERIOD_DEFAULT,
+      nextSpec.defaultName,
+      nextSpec.defaultFieldIds,
+      nextHmrc ? (nextSpec.periodModes?.[0] ?? PERIOD_MODES[0]) : EMPLOYEE_PERIOD_DEFAULT,
     )
     setDraft(next)
-    setCategoryId(spec.defaultCategoryId ?? spec.groups[0]?.categories[0]?.id ?? '')
-  }, [kind, spec])
+    setCategoryId(nextSpec.defaultCategoryId ?? nextSpec.groups[0]?.categories[0]?.id ?? '')
+  }, [kind])
 
   useEffect(() => {
     writeReportDraft(draft)

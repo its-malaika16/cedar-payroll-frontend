@@ -127,7 +127,7 @@ export function EmployerSettingsForm({ company }: { company: Company }) {
     setTypeEditor(kind)
   }
 
-  function saveCompanyPayType() {
+  async function saveCompanyPayType() {
     const name = typeDraft.name.trim()
     if (!name) {
       setTypeError('Enter a name for this type.')
@@ -147,20 +147,51 @@ export function EmployerSettingsForm({ company }: { company: Company }) {
     const next = editingName
       ? list.map((item) => (item.name === editingName ? entry : item))
       : [...list, entry]
-    if (typeEditor === 'deduction') {
-      patchForm({ pay_deductions: next })
-    } else {
-      patchForm({ pay_additions: next })
-    }
+    const snapshot =
+      typeEditor === 'deduction'
+        ? { ...form, pay_deductions: next }
+        : { ...form, pay_additions: next }
+    setForm(snapshot)
     if (typeDraft.reuse === 'remember') {
       rememberPayType(String(company.id), typeEditor ?? 'addition', { ...typeDraft, name })
     }
-    setTypeEditor(null)
-    setEditingName(null)
     setTypeError(null)
-    setMessage(
-      `${name} ${editingName ? 'updated' : 'added'}. Save employer settings to keep this type.`,
-    )
+    setSaving(true)
+    setError(null)
+    try {
+      await save.mutateAsync(payloadFromForm(snapshot))
+      setSavedForm(snapshot)
+      setTypeEditor(null)
+      setEditingName(null)
+      setMessage(`${name} ${editingName ? 'updated' : 'added'}.`)
+    } catch (err) {
+      setTypeError(err instanceof Error ? err.message : 'Could not save this type')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function persistPayTypes(snapshot: EmployerForm, successMessage: string) {
+    setSaving(true)
+    setError(null)
+    try {
+      await save.mutateAsync(payloadFromForm(snapshot))
+      setForm(snapshot)
+      setSavedForm(snapshot)
+      setMessage(successMessage)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not save pay types')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function removeCompanyPayType(kind: PayTypeKind, name: string) {
+    const snapshot =
+      kind === 'deduction'
+        ? { ...form, pay_deductions: form.pay_deductions.filter((item) => item.name !== name) }
+        : { ...form, pay_additions: form.pay_additions.filter((item) => item.name !== name) }
+    await persistPayTypes(snapshot, `${name} removed.`)
   }
 
   if (typeEditor) {
@@ -175,8 +206,8 @@ export function EmployerSettingsForm({ company }: { company: Company }) {
             setEditingName(null)
             setTypeError(null)
           }}
-          onSave={saveCompanyPayType}
-          locked={false}
+          onSave={() => void saveCompanyPayType()}
+          locked={saving}
           error={typeError}
           mode={editingName ? 'edit' : 'create'}
         />
@@ -655,11 +686,7 @@ export function EmployerSettingsForm({ company }: { company: Company }) {
               addLabel="New addition type.."
               onAdd={() => openPayTypeEditor('addition')}
               onEdit={(item) => openPayTypeEditor('addition', item)}
-              onRemove={(name) =>
-                patchForm({
-                  pay_additions: form.pay_additions.filter((item) => item.name !== name),
-                })
-              }
+              onRemove={(name) => void removeCompanyPayType('addition', name)}
             />
             <PayTypeList
               title="Deductions"
@@ -668,11 +695,7 @@ export function EmployerSettingsForm({ company }: { company: Company }) {
               addLabel="New deduction type..."
               onAdd={() => openPayTypeEditor('deduction')}
               onEdit={(item) => openPayTypeEditor('deduction', item)}
-              onRemove={(name) =>
-                patchForm({
-                  pay_deductions: form.pay_deductions.filter((item) => item.name !== name),
-                })
-              }
+              onRemove={(name) => void removeCompanyPayType('deduction', name)}
             />
           </div>
         </div>

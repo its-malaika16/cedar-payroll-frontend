@@ -97,6 +97,7 @@ type NominatimPlace = {
   lon: string
   display_name?: string
   address?: NominatimAddress
+  namedetails?: Record<string, string>
 }
 
 function stripPostcode(value: string) {
@@ -109,13 +110,16 @@ function stripPostcode(value: string) {
 }
 
 function placeLabel(place: NominatimPlace) {
+  const englishName = place.namedetails?.['name:en']?.trim()
   const address = place.address
   const parts = [
     address?.road,
     address?.neighbourhood || address?.suburb,
     address?.village || address?.hamlet || address?.town || address?.city,
   ].filter(Boolean)
+  if (englishName && parts.length) return [englishName, ...parts.slice(1)].join(', ')
   if (parts.length) return parts.join(', ')
+  if (englishName) return englishName
   return stripPostcode(place.display_name ?? '') || 'Selected location'
 }
 
@@ -154,6 +158,7 @@ type PhotonFeature = {
 
 const SEARCH_HEADERS = {
   Accept: 'application/json',
+  'Accept-Language': 'en',
   'User-Agent': 'CedarPayroll/1.0 (workplace-map)',
 }
 
@@ -218,6 +223,8 @@ async function nominatimSearch(query: string, countrycodes?: string) {
   url.searchParams.set('format', 'json')
   url.searchParams.set('limit', '5')
   url.searchParams.set('addressdetails', '1')
+  url.searchParams.set('namedetails', '1')
+  url.searchParams.set('accept-language', 'en')
   url.searchParams.set('q', query)
   if (countrycodes) url.searchParams.set('countrycodes', countrycodes)
   const response = await fetch(url.toString(), { headers: SEARCH_HEADERS })
@@ -260,8 +267,10 @@ async function reversePlace(latitude: number, longitude: number) {
   url.searchParams.set('lon', String(longitude))
   url.searchParams.set('zoom', '18')
   url.searchParams.set('addressdetails', '1')
+  url.searchParams.set('namedetails', '1')
+  url.searchParams.set('accept-language', 'en')
   const response = await fetch(url.toString(), {
-    headers: { Accept: 'application/json' },
+    headers: { Accept: 'application/json', 'Accept-Language': 'en' },
   })
   if (!response.ok) throw new Error('Lookup failed')
   const match = (await response.json()) as NominatimPlace
@@ -493,8 +502,8 @@ export function WorkplaceMapPicker({
         scrollWheelZoom: true,
         attributionControl: true,
       })
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '&copy; OpenStreetMap contributors',
+      L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {
+        attribution: 'Tiles © Esri',
         maxZoom: 19,
       }).addTo(map)
       map.zoomControl.setPosition('topleft')

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useMatch, useNavigate, useParams } from 'react-router-dom'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { CheckSquare, ChevronLeft, HelpCircle, Square } from 'lucide-react'
 import { documentsApi, employeesApi } from '../../api'
 import { useAuth } from '../../auth/AuthContext'
@@ -25,6 +25,7 @@ export function EmployeeFormsBulkPage() {
   const { formType = 'p11' } = useParams()
   const navigate = useNavigate()
   const { companyId, user, companies } = useAuth()
+  const queryClient = useQueryClient()
   const isDownload = Boolean(useMatch('/employees/forms/:formType/download'))
   const year = currentTaxYear()
   const type = isFormType(formType) ? formType : 'p11'
@@ -142,10 +143,12 @@ export function EmployeeFormsBulkPage() {
         setMessage(
           `Print dialog opened so you can save each ${formLabel(type)} as PDF. Attach those files to the email draft for ${selected.length} employee${selected.length === 1 ? '' : 's'}.`,
         )
+        await persistGenerated()
         return
       }
       openMailDrafts()
       setMessage(`Opened an email draft for ${selected.length} selected employee${selected.length === 1 ? '' : 's'}.`)
+      await persistGenerated()
     } catch (error) {
       popup?.close()
       setMessage(error instanceof Error ? error.message : `Could not prepare the ${formLabel(type)} PDFs.`)
@@ -181,6 +184,21 @@ export function EmployeeFormsBulkPage() {
       }
     }
     return `<!doctype html><html><head><title>${formLabel(type)} ${year.name}</title></head><body>${sections.join('')}</body></html>`
+  }
+
+  async function persistGenerated() {
+    if (!companyId || selected.length === 0) return
+    try {
+      await documentsApi.generateForms(companyId, {
+        form_type: type,
+        tax_year_start: year.start,
+        tax_year_end: year.end,
+        employee_ids: selected,
+      })
+      await queryClient.invalidateQueries({ queryKey: ['generated-forms', companyId] })
+    } catch {
+      // Preview and download still succeed if a stored record cannot be created.
+    }
   }
 
   async function previewSelected() {
@@ -231,9 +249,10 @@ export function EmployeeFormsBulkPage() {
             sheets.map((sheet) => ({ name: sheet.filename, content: sheet.html })),
           )
           downloadBlobFile(zip, `${formLabel(type)}-${year.name.replaceAll('/', '-')}.zip`)
-          setMessage(
-            `Downloaded ${sheets.length} ${formLabel(type)} file${sheets.length === 1 ? '' : 's'}. Open each file and choose Print → Save as PDF.`,
-          )
+        setMessage(
+          `Downloaded ${sheets.length} ${formLabel(type)} file${sheets.length === 1 ? '' : 's'}. Open each file and choose Print → Save as PDF.`,
+        )
+          await persistGenerated()
           return
         }
         popup = openSheetPlaceholder(type, packTitle)
@@ -248,6 +267,7 @@ export function EmployeeFormsBulkPage() {
         setMessage(
           `Use the print dialog to save a single ${formLabel(type)} PDF with a page for each of the ${sheets.length} selected employee${sheets.length === 1 ? '' : 's'}.`,
         )
+        await persistGenerated()
         return
       }
       const html = await buildPackHtml()
@@ -256,6 +276,7 @@ export function EmployeeFormsBulkPage() {
       setMessage(
         `Downloaded ${formLabel(type)} for ${selected.length} employee${selected.length === 1 ? '' : 's'} as an HTML file you can print to PDF.`,
       )
+      await persistGenerated()
     } catch (error) {
       popup?.close()
       setMessage(error instanceof Error ? error.message : 'Could not download the selected forms.')

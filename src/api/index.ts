@@ -226,6 +226,24 @@ export const employeesApi = {
     get(`/companies/${companyId}/employees/${employeeId}/me/p60`),
   myP11: (companyId: string, employeeId: string) =>
     get(`/companies/${companyId}/employees/${employeeId}/me/p11`),
+  myForms: (companyId: string, employeeId: string) =>
+    get<
+      Array<{
+        id: string
+        form_name?: string
+        document_type?: string
+        tax_year_start?: number
+        tax_year_end?: number
+        generated_at?: string
+      }>
+    >(`/companies/${companyId}/employees/${employeeId}/me/forms`),
+  myFormHtml: (companyId: string, employeeId: string, documentId: string, filename?: string) =>
+    filename
+      ? download(
+          `/companies/${companyId}/employees/${employeeId}/me/forms/${documentId}/html`,
+          filename,
+        )
+      : fetchBlob(`/companies/${companyId}/employees/${employeeId}/me/forms/${documentId}/html`),
   calendar: (companyId: string, employeeId: string, from: string, to: string) =>
     get<CalendarDay[]>(
       `/companies/${companyId}/employees/${employeeId}/calendar?from=${from}&to=${to}`,
@@ -416,6 +434,22 @@ export const rtiApi = {
 }
 
 export const documentsApi = {
+  list: (companyId: string) => get(`/companies/${companyId}/payroll-documents`),
+  generateForms: (
+    companyId: string,
+    body: {
+      form_type: string
+      tax_year_start: number
+      tax_year_end: number
+      all_employees?: boolean
+      employee_ids?: string[]
+    },
+  ) =>
+    post<{
+      generated?: number
+      skipped?: number
+      failed?: { employee_id: string; reason: string }[]
+    }>(`/companies/${companyId}/payroll-documents/generate`, body),
   generateP45: (companyId: string, employeeId: string, payroll_run_id: string) =>
     post(`/companies/${companyId}/payroll-documents/employees/${employeeId}/p45`, {
       payroll_run_id,
@@ -456,6 +490,13 @@ export const documentsApi = {
     get(
       `/companies/${companyId}/payroll-documents/employees/${employeeId}/${formType}/preview?tax_year_start=${tax_year_start}&tax_year_end=${tax_year_end}`,
     ),
+  html: (companyId: string, documentId: string, filename?: string) =>
+    filename
+      ? download(
+          `/companies/${companyId}/payroll-documents/${documentId}/html?download=1`,
+          filename,
+        )
+      : fetchBlob(`/companies/${companyId}/payroll-documents/${documentId}/html`),
 }
 
 export const reportsApi = {
@@ -781,12 +822,16 @@ export const chatApi = {
   contacts: (companyId: string) => get(`/companies/${companyId}/chat/contacts`),
   conversations: (companyId: string) =>
     get(`/companies/${companyId}/chat/conversations`),
-  createConversation: (companyId: string, user_id: string) =>
-    post(`/companies/${companyId}/chat/conversations`, { user_id }),
+  createConversation: (
+    companyId: string,
+    body: { user_id?: string; channel?: 'BUREAU' | 'COMPANY' | 'COMPANY_BUREAU' },
+  ) => post(`/companies/${companyId}/chat/conversations`, body),
   messages: (companyId: string, conversationId: string) =>
     get(`/companies/${companyId}/chat/conversations/${conversationId}/messages`),
   sendMessage: (companyId: string, conversationId: string, body: string) =>
     post(`/companies/${companyId}/chat/conversations/${conversationId}/messages`, {
       body,
     }),
+  deleteConversation: (companyId: string, conversationId: string) =>
+    del(`/companies/${companyId}/chat/conversations/${conversationId}`),
 }

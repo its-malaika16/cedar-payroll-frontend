@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { notificationsApi } from '../api'
 import { useAuth } from '../auth/AuthContext'
 import { Card, EmptyState, Loading, PageHeader } from '../components/ui'
@@ -12,11 +12,14 @@ type AppNotification = {
   type: string
   is_read: boolean
   created_at: string
-  data?: { invoice_id?: string | null; company_id?: string | null }
+  data?: { invoice_id?: string | null; company_id?: string | null; conversation_id?: string | null }
 }
 
-function notificationPath(item: AppNotification) {
+function notificationPath(item: AppNotification, inEmployeePortal: boolean) {
   const invoiceId = item.data?.invoice_id
+  if (item.type === 'CHAT_MESSAGE') {
+    return inEmployeePortal ? '/portal/help/chat' : '/help/chat'
+  }
   if (item.type === 'INVOICE_APPROVED' && invoiceId) {
     return `/payroll/invoices/${invoiceId}`
   }
@@ -32,6 +35,7 @@ function notificationPath(item: AppNotification) {
 export function NotificationsPage() {
   const { companyId } = useAuth()
   const navigate = useNavigate()
+  const inEmployeePortal = useLocation().pathname.startsWith('/portal')
   const queryClient = useQueryClient()
   const query = useQuery({
     queryKey: ['notifications', companyId],
@@ -51,7 +55,7 @@ export function NotificationsPage() {
         ) : (
           <div className="divide-y divide-[#eceae6]">
             {list.map((item) => {
-              const href = notificationPath(item)
+              const href = notificationPath(item, inEmployeePortal)
               return (
               <button
                 key={idOf(item)}

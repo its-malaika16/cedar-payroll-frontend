@@ -83,6 +83,7 @@ export function PayTypeEditor({
   locked,
   error,
   mode = 'create',
+  scope = 'company',
 }: {
   kind: PayTypeKind
   draft: PayTypeDraft
@@ -92,10 +93,15 @@ export function PayTypeEditor({
   locked: boolean
   error?: string | null
   mode?: 'create' | 'edit'
+  scope?: 'company' | 'payslip'
 }) {
   const isAddition = kind === 'addition'
-  const title =
-    mode === 'edit'
+  const payslip = scope === 'payslip'
+  const title = payslip
+    ? isAddition
+      ? 'Edit addition for this payslip'
+      : 'Edit deduction for this payslip'
+    : mode === 'edit'
       ? isAddition
         ? 'Edit Addition Type'
         : 'Edit Deduction Type'
@@ -122,6 +128,12 @@ export function PayTypeEditor({
 
       <div className="space-y-6">
         {error ? <p className="text-sm font-medium text-brand">{error}</p> : null}
+        {payslip ? (
+          <p className="text-sm text-muted">
+            These rules apply only to this employee for this pay period. The company addition or deduction type is not
+            changed for other employees.
+          </p>
+        ) : null}
 
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label="Name">
@@ -237,6 +249,7 @@ export function PayTypeEditor({
               />
             </OptionGroup>
           ) : null}
+          {payslip ? null : (
           <OptionGroup heading="Re-use">
             <RadioRow
               label={isAddition ? 'This is a one-off addition type' : 'This is a one-off deduction type'}
@@ -253,6 +266,7 @@ export function PayTypeEditor({
               onChange={() => set('reuse', 'remember')}
             />
           </OptionGroup>
+          )}
         </div>
 
         <div className="flex justify-end gap-3 pt-2">

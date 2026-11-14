@@ -294,7 +294,8 @@ export function AppLayout() {
         item.type !== 'INVOICE_REASON_REQUESTED' &&
         item.type !== 'INVOICE_REASON_SUBMITTED' &&
         item.type !== 'INVOICE_ACCEPTED' &&
-        item.type !== 'INVOICE_REJECTED'
+        item.type !== 'INVOICE_REJECTED' &&
+        item.type !== 'CHAT_MESSAGE'
       ) continue
       if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
         new Notification(item.title || 'Rota update', { body: item.body || '' })

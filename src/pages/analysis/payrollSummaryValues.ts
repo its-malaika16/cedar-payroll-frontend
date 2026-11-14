@@ -1,6 +1,7 @@
 import { formatDate, money } from '../../lib/format'
 import type { Employee, PayrollRecord } from '../../types'
 import { employeeFieldValue } from './employeeDetailsValues'
+import { employerPayTypeFieldValue } from './employerPayTypeFields'
 
 function num(value: unknown) {
   const amount = Number(value ?? 0)
@@ -24,6 +25,70 @@ function overtimeTotal(record: PayrollRecord) {
   return num(record.overtime_1) + num(record.overtime_1_5) + num(record.overtime_2)
 }
 
+const LEAVE_DAY_KEYS = [
+  'annual',
+  'unpaid',
+  'sick',
+  'maternity',
+  'paternity',
+  'absent',
+  'on_strike',
+  'parenting',
+  'custom',
+] as const
+
+const LEAVE_FIELD_MATCH: Record<string, { keys: string[]; pattern: RegExp }> = {
+  leave_annual: { keys: ['annual'], pattern: /annual/i },
+  leave_holiday: { keys: [], pattern: /^holiday$/i },
+  leave_unpaid: { keys: ['unpaid'], pattern: /unpaid/i },
+  leave_sick: { keys: ['sick'], pattern: /sick|ssp/i },
+  leave_maternity: { keys: ['maternity'], pattern: /maternity|smp/i },
+  leave_paternity: { keys: ['paternity'], pattern: /paternity|spp/i },
+  leave_parental: { keys: ['parenting'], pattern: /parental|parenting|shpp/i },
+  leave_authorised: { keys: [], pattern: /authorised absence/i },
+  leave_unauthorised: { keys: ['absent'], pattern: /unauthorised|absent/i },
+  leave_strike: { keys: ['on_strike'], pattern: /strike/i },
+  leave_compassionate: { keys: [], pattern: /compassionate/i },
+  leave_carer: { keys: [], pattern: /carer/i },
+  leave_study: { keys: [], pattern: /study/i },
+  leave_other: { keys: ['custom'], pattern: /^other$/i },
+}
+
+function leaveTypeDays(record: PayrollRecord | undefined, fieldId: string) {
+  const match = LEAVE_FIELD_MATCH[fieldId]
+  if (!match || !record) return 0
+  const summary = (record.calendar_leave_summary ?? {}) as Record<string, unknown>
+  if (match.keys.length > 0) {
+    return match.keys.reduce((total, key) => total + num(summary[key]), 0)
+  }
+  const items = Array.isArray(summary.paid_items) ? summary.paid_items : []
+  return items.reduce((total, item) => {
+    const type = String((item as { leave_type?: string }).leave_type ?? '')
+    if (!match.pattern.test(type)) return total
+    return total + num((item as { days?: unknown }).days)
+  }, 0)
+}
+
+function daysOrDash(value: number) {
+  return value > 0 ? String(value) : '—'
+}
+
+function mergeLeaveSummaries(records: PayrollRecord[]) {
+  const first = (records[0]?.calendar_leave_summary ?? {}) as Record<string, unknown>
+  const merged: Record<string, unknown> = { ...first }
+  for (const key of LEAVE_DAY_KEYS) {
+    merged[key] = records.reduce(
+      (total, record) => total + num((record.calendar_leave_summary as Record<string, unknown> | undefined)?.[key]),
+      0,
+    )
+  }
+  merged.paid_items = records.flatMap((record) => {
+    const items = (record.calendar_leave_summary as { paid_items?: unknown[] } | undefined)?.paid_items
+    return Array.isArray(items) ? items : []
+  })
+  return merged
+}
+
 export function mergePayrollRecords(records: PayrollRecord[]): PayrollRecord | undefined {
   if (records.length === 0) return undefined
   if (records.length === 1) return records[0]
@@ -42,6 +107,9 @@ export function mergePayrollRecords(records: PayrollRecord[]): PayrollRecord | u
   for (const key of keys) {
     merged[key] = records.reduce((total, record) => total + num(record[key]), 0) as never
   }
+  merged.pay_lines = records.flatMap((record) => record.pay_lines ?? [])
+  merged.deduction_lines = records.flatMap((record) => record.deduction_lines ?? [])
+  merged.calendar_leave_summary = mergeLeaveSummaries(records) as PayrollRecord['calendar_leave_summary']
   return merged
 }
 
@@ -50,6 +118,8 @@ export function payrollSummaryFieldValue(
   record: PayrollRecord | undefined,
   fieldId: string,
 ): string {
+  const employerValue = employerPayTypeFieldValue(record, fieldId)
+  if (employerValue != null) return employerValue
   const personal = new Set([
     'title', 'name', 'middle_name', 'last_name', 'gender', 'dob', 'nationality', 'passport_number',
   ])
@@ -75,17 +145,32 @@ export function payrollSummaryFieldValue(
       return moneyOrDash(overtimeTotal(record))
     case 'earn_total_hourly':
       return moneyOrDash(num(record.basic_pay) + overtimeTotal(record))
+    case 'leave_annual':
+    case 'leave_holiday':
+    case 'leave_unpaid':
+    case 'leave_authorised':
+    case 'leave_unauthorised':
+    case 'leave_strike':
+    case 'leave_compassionate':
+    case 'leave_carer':
+    case 'leave_study':
+    case 'leave_other':
+      return daysOrDash(leaveTypeDays(record, fieldId === 'leave_holiday' ? 'leave_annual' : fieldId))
+    case 'leave_sick':
     case 'stat_ssp':
     case 'ea_ssp':
       return moneyOrDash(record.ssp)
+    case 'leave_maternity':
     case 'stat_smp':
       return moneyOrDash(record.smp)
+    case 'leave_paternity':
     case 'stat_spp':
       return moneyOrDash(record.spp)
-    case 'stat_sap':
-      return moneyOrDash(record.sap)
+    case 'leave_parental':
     case 'stat_shpp':
       return moneyOrDash(record.shpp)
+    case 'stat_sap':
+      return moneyOrDash(record.sap)
     case 'stat_spbp':
       return moneyOrDash(record.spbp)
     case 'stat_sncp':
