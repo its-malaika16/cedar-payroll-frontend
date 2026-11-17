@@ -4,8 +4,9 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { ChevronLeft } from 'lucide-react'
 import { invoicesApi } from '../../api'
 import { useAuth } from '../../auth/AuthContext'
-import { Badge, Button, Card, EmptyState, Loading } from '../../components/ui'
+import { Alert, Badge, Button, Card, EmptyState, Loading } from '../../components/ui'
 import { formatDate, idOf, money } from '../../lib/format'
+import { downloadBlobFile } from '../employees/formPdf'
 import { InvoiceDeleteDialog } from './InvoiceViewPage'
 import {
   displayInvoiceNumber,
@@ -310,6 +311,8 @@ function sortRecentInvoices<T extends { issue_date?: string | null; invoice_numb
 function InvoiceRow({
   item,
   onView,
+  onDownload,
+  downloading,
   onDelete,
 }: {
   item: {
@@ -322,6 +325,8 @@ function InvoiceRow({
     total_due: number
   }
   onView: () => void
+  onDownload: () => void
+  downloading?: boolean
   onDelete?: () => void
 }) {
   return (
@@ -339,6 +344,9 @@ function InvoiceRow({
         <p className="font-semibold text-navy">{money(item.total_due)}</p>
         <Button variant="secondary" onClick={onView}>
           View
+        </Button>
+        <Button variant="secondary" disabled={downloading} onClick={onDownload}>
+          {downloading ? 'Downloading…' : 'Download'}
         </Button>
         {onDelete ? (
           <Button variant="danger" onClick={onDelete}>
@@ -360,6 +368,8 @@ export function InvoicesPage() {
   const [pendingDelete, setPendingDelete] = useState<{ id: string; invoice_number: string } | null>(null)
   const [deleting, setDeleting] = useState(false)
   const [deleteError, setDeleteError] = useState<string | null>(null)
+  const [downloadingId, setDownloadingId] = useState<string | null>(null)
+  const [downloadError, setDownloadError] = useState<string | null>(null)
   const today = useMemo(() => dateUTC(new Date()), [])
 
   const invoices = useQuery({
@@ -415,10 +425,26 @@ export function InvoicesPage() {
     }
   }
 
+  async function downloadInvoice(item: (typeof list)[number]) {
+    if (!companyId) return
+    setDownloadError(null)
+    setDownloadingId(item.id)
+    try {
+      const blob = await invoicesApi.fileBlob(companyId, item.id)
+      downloadBlobFile(blob, `${displayInvoiceNumber(item.invoice_number)}.pdf`)
+    } catch (err) {
+      setDownloadError(err instanceof Error ? err.message : 'Could not download invoice')
+    } finally {
+      setDownloadingId(null)
+    }
+  }
+
   function rowProps(item: (typeof list)[number]) {
     return {
       item,
       onView: () => navigate(`/payroll/invoices/${item.id}`),
+      onDownload: () => void downloadInvoice(item),
+      downloading: downloadingId === item.id,
       onDelete: canManage
         ? () => {
             setDeleteError(null)
@@ -428,12 +454,24 @@ export function InvoicesPage() {
     }
   }
 
+  const invoicesCrumb = canManage ? (
+    <>
+      Payroll &nbsp;&nbsp;&gt;&nbsp;&nbsp; <span className="text-navy">Invoices</span>
+    </>
+  ) : (
+    <span className="text-navy">Invoices</span>
+  )
+  const invoicesLead = canManage
+    ? 'Invoices owed to you'
+    : 'Invoices from the bureau'
+  const invoicesEmpty = canManage
+    ? 'Approved invoices will appear here.'
+    : 'Invoices generated and approved by the bureau will appear here.'
+
   if (listOpen) {
     return (
       <div>
-        <p className="text-sm font-semibold text-[#607080]">
-          Payroll &nbsp;&nbsp;&gt;&nbsp;&nbsp; <span className="text-navy">Invoices</span>
-        </p>
+        <p className="text-sm font-semibold text-[#607080]">{invoicesCrumb}</p>
         <button
           type="button"
           onClick={() => setListOpen(false)}
@@ -442,11 +480,12 @@ export function InvoicesPage() {
           <ChevronLeft size={25} strokeWidth={2.4} />
           All invoices
         </button>
+        {downloadError ? <div className="mt-4"><Alert>{downloadError}</Alert></div> : null}
         <Card className="mt-6">
           {invoices.isLoading ? (
             <Loading />
           ) : list.length === 0 ? (
-            <EmptyState title="No invoices" body="Approved invoices will appear here." />
+            <EmptyState title="No invoices" body={invoicesEmpty} />
           ) : (
             <div className="divide-y divide-[#eceae6]">
               {list.map((item) => (
@@ -474,9 +513,7 @@ export function InvoicesPage() {
     <div>
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <p className="text-sm font-semibold text-[#607080]">
-            Payroll &nbsp;&nbsp;&gt;&nbsp;&nbsp; <span className="text-navy">Invoices</span>
-          </p>
+          <p className="text-sm font-semibold text-[#607080]">{invoicesCrumb}</p>
           <h1 className="mt-3 text-[32px] font-semibold leading-none text-navy">Invoices</h1>
         </div>
         <div className="flex h-[42px] rounded-[12px] bg-[#eceae6] p-1">
@@ -500,12 +537,14 @@ export function InvoicesPage() {
         </div>
       </div>
 
+      {downloadError ? <div className="mt-4"><Alert>{downloadError}</Alert></div> : null}
+
       <div className="mt-6 rounded-[16px] bg-white p-6 shadow-[0_1px_8px_rgba(23,55,94,0.06)]">
         {invoices.isLoading ? (
           <Loading />
         ) : (
           <>
-            <h2 className="text-xl font-semibold text-navy">Invoices owed to you</h2>
+            <h2 className="text-xl font-semibold text-navy">{invoicesLead}</h2>
             <div className="mt-5 flex flex-wrap items-start justify-between gap-6">
               <div>
                 <p className="text-sm text-muted">Awaiting payment</p>
@@ -558,7 +597,7 @@ export function InvoicesPage() {
               </div>
               <div className="overflow-hidden rounded-[12px] border border-[#eceae6]">
                 {recent.length === 0 ? (
-                  <EmptyState title="No invoices" body="Approved invoices will appear here." />
+                  <EmptyState title="No invoices" body={invoicesEmpty} />
                 ) : (
                   <div className="divide-y divide-[#eceae6]">
                     {recent.map((item) => (

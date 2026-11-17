@@ -56,13 +56,13 @@ export function CompanyInvoicesPage() {
   return (
     <div>
       <PageHeader
-        title="Invoices"
+        title="Request Invoice"
         subtitle="Create a draft or send an invoice request to the bureau."
         actions={
           <Link to="/company-invoices/new">
             <Button>
               <Plus size={16} />
-              New invoice
+              New request
             </Button>
           </Link>
         }
@@ -107,11 +107,11 @@ export function CompanyInvoicesPage() {
       {visible.length === 0 ? (
         <Card>
           <EmptyState
-            title={rows.length === 0 ? 'No invoices yet' : 'Nothing in this view'}
+            title={rows.length === 0 ? 'No invoice requests yet' : 'Nothing in this view'}
             body={
               rows.length === 0
-                ? 'Create an invoice, save it as a draft, then send it to the bureau when it is ready.'
-                : 'Try another filter to see more invoices.'
+                ? 'Create a request, save it as a draft, then send it to the bureau when it is ready.'
+                : 'Try another filter to see more invoice requests.'
             }
           />
         </Card>

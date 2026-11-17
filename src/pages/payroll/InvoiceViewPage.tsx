@@ -129,7 +129,11 @@ export function InvoiceViewPage() {
   return (
     <div>
       <p className="text-sm font-semibold text-[#607080]">
-        Payroll &nbsp;&nbsp;&gt;&nbsp;&nbsp; Invoices &nbsp;&nbsp;&gt;&nbsp;&nbsp;
+        {canManage ? (
+          <>Payroll &nbsp;&nbsp;&gt;&nbsp;&nbsp; Invoices &nbsp;&nbsp;&gt;&nbsp;&nbsp;</>
+        ) : (
+          <>Invoices &nbsp;&nbsp;&gt;&nbsp;&nbsp;</>
+        )}
         <span className="text-navy">{displayInvoiceNumber(invoice.invoice_number)}</span>
       </p>
       <div className="mt-3 flex flex-wrap items-center justify-between gap-4">

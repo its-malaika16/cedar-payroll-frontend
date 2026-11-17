@@ -65,13 +65,13 @@ const adminNav: NavItem[] = [
     isActive: (pathname) =>
       pathname.startsWith('/hr') && !pathname.startsWith('/hr/shifts'),
   },
-  { to: '/payroll/invoices', label: 'Invoices', icon: iconInvoice },
   {
     to: '/company-invoices',
-    label: 'Invoices',
-    icon: iconInvoice,
+    label: 'Request Invoice',
+    icon: iconInvoiceRequest,
     isActive: (pathname) => pathname.startsWith('/company-invoices'),
   },
+  { to: '/payroll/invoices', label: 'Invoices', icon: iconInvoice },
   {
     to: '/requested-invoices',
     label: 'Requested Invoices',
@@ -115,7 +115,7 @@ function initials(first?: string | null, last?: string | null) {
   return value || 'CP'
 }
 
-function SidebarLink({ item }: { item: NavItem }) {
+function SidebarLink({ item, unread = 0 }: { item: NavItem; unread?: number }) {
   const location = useLocation()
   return (
     <NavLink
@@ -141,6 +141,15 @@ function SidebarLink({ item }: { item: NavItem }) {
               <BrandIcon src={item.icon!} alt="" className="size-[22px]" tone="navy" />
             )}
             {item.label}
+            {item.to === '/notifications' && unread > 0 ? (
+              <span
+                className={`ml-auto rounded-full px-1.5 py-0.5 text-[10px] font-bold ${
+                  active ? 'bg-white text-navy' : 'bg-brand text-white'
+                }`}
+              >
+                {unread > 9 ? '9+' : unread}
+              </span>
+            ) : null}
           </>
         )
       }}
@@ -214,9 +223,11 @@ export function AppLayout() {
       if (item.to === '/employees/payslips') {
         return auth.isCompanyAdmin && auth.hasModule('PAYROLL') && !auth.hasModule('INVOICE')
       }
-      if (invoiceOnlyCompany) return item.to === APP_HOME || item.to === '/company-invoices'
+      if (invoiceOnlyCompany) {
+        return item.to === APP_HOME || item.to === '/company-invoices' || item.to === '/payroll/invoices'
+      }
       if (item.to === '/payroll/invoices') {
-        if (auth.isCompanyAdmin) return auth.hasModule('PAYROLL')
+        if (auth.isCompanyAdmin) return auth.hasModule('PAYROLL') || auth.hasModule('INVOICE')
         return true
       }
       if (auth.isCompanyAdmin) {
@@ -235,11 +246,6 @@ export function AppLayout() {
       }
       return true
     })
-    .map((item) =>
-      item.to === '/payroll/invoices' && auth.isCompanyAdmin && auth.hasModule('INVOICE')
-        ? { ...item, label: 'Payroll invoices' }
-        : item,
-    )
   const footerItems = footerNav.filter((item) => {
     if (item.to === '/settings') return !auth.isCompanyAdmin
     if (item.to === '/company-info') return auth.isCompanyAdmin
@@ -257,6 +263,9 @@ export function AppLayout() {
     enabled: Boolean(auth.token && auth.companyId),
     refetchInterval: 30000,
   })
+  const unread = (
+    (notifications.data?.data as Array<{ is_read?: boolean }> | undefined) ?? []
+  ).filter((item) => !item.is_read).length
 
   useEffect(() => {
     if (!auth.adminCompanies.length) return
@@ -295,10 +304,11 @@ export function AppLayout() {
         item.type !== 'INVOICE_REASON_SUBMITTED' &&
         item.type !== 'INVOICE_ACCEPTED' &&
         item.type !== 'INVOICE_REJECTED' &&
+        item.type !== 'INVOICE_DUE_TODAY' &&
         item.type !== 'CHAT_MESSAGE'
       ) continue
       if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
-        new Notification(item.title || 'Rota update', { body: item.body || '' })
+        new Notification(item.title || 'Cedar Payroll', { body: item.body || '' })
       }
     }
   }, [notifications.data])
@@ -326,7 +336,7 @@ export function AppLayout() {
           <div className="mt-auto shrink-0 px-1.5 pb-3">
             <div className="mb-3 space-y-1">
               {footerItems.map((item) => (
-                <SidebarLink key={item.to} item={item} />
+                <SidebarLink key={item.to} item={item} unread={unread} />
               ))}
             </div>
             <div className="relative mx-1.5 border-t border-white/20 pt-3">

@@ -119,7 +119,7 @@ export function CompanyInvoiceFormPage() {
   return (
     <div>
       <PageHeader
-        title={isNew ? 'New invoice' : invoice?.title || 'Invoice'}
+        title={isNew ? 'New invoice request' : invoice?.title || 'Invoice request'}
         subtitle={isNew ? 'Save a draft or send it to the bureau.' : invoiceStatusLabel(status)}
         actions={
           <Link to="/company-invoices">

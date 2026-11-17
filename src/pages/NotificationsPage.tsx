@@ -20,8 +20,16 @@ function notificationPath(item: AppNotification, inEmployeePortal: boolean) {
   if (item.type === 'CHAT_MESSAGE') {
     return inEmployeePortal ? '/portal/help/chat' : '/help/chat'
   }
-  if (item.type === 'INVOICE_APPROVED' && invoiceId) {
-    return `/payroll/invoices/${invoiceId}`
+  if ((item.type === 'INVOICE_APPROVED' || item.type === 'INVOICE_DUE_TODAY') && invoiceId) {
+    return inEmployeePortal ? '/portal/notifications' : `/payroll/invoices/${invoiceId}`
+  }
+  if (
+    (item.type === 'INVOICE_ACCEPTED' ||
+      item.type === 'INVOICE_REJECTED' ||
+      item.type === 'INVOICE_REASON_REQUESTED') &&
+    invoiceId
+  ) {
+    return inEmployeePortal ? '/portal/notifications' : `/company-invoices/${invoiceId}`
   }
   if (item.type === 'LEAVE_REQUESTED') return '/hr/leave/requests'
   if (item.type === 'LEAVE_APPROVED' || item.type === 'LEAVE_REJECTED') return '/portal/leave'

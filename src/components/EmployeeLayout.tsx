@@ -139,8 +139,8 @@ export function EmployeeLayout() {
       if (!id || seenNotifications.current.has(id) || item.is_read) continue
       seenNotifications.current.add(id)
       const allowed = hasPayroll
-        ? ['ROTA_PUBLISHED', 'ROTA_UPDATED', 'DOCUMENT_EXPIRING', 'PAYSLIP_READY', 'LEAVE_APPROVED', 'LEAVE_REJECTED', 'CHAT_MESSAGE']
-        : ['ROTA_PUBLISHED', 'ROTA_UPDATED', 'DOCUMENT_EXPIRING', 'LEAVE_APPROVED', 'LEAVE_REJECTED', 'CHAT_MESSAGE']
+        ? ['ROTA_PUBLISHED', 'ROTA_UPDATED', 'DOCUMENT_EXPIRING', 'PAYSLIP_READY', 'LEAVE_APPROVED', 'LEAVE_REJECTED', 'CHAT_MESSAGE', 'INVOICE_APPROVED', 'INVOICE_DUE_TODAY', 'INVOICE_ACCEPTED', 'INVOICE_REJECTED', 'INVOICE_REASON_REQUESTED']
+        : ['ROTA_PUBLISHED', 'ROTA_UPDATED', 'DOCUMENT_EXPIRING', 'LEAVE_APPROVED', 'LEAVE_REJECTED', 'CHAT_MESSAGE', 'INVOICE_APPROVED', 'INVOICE_DUE_TODAY', 'INVOICE_ACCEPTED', 'INVOICE_REJECTED', 'INVOICE_REASON_REQUESTED']
       if (!allowed.includes(item.type ?? '')) continue
       if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
         new Notification(item.title || 'Cedar Payroll', { body: item.body || '' })
