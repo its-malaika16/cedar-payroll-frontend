@@ -1,0 +1,45 @@
+# Cedar Payroll — https://cedarpayroll.com
+User-agent: *
+Allow: /
+Disallow: /app
+Disallow: /portal
+Disallow: /login
+Disallow: /register
+Disallow: /onboarding
+Disallow: /employees
+Disallow: /payroll
+Disallow: /hr
+Disallow: /companies
+Disallow: /company-invoices
+Disallow: /requested-invoices
+Disallow: /timesheets
+Disallow: /activities
+Disallow: /notifications
+Disallow: /settings
+Disallow: /communication
+Disallow: /bureau-personal
+Disallow: /help
+Disallow: /api/
+
+# AI crawlers are welcome to read public pages.
+User-agent: GPTBot
+Allow: /
+
+User-agent: ChatGPT-User
+Allow: /
+
+User-agent: ClaudeBot
+Allow: /
+
+User-agent: anthropic-ai
+Allow: /
+
+User-agent: PerplexityBot
+Allow: /
+
+User-agent: Google-Extended
+Allow: /
+
+Content-Signal: search=yes, ai-input=yes, ai-train=no
+
+Sitemap: https://cedarpayroll.com/sitemap.xml

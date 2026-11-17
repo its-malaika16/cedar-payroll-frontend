@@ -2,6 +2,7 @@ import Herosection from "../components/Home/home-hero-section";
 import PlatformSolutionsSection from "../components/Home/platform-solution-section";
 import PayrollBankingSection from "../components/Home/platform-banking-section";
 import WhyChooseSection from "../components/Home/why-choose-section";
+import SearchTopicsSection from "../components/Home/search-topics-section";
 import CTASection from "../components/Home/home-cta-section";
 
 export default function home() {
@@ -11,6 +12,7 @@ export default function home() {
       <PlatformSolutionsSection />
       <PayrollBankingSection />
       <WhyChooseSection />
+      <SearchTopicsSection />
       <CTASection />
     </>
   );

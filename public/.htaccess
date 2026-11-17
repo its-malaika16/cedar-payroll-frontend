@@ -1,9 +1,33 @@
+AddType text/markdown .md
+AddType text/plain .txt
+AddType application/json .json
+
+<IfModule mod_headers.c>
+  Header set Content-Signal "search=yes, ai-input=yes, ai-train=no"
+  Header always set Content-Signal "search=yes, ai-input=yes, ai-train=no"
+  Header add Link "</llms.txt>; rel=\"describedby\"; type=\"text/plain\""
+  Header add Link "</index.md>; rel=\"alternate\"; type=\"text/markdown\""
+  Header add Link "</sitemap.xml>; rel=\"sitemap\"; type=\"application/xml\""
+  Header add Link "</.well-known/mcp/server-card.json>; rel=\"mcp\"; type=\"application/json\""
+</IfModule>
+
+ErrorDocument 404 /404.html
+
 <IfModule mod_rewrite.c>
   RewriteEngine On
   RewriteBase /
+
+  RewriteCond %{HTTP_ACCEPT} text/markdown [NC]
+  RewriteCond %{HTTP_ACCEPT} !text/html [NC]
+  RewriteRule ^$ /index.md [T=text/markdown,L]
+
+  RewriteCond %{REQUEST_FILENAME} -f [OR]
+  RewriteCond %{REQUEST_FILENAME} -d
+  RewriteRule ^ - [L]
+
   RewriteRule ^index\.html$ - [L]
-  RewriteCond %{REQUEST_FILENAME} !-f
-  RewriteCond %{REQUEST_FILENAME} !-d
-  RewriteCond %{REQUEST_FILENAME} !-l
-  RewriteRule . /index.html [L]
+
+  RewriteRule ^$ /index.html [L]
+
+  RewriteRule ^(login|register|onboarding|app|portal|employees|payroll|hr|companies|company-invoices|requested-invoices|timesheets|activities|notifications|help|communication|bureau-personal|settings|company-info|contact|about|services|terms|privacy|support|whoweserve|cookie|uk-payroll-software)(/.*)?$ /index.html [L]
 </IfModule>

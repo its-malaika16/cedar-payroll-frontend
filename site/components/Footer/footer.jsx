@@ -59,6 +59,7 @@ const Footer = () => {
               <Link to="/about#vision">Our Vision</Link>
               <Link to="/about#core-values">Core Values</Link>
               <Link to="/about#global-presence">Global Presence</Link>
+              <Link to="/uk-payroll-software">UK payroll software</Link>
             </div>
           </div>
 

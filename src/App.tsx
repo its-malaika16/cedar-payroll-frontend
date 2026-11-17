@@ -90,6 +90,8 @@ import PrivacyPage from '@site/pages/PrivacyPage.jsx'
 import SupportPage from '@site/pages/support.jsx'
 import WhoWeServePage from '@site/pages/whoweserve.jsx'
 import CookiePage from '@site/pages/CookiePage.jsx'
+import UkPayrollSoftwarePage from '@site/pages/uk-payroll-software.jsx'
+import NotFoundPage from '@site/pages/NotFound.jsx'
 
 function isCompanyAdminPath(pathname: string) {
   if (pathname === APP_HOME) return true
@@ -137,7 +139,7 @@ function RequirePayrollModule({ children }: { children: ReactNode }) {
 function HomeRedirect() {
   const auth = useAuth()
   if (auth.loading) return <Loading />
-  if (!auth.token) return <Navigate to="/" replace />
+  if (!auth.token) return <NotFoundPage />
   return <Navigate to={auth.homePath} replace />
 }
 
@@ -156,6 +158,7 @@ export default function App() {
         <Route path="/support" element={<SupportPage />} />
         <Route path="/whoweserve" element={<WhoWeServePage />} />
         <Route path="/cookie" element={<CookiePage />} />
+        <Route path="/uk-payroll-software" element={<UkPayrollSoftwarePage />} />
       </Route>
       <Route element={<OnboardingLayout />}>
         <Route path="/onboarding" element={<OnboardingWorkspacePage />} />

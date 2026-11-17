@@ -1,0 +1,17 @@
+{
+  "name": "cedar-payroll",
+  "title": "Cedar Payroll",
+  "description": "UK payroll software and bureau services. Public documentation for Cedar Payroll Limited.",
+  "website": "https://cedarpayroll.com",
+  "version": "1.0.0",
+  "transport": {
+    "type": "http",
+    "url": "https://cedarpayroll.com/llms.txt"
+  },
+  "resources": [
+    { "name": "llms.txt", "uri": "https://cedarpayroll.com/llms.txt", "mimeType": "text/plain" },
+    { "name": "home", "uri": "https://cedarpayroll.com/index.md", "mimeType": "text/markdown" },
+    { "name": "about", "uri": "https://cedarpayroll.com/about.md", "mimeType": "text/markdown" },
+    { "name": "contact", "uri": "https://cedarpayroll.com/contact.md", "mimeType": "text/markdown" }
+  ]
+}

@@ -1,0 +1,10 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/server-card.json",
+  "name": "cedar-payroll",
+  "title": "Cedar Payroll",
+  "description": "Documentation and contact details for Cedar Payroll Limited, a UK payroll software provider.",
+  "version": "1.0.0",
+  "websiteUrl": "https://cedarpayroll.com",
+  "icons": [{ "src": "https://cedarpayroll.com/favicon-192.png", "sizes": "192x192" }],
+  "documentation": "https://cedarpayroll.com/llms.txt"
+}

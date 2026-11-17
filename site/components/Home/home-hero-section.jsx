@@ -52,16 +52,16 @@ const HeroBanner = () => {
         <div className="hero-layout">
           <div className="hero-content">
             <h1>
-              PAYROLL,
+              CEDAR PAYROLL.
               <br />
-              SIMPLIFIED.
+              UK PAYROLL SOFTWARE.
             </h1>
 
             <div className="hero-divider"></div>
 
             <p>
-              Accurate, efficient, and stress-free payroll management
-              for businesses of every size
+              UK payroll software and HR for employers, bureaux, and employees.
+              HMRC RTI, payslips, leave, and self-service on web and mobile.
             </p>
 
             <form className="hero-cta" onSubmit={openQuote} noValidate>

@@ -1,0 +1,35 @@
+# Cedar Payroll
+
+> UK payroll software and bureau services for employers, bureau staff, and employees.
+
+Cedar Payroll Limited (trading as Cedar Payroll) provides cloud payroll, HMRC RTI, payslips, leave, attendance, and employee self-service. The same account works on the website and the iOS and Android apps.
+
+Contact: support@cedarpayroll.com · +971 50 429 4194 · United Kingdom · Mon–Fri, 9:00–17:30
+
+## Public pages
+
+- [Home](https://cedarpayroll.com/): Cedar Payroll UK payroll software
+- [UK payroll software](https://cedarpayroll.com/uk-payroll-software): PAYE, HMRC and UK HR software
+- [About](https://cedarpayroll.com/about): Mission, vision, and company
+- [Services](https://cedarpayroll.com/services): Payroll features and how it works
+- [Who we serve](https://cedarpayroll.com/whoweserve): Industries and clients
+- [Contact](https://cedarpayroll.com/contact): Quote and support
+- [Support](https://cedarpayroll.com/support): Help
+- [Privacy policy](https://cedarpayroll.com/privacy)
+- [Terms](https://cedarpayroll.com/terms)
+- [Cookie policy](https://cedarpayroll.com/cookie)
+
+## Markdown for agents
+
+- [Home](https://cedarpayroll.com/index.md)
+- [About](https://cedarpayroll.com/about.md)
+- [Services](https://cedarpayroll.com/services.md)
+- [Contact](https://cedarpayroll.com/contact.md)
+- [Privacy](https://cedarpayroll.com/privacy.md)
+- [Terms](https://cedarpayroll.com/terms.md)
+
+## Apps
+
+- [App Store](https://apps.apple.com/app/cedar-payroll/id6827439911)
+- [Google Play](https://play.google.com/store/apps/details?id=com.cedarpayroll.app)
+- [Sitemap](https://cedarpayroll.com/sitemap.xml)
