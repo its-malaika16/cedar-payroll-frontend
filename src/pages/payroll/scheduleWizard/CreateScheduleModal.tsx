@@ -10,8 +10,8 @@ import {
   FREQUENCY_META,
   WEEKDAYS,
   applyPayDateRule,
+  applyPeriodEndRule,
   buildSchedulePreview,
-  calendarEndFromParts,
   dateKey,
   defaultFirstPeriodEnd,
   firstPayDateInvalid,
@@ -19,12 +19,12 @@ import {
   hmrcPeriodColumnLabel,
   hmrcPeriodLabel,
   isCalendarFrequency,
-  monthDayOptions,
   monthYearOptions,
   parseDateKey,
   payDateNeedsCount,
   payDateNeedsWeekday,
   payDateRuleGroups,
+  periodEndRuleGroups,
   taxYearLabel,
   type PayDateRule,
   type PayFrequency,
@@ -143,7 +143,7 @@ export function CreateScheduleModal({
 
   const [step, setStep] = useState<Step>('configure')
   const [firstEndKey, setFirstEndKey] = useState(dateKey(defaultEnd))
-  const [monthDay, setMonthDay] = useState<'last' | string>('last')
+  const [periodEndKey, setPeriodEndKey] = useState('last_day')
   const [monthYear, setMonthYear] = useState(`${defaultEnd.getFullYear()}-${defaultEnd.getMonth()}`)
   const [ruleKey, setRuleKey] = useState('period_end')
   const [count, setCount] = useState(1)
@@ -158,8 +158,8 @@ export function CreateScheduleModal({
   const firstEnd = useMemo(() => {
     if (!calendar) return parseDateKey(firstEndKey)
     const [year, month] = monthYear.split('-').map(Number)
-    return calendarEndFromParts(monthDay === 'last' ? 'last' : Number(monthDay) || 1, year, month)
-  }, [calendar, firstEndKey, monthDay, monthYear])
+    return applyPeriodEndRule(year, month, periodEndKey)
+  }, [calendar, firstEndKey, periodEndKey, monthYear])
 
   const rule: PayDateRule = useMemo(
     () => ({ key: ruleKey, count: Math.max(1, count), weekday }),
@@ -172,14 +172,14 @@ export function CreateScheduleModal({
         frequency,
         firstEnd,
         rule,
-        monthDay: monthDay === 'last' ? 'last' : Number(monthDay) || 1,
+        periodEndKey,
       }),
-    [frequency, firstEnd, rule, monthDay],
+    [frequency, firstEnd, rule, periodEndKey],
   )
 
   const taxYearStart = taxYearStartDate(preview.taxYear)
   const invalidFirstPay = firstPayDateInvalid(preview.periods, preview.taxYear)
-  const groups = useMemo(() => payDateRuleGroups(meta.unit), [meta.unit])
+  const groups = useMemo(() => payDateRuleGroups(meta.unit, calendar), [meta.unit, calendar])
 
   const employeesQuery = useQuery({
     queryKey: ['employees', companyId, 'assign-schedule'],
@@ -312,17 +312,13 @@ export function CreateScheduleModal({
                 </p>
                 {calendar ? (
                   <div className="flex flex-wrap items-center gap-2">
-                    <select
-                      className={`${fieldClass} max-w-[140px]`}
-                      value={monthDay}
-                      onChange={(e) => setMonthDay(e.target.value)}
-                    >
-                      {monthDayOptions().map((option) => (
-                        <option key={option.value} value={option.value}>
-                          {option.label}
-                        </option>
-                      ))}
-                    </select>
+                    <div className="min-w-[220px] flex-1">
+                      <PayDateSelect
+                        value={periodEndKey}
+                        groups={periodEndRuleGroups()}
+                        onChange={setPeriodEndKey}
+                      />
+                    </div>
                     <span className="text-sm text-navy">of</span>
                     <select
                       className={`${fieldClass} max-w-[220px]`}

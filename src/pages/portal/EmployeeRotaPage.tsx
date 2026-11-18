@@ -208,7 +208,7 @@ function MonthCalendar({
                       ) : (
                         dayShifts.map((shift) => {
                           const meta = decodeShiftNotes(shift.notes)
-                          const hours = hoursBetween(shift.start_time, shift.end_time, meta.breakMinutes)
+                          const hours = hoursBetween(shift.start_time, shift.end_time, meta.breakMinutes, meta.paidBreak)
                           return (
                             <div
                               key={shift.id}
@@ -274,7 +274,7 @@ export function EmployeeRotaPage() {
     const weekShifts = shifts.filter((shift) => keys.has(shiftDateKey(shift)))
     const hours = weekShifts.reduce((total, shift) => {
       const meta = decodeShiftNotes(shift.notes)
-      return total + hoursBetween(shift.start_time, shift.end_time, meta.breakMinutes)
+      return total + hoursBetween(shift.start_time, shift.end_time, meta.breakMinutes, meta.paidBreak)
     }, 0)
     const open = openShifts.filter((shift) => keys.has(String(shift.shift_date).slice(0, 10))).length
     const leaveDays = days.filter((day) => leave.some((item) => leaveCoversDate(item, dateKey(day)))).length
@@ -425,7 +425,7 @@ export function EmployeeRotaPage() {
                   ) : dayShifts.length > 0 ? (
                     dayShifts.map((shift) => {
                       const meta = decodeShiftNotes(shift.notes)
-                      const hours = hoursBetween(shift.start_time, shift.end_time, meta.breakMinutes)
+                      const hours = hoursBetween(shift.start_time, shift.end_time, meta.breakMinutes, meta.paidBreak)
                       return (
                         <ScheduleRow
                           key={shift.id}

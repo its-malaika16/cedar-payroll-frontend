@@ -779,17 +779,25 @@ export function InvoiceEditorPage() {
             </button>
             {addOpen ? (
               <div className="absolute bottom-full z-20 mb-1 w-48 rounded-[10px] border border-[#d9d9d9] bg-white p-1 shadow-lg">
-                <button
-                  type="button"
-                  className="block w-full rounded-[8px] px-3 py-2 text-left text-sm text-navy hover:bg-cream"
-                  onClick={() => {
-                    setDirty(true)
-                    setLines((current) => [...current, invoiceLineFromAmount('', 0, 20, {}, invoiceType)])
-                    setAddOpen(false)
-                  }}
-                >
-                  Employee row
-                </button>
+                {([1, 5, 10] as const).map((count) => (
+                  <button
+                    key={count}
+                    type="button"
+                    className="block w-full rounded-[8px] px-3 py-2 text-left text-sm text-navy hover:bg-cream"
+                    onClick={() => {
+                      setDirty(true)
+                      setLines((current) => [
+                        ...current,
+                        ...Array.from({ length: count }, () =>
+                          invoiceLineFromAmount('', 0, 20, {}, invoiceType),
+                        ),
+                      ])
+                      setAddOpen(false)
+                    }}
+                  >
+                    {count === 1 ? 'Add row' : `Add ${count} rows`}
+                  </button>
+                ))}
                 <button
                   type="button"
                   className="block w-full rounded-[8px] px-3 py-2 text-left text-sm text-navy hover:bg-cream"

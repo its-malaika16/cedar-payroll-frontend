@@ -1,6 +1,7 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import {
   Bell,
+  Building2,
   CalendarClock,
   CircleHelp,
   ClipboardList,
@@ -20,6 +21,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { notificationsApi } from '../api'
 import { PortalSwitchButton } from './PortalSwitcher'
+import { useShiftLocationPing } from '../pages/hr/useShiftLocationPing'
 
 const CalendarUser = createLucideIcon('calendar-user', [
   ['path', { d: 'M8 2v4' }],
@@ -101,8 +103,12 @@ function SidebarLink({ item, unread = 0 }: { item: NavItem; unread?: number }) {
 export function EmployeeLayout() {
   const auth = useAuth()
   const navigate = useNavigate()
+  useShiftLocationPing(auth.companyId, auth.currentEmployee?.employee_id)
   const [menuOpen, setMenuOpen] = useState(false)
-  const name = fullName(auth.user?.first_name, auth.user?.last_name)
+  const displayFirst =
+    auth.currentEmployee?.first_name ?? auth.user?.first_name
+  const displayLast = auth.currentEmployee?.last_name ?? auth.user?.last_name
+  const name = fullName(displayFirst, displayLast)
   const employeeCompanies = auth.companies.filter((item) =>
     auth.employeeAccess.some((access) => access.company_id === item.id),
   )
@@ -181,7 +187,7 @@ export function EmployeeLayout() {
                 onClick={() => setMenuOpen((open) => !open)}
               >
                 <span className="flex size-[46px] items-center justify-center rounded-full bg-[#9b9a9a] text-base font-semibold text-white">
-                  {initials(auth.user?.first_name, auth.user?.last_name)}
+                  {initials(displayFirst, displayLast)}
                 </span>
                 <span className="min-w-0 flex-1">
                   <span className="block text-xs font-medium">Welcome,</span>
@@ -207,23 +213,37 @@ export function EmployeeLayout() {
           </div>
         </>
       }
+      headerLeft={
+        company?.name ? (
+          <label className="relative min-w-0 w-full max-w-none shrink-0 sm:w-auto sm:min-w-[180px] sm:max-w-[280px]">
+            <Building2
+              size={16}
+              className="pointer-events-none absolute top-1/2 left-4 -translate-y-1/2 text-navy"
+            />
+            {employeeCompanies.length > 1 ? (
+              <select
+                className="h-[42px] w-full appearance-none rounded-[15px] border border-[#d9d9d9] bg-white pr-10 pl-11 text-[15px] font-medium text-navy outline-none"
+                value={auth.companyId ?? ''}
+                onChange={(event) => auth.setCompanyId(event.target.value)}
+                aria-label="Select company"
+              >
+                {employeeCompanies.map((item) => (
+                  <option key={item.id} value={item.id}>
+                    {item.name}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <span className="flex h-[42px] items-center truncate rounded-[15px] border border-[#d9d9d9] bg-white pr-4 pl-11 text-[15px] font-medium text-navy">
+                {company.name}
+              </span>
+            )}
+          </label>
+        ) : null
+      }
       headerRight={
         <>
           <PortalSwitchButton variant="employee" />
-          {employeeCompanies.length > 1 ? (
-            <select
-              className="h-[42px] min-w-0 max-w-full rounded-[15px] border border-[#d9d9d9] bg-white px-3 text-[15px] font-medium text-navy outline-none sm:max-w-[220px]"
-              value={auth.companyId ?? ''}
-              onChange={(event) => auth.setCompanyId(event.target.value)}
-              aria-label="Select company"
-            >
-              {employeeCompanies.map((item) => (
-                <option key={item.id} value={item.id}>
-                  {item.name}
-                </option>
-              ))}
-            </select>
-          ) : null}
           <label className="relative min-w-0 w-full max-w-[353px] basis-full sm:basis-auto">
             <Search
               size={16}

@@ -7,6 +7,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Clock3,
+  Coffee,
   MapPin,
   User,
   Users,
@@ -15,6 +16,7 @@ import {
 import { hrApi } from '../../api'
 import { useAuth } from '../../auth/AuthContext'
 import { Alert, Loading } from '../../components/ui'
+import { AttendancePlaceMap } from '../hr/AttendancePlaceMap'
 import {
   addDays,
   dateKey,
@@ -34,6 +36,15 @@ const CHECK_IN_OPENS_MINUTES = 30
 type AttendanceRecord = {
   check_in_at?: string | null
   check_out_at?: string | null
+  break_started_at?: string | null
+  break_minutes_taken?: number
+  paid_break?: boolean
+  check_in_place?: string | null
+  check_out_place?: string | null
+  check_in_latitude?: number | string | null
+  check_in_longitude?: number | string | null
+  check_out_latitude?: number | string | null
+  check_out_longitude?: number | string | null
 }
 
 type TodayPayload = {
@@ -42,9 +53,20 @@ type TodayPayload = {
     end_time: string
     role_name?: string | null
     location?: string | null
+    break_minutes?: number
+    paid_break?: boolean
   } | null
   attendance?: AttendanceRecord | null
   open_attendance?: AttendanceRecord | null
+  on_break?: boolean
+  can_start_break?: boolean
+  can_end_break?: boolean
+  break_allowance_minutes?: number
+  break_minutes_taken?: number
+  break_remaining_minutes?: number
+  paid_break?: boolean
+  break_started_at?: string | null
+  work_site?: string | null
   can_check_in?: boolean
   can_check_out?: boolean
   check_in_opens_at?: string | null
@@ -383,7 +405,11 @@ export function EmployeeAttendancePage() {
       const position = coords ?? (await readLocation())
       setCoords(position)
       const radius = clampRadius(today?.radius_meters)
+      if (kind === 'in' && !today?.shift) {
+        throw new Error('You need a shift assigned today to check in')
+      }
       if (
+        today?.work_site !== 'OFFSITE' &&
         today?.workplace_latitude != null &&
         today?.workplace_longitude != null
       ) {
@@ -409,6 +435,43 @@ export function EmployeeAttendancePage() {
     }
   }
 
+  async function punchBreak(kind: 'start' | 'end') {
+    if (!employeeId) return
+    try {
+      setBusy(true)
+      setError(null)
+      const position = coords ?? (await readLocation())
+      setCoords(position)
+      const radius = clampRadius(today?.radius_meters)
+      if (
+        today?.work_site !== 'OFFSITE' &&
+        today?.workplace_latitude != null &&
+        today?.workplace_longitude != null
+      ) {
+        const distance = distanceMeters(
+          position.latitude,
+          position.longitude,
+          today.workplace_latitude,
+          today.workplace_longitude,
+        )
+        if (distance > radius) {
+          throw new Error(
+            `You must be within ${kmLabel(radius)} of the workplace to ${
+              kind === 'start' ? 'start a break' : 'end a break'
+            }. You are currently ${kmLabel(distance)} away.`,
+          )
+        }
+      }
+      if (kind === 'start') await hrApi.startBreak(companyId!, employeeId, position)
+      else await hrApi.endBreak(companyId!, employeeId, position)
+      await todayQuery.refetch()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not update break')
+    } finally {
+      setBusy(false)
+    }
+  }
+
   const checkInAt = today?.attendance?.check_in_at ?? today?.open_attendance?.check_in_at
   const checkOutAt = today?.attendance?.check_out_at
   const expected = today?.expected_hours ?? (today?.shift ? shiftHours(today.shift) : 8)
@@ -425,6 +488,7 @@ export function EmployeeAttendancePage() {
           today.workplace_longitude,
         )
       : null
+  const offsite = today?.work_site === 'OFFSITE'
   const insideRadius = currentDistance == null ? null : currentDistance <= radius
   const hasWorkplace = today?.workplace_latitude != null && today?.workplace_longitude != null
   const alreadyCheckedIn = Boolean(onShift || checkInAt)
@@ -435,9 +499,21 @@ export function EmployeeAttendancePage() {
       : null
   const windowOpen = !opensAt || Number.isNaN(opensAt.getTime()) || nowMs >= opensAt.getTime()
   const canCheckIn = Boolean(
-    hasWorkplace && !alreadyCheckedIn && windowOpen && insideRadius !== false && !geoError && !busy,
+    today?.shift &&
+      (offsite || hasWorkplace) &&
+      !alreadyCheckedIn &&
+      windowOpen &&
+      (offsite || insideRadius !== false) &&
+      !geoError &&
+      !busy,
   )
-  const canCheckOut = Boolean(today?.can_check_out && insideRadius !== false && !geoError && !busy)
+  const canCheckOut = Boolean(
+    today?.can_check_out && (offsite || insideRadius !== false) && !geoError && !busy,
+  )
+  const onBreak = Boolean(today?.on_break)
+  const withinWorkplace = offsite || insideRadius !== false
+  const canStartBreak = Boolean(today?.can_start_break && withinWorkplace && !geoError && !busy)
+  const canEndBreak = Boolean(today?.can_end_break && withinWorkplace && !geoError && !busy)
   const locationLabel = today?.shift?.location || today?.shift?.role_name || 'Office'
   const overtimeHours = today?.overtime_hours ?? 0
   const remainingHours = today?.remaining_hours ?? Math.max(0, expected - worked)
@@ -453,7 +529,9 @@ export function EmployeeAttendancePage() {
       </p>
       <h1 className="mt-2 text-[32px] font-semibold text-navy">Attendance</h1>
       <p className="mt-1 text-sm text-muted">
-        Check in and out from within {kmLabel(radius)} of workplace
+        {offsite
+          ? 'Offsite worker: you can check in from anywhere.'
+          : `Check in and out from within ${kmLabel(radius)} of workplace`}
       </p>
 
       {error ? (
@@ -538,12 +616,21 @@ export function EmployeeAttendancePage() {
                 </div>
               ) : (
                 <p className="mt-6 text-sm text-muted">
-                  No shift is assigned for today. You can still check in if you are inside the office radius.
+                  No shift is assigned for today. Check-in is only available when a shift is assigned.
                 </p>
               )}
+              {!offsite && currentDistance != null ? (
+                <Banner tone={insideRadius ? 'success' : 'danger'} icon={insideRadius ? <Check size={16} /> : <XCircle size={16} />}>
+                  {insideRadius
+                    ? `You are within the workplace radius · ${kmLabel(currentDistance)} from the office (limit ${kmLabel(radius)})`
+                    : `You are outside the workplace radius · ${kmLabel(currentDistance)} from the office (limit ${kmLabel(radius)})`}
+                </Banner>
+              ) : null}
               {geoError ? (
                 <Banner tone="danger" icon={<XCircle size={16} />}>
-                  {geoError}
+                  {offsite
+                    ? 'Allow location access so we can save where you check in.'
+                    : geoError}
                 </Banner>
               ) : checkOutAt && today?.checked_out_early ? (
                 <Banner
@@ -578,13 +665,13 @@ export function EmployeeAttendancePage() {
                 >
                   Great! You are on time
                 </Banner>
-              ) : !hasWorkplace ? (
+              ) : !today?.shift && !alreadyCheckedIn ? (
+                <Banner tone="info" icon={<Clock3 size={16} />}>
+                  You need a shift assigned today to check in.
+                </Banner>
+              ) : !offsite && !hasWorkplace ? (
                 <Banner tone="info" icon={<Clock3 size={16} />}>
                   Your employer still needs to save the workplace pin in Company info.
-                </Banner>
-              ) : insideRadius === false ? (
-                <Banner tone="danger" icon={<XCircle size={16} />}>
-                  You are {kmLabel(currentDistance ?? 0)} from the office. Check-in is allowed within {kmLabel(radius)}.
                 </Banner>
               ) : !windowOpen && opensAt ? (
                 <Banner tone="info" icon={<Clock3 size={16} />}>
@@ -620,6 +707,72 @@ export function EmployeeAttendancePage() {
                   {busy && onShift ? 'Checking…' : 'Check out'}
                 </button>
               </div>
+              {offsite &&
+              (today?.attendance?.check_in_place || today?.attendance?.check_in_latitude != null) ? (
+                <div className="mt-4">
+                  <p className="text-sm font-semibold text-navy">Your location</p>
+                  <AttendancePlaceMap
+                    latitude={Number(today.attendance.check_in_latitude)}
+                    longitude={Number(today.attendance.check_in_longitude)}
+                    label={today.attendance.check_in_place}
+                  />
+                  {today.attendance.check_out_place || today.attendance.check_out_latitude != null ? (
+                    <div className="mt-3">
+                      <p className="text-sm font-semibold text-navy">Check-out location</p>
+                      <AttendancePlaceMap
+                        latitude={Number(today.attendance.check_out_latitude)}
+                        longitude={Number(today.attendance.check_out_longitude)}
+                        label={today.attendance.check_out_place}
+                      />
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
+              {onShift && (today?.break_allowance_minutes ?? 0) > 0 ? (
+                <div className="mt-4 rounded-[12px] border border-[#eceae6] bg-[#f8f7f4] p-4">
+                  <div className="flex items-start gap-2">
+                    <Coffee size={16} className="mt-0.5 text-navy" />
+                    <div>
+                      <p className="text-sm font-semibold text-navy">
+                        {onBreak ? 'On break' : 'Break'}
+                      </p>
+                      <p className="text-xs text-muted">
+                        {today.break_minutes_taken ?? 0} of {today.break_allowance_minutes} min used
+                        {today.paid_break ? ' · Paid' : ' · Unpaid'}
+                        {onBreak && today.break_remaining_minutes != null
+                          ? ` · ${today.break_remaining_minutes} min left`
+                          : ''}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="mt-3 grid grid-cols-2 gap-3">
+                    <button
+                      type="button"
+                      disabled={!canStartBreak}
+                      onClick={() => void punchBreak('start')}
+                      className={`flex min-h-11 items-center justify-center rounded-full px-4 text-sm font-semibold ${
+                        canStartBreak
+                          ? 'bg-navy text-white'
+                          : 'cursor-not-allowed bg-[#eceae6] text-muted'
+                      }`}
+                    >
+                      Start break
+                    </button>
+                    <button
+                      type="button"
+                      disabled={!canEndBreak}
+                      onClick={() => void punchBreak('end')}
+                      className={`flex min-h-11 items-center justify-center rounded-full px-4 text-sm font-semibold ${
+                        canEndBreak
+                          ? 'bg-navy text-white'
+                          : 'cursor-not-allowed bg-[#eceae6] text-muted'
+                      }`}
+                    >
+                      End break
+                    </button>
+                  </div>
+                </div>
+              ) : null}
             </>
           )}
         </section>

@@ -68,30 +68,91 @@ const MAPPED_ADDITION_FIELD_BY_LABEL = new Map(
   ),
 )
 
-/** Sum of addition-menu amounts shown as Taxable / NIC-able additions. Night allowance is excluded. */
-export function taxableAdditionsFromRecord(record: PayrollRecord | null | undefined) {
-  if (!record) return 0
+type AdditionTreatment = {
+  paid: number
+  taxable: number
+  nicable: number
+  employeePension: number
+  employerPension: number
+  netPay: number
+}
 
-  const fromFields = TAXABLE_ADDITION_FIELDS.reduce(
-    (sum, field) => sum + moneyAmount(record[field]),
-    0,
-  )
+function mappedFieldCoveredByLine(record: PayrollRecord, field: keyof PayrollRecord) {
+  return (record.pay_lines ?? []).some((line) => {
+    if (line.kind !== 'addition' || !line.label) return false
+    return MAPPED_ADDITION_FIELD_BY_LABEL.get(line.label) === field
+  })
+}
 
-  const fromLines = (record.pay_lines ?? []).reduce((sum, line) => {
-    if (line.kind !== 'addition') return sum
-    if (line.tax === false) return sum
-    const mappedField = line.label ? MAPPED_ADDITION_FIELD_BY_LABEL.get(line.label) : undefined
-    if (mappedField && moneyAmount(record[mappedField]) !== 0) return sum
-    return sum + moneyAmount(line.amount)
+/** Addition amounts split by the tax / NIC / pension options on the pay type. */
+export function additionTreatmentFromRecord(record: PayrollRecord | null | undefined): AdditionTreatment {
+  const empty: AdditionTreatment = {
+    paid: 0,
+    taxable: 0,
+    nicable: 0,
+    employeePension: 0,
+    employerPension: 0,
+    netPay: 0,
+  }
+  if (!record) return empty
+
+  const fromFields = TAXABLE_ADDITION_FIELDS.reduce((sum, field) => {
+    if (mappedFieldCoveredByLine(record, field)) return sum
+    return sum + moneyAmount(record[field])
   }, 0)
 
-  return roundMoney(fromFields + fromLines)
+  const treatment: AdditionTreatment = {
+    paid: fromFields,
+    taxable: fromFields,
+    nicable: fromFields,
+    employeePension: 0,
+    employerPension: 0,
+    netPay: 0,
+  }
+
+  for (const line of record.pay_lines ?? []) {
+    if (line.kind !== 'addition') continue
+    const mappedField = line.label ? MAPPED_ADDITION_FIELD_BY_LABEL.get(line.label) : undefined
+    if (mappedField && moneyAmount(record[mappedField]) !== 0) continue
+    const amount = moneyAmount(line.amount)
+    const tax = line.tax !== false
+    const nics = line.nics !== false
+    const notional = line.notional === true
+    if (!notional) treatment.paid = roundMoney(treatment.paid + amount)
+    if (tax) treatment.taxable = roundMoney(treatment.taxable + amount)
+    if (nics) treatment.nicable = roundMoney(treatment.nicable + amount)
+    if (line.employeePension === true) {
+      treatment.employeePension = roundMoney(treatment.employeePension + amount)
+    }
+    if (line.employerPension === true) {
+      treatment.employerPension = roundMoney(treatment.employerPension + amount)
+    }
+    if (!notional && !tax && !nics) {
+      treatment.netPay = roundMoney(treatment.netPay + amount)
+    }
+  }
+
+  return treatment
+}
+
+/** Sum of addition-menu amounts shown as Taxable additions. Night allowance is excluded. */
+export function taxableAdditionsFromRecord(record: PayrollRecord | null | undefined) {
+  return additionTreatmentFromRecord(record).taxable
+}
+
+export function nicableAdditionsFromRecord(record: PayrollRecord | null | undefined) {
+  return additionTreatmentFromRecord(record).nicable
+}
+
+export function pensionableAdditionsFromRecord(record: PayrollRecord | null | undefined) {
+  const treatment = additionTreatmentFromRecord(record)
+  return roundMoney(Math.max(treatment.employeePension, treatment.employerPension))
 }
 
 export function contractualPayFromRecord(record: PayrollRecord | null | undefined) {
   if (!record) return 0
   return roundMoney(
-    moneyAmount(record.gross_pay ?? record.basic_pay) - taxableAdditionsFromRecord(record),
+    moneyAmount(record.gross_pay ?? record.basic_pay) - additionTreatmentFromRecord(record).paid,
   )
 }
 
@@ -168,8 +229,13 @@ export function allowableDeductionsFromRecord(record: PayrollRecord | null | und
 /** Full pensionable earnings this period (not qualifying earnings after the LEL). */
 export function pensionableGrossForPayslip(record: PayrollRecord | null | undefined) {
   if (!record) return 0
+  const treatment = additionTreatmentFromRecord(record)
+  const pensionableAdditions =
+    treatment.employeePension > 0 ? treatment.employeePension : treatment.employerPension
   return roundMoney(
-    moneyAmount(record.gross_pay) +
+    moneyAmount(record.gross_pay) -
+      treatment.paid +
+      pensionableAdditions +
       moneyAmount(record.night_allowance) -
       allowableDeductionsFromRecord(record).pensionAllowable,
   )
@@ -184,7 +250,8 @@ export function payslipNetPay(record: PayrollRecord | null | undefined) {
   return roundMoney(
     moneyAmount(record.take_home_pay) -
       moneyAmount(record.night_allowance) -
-      moneyAmount(record.non_tax_non_nic_additions) +
+      moneyAmount(record.non_tax_non_nic_additions) -
+      additionTreatmentFromRecord(record).netPay +
       moneyAmount(record.after_tax_after_nic_deductions) +
       moneyAmount(record.employee_pension),
   )

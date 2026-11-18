@@ -302,6 +302,8 @@ export function EmployeeInformationPage() {
     str(employment.leave_calculation_method) || 'Set number of annual leave days'
   const leaveDays = str(employment.annual_leave_entitlement) || '28'
   const leaveWeeks = str(employment.leave_entitlement_weeks) || '5.6'
+  const takenDays = str(employment.leave_already_taken_days) || '0'
+  const takenWeeks = str(employment.leave_already_taken_weeks) || '0'
   const minWageProfile = str(employment.min_wage_profile) || 'National Minimum/Living Wage'
   const scheduleName = str(employment.pay_schedule_name) || str(employment.pay_schedule_request)
   const payBasis = labelOf([...PAY_BASIS_OPTIONS], employment.pay_basis_type)
@@ -497,6 +499,15 @@ export function EmployeeInformationPage() {
                       options={GENDER_OPTIONS}
                       onChange={(value) => setDraft({ ...draft, gender: value })}
                     />
+                    <TextField
+                      label="Work location"
+                      value={
+                        String(employee?.work_site ?? '').toUpperCase() === 'OFFSITE'
+                          ? 'Offsite worker — check in from anywhere'
+                          : 'Onsite worker — must be inside the workplace radius'
+                      }
+                      readOnly
+                    />
                   </div>
                 </Box>
                 <Box title="Contact Details" icon={<Mail size={16} />}>
@@ -624,6 +635,32 @@ export function EmployeeInformationPage() {
                               label="Weeks"
                               hideLabel
                               value={leaveWeeks}
+                              suffix="Weeks"
+                              readOnly
+                            />
+                          </div>
+                        </div>
+                      </div>
+                      <div>
+                        <span className="mb-1.5 block text-xs font-medium text-navy">
+                          Leave already taken this year
+                        </span>
+                        <div className="flex items-center gap-2">
+                          <div className="min-w-0 flex-1">
+                            <TextField
+                              label="Days taken"
+                              hideLabel
+                              value={takenDays}
+                              suffix="Days"
+                              readOnly
+                            />
+                          </div>
+                          <ArrowLeftRight size={16} className="shrink-0 text-muted" />
+                          <div className="min-w-0 flex-1">
+                            <TextField
+                              label="Weeks taken"
+                              hideLabel
+                              value={takenWeeks}
                               suffix="Weeks"
                               readOnly
                             />

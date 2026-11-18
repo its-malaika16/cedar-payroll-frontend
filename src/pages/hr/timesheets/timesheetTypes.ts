@@ -24,6 +24,7 @@ export type TimesheetDay = {
   break_minutes: number
   worked_hours: number
   overtime_hours: number
+  paid_break?: boolean
 }
 
 export type TimesheetRow = {

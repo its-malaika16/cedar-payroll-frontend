@@ -1,7 +1,7 @@
 import { money } from '../../lib/format'
 import { assetUrl } from '../../api/client'
 import type { InvoiceLine, InvoiceRecord } from './invoiceMath'
-import { invoiceTotals, parseInvoiceType } from './invoiceMath'
+import { invoicePaperLines, invoiceTotals, parseInvoiceType } from './invoiceMath'
 
 const NAVY = '#17375e'
 const PALE = '#e8eef6'
@@ -40,6 +40,7 @@ export function InvoiceDocument({
     bank_name?: string | null
   }
 }) {
+  const paperLines = invoicePaperLines(lines)
   const totals = invoiceTotals(lines)
   const vatRate = invoice.vat_rate || 20
   const invoiceType = parseInvoiceType(invoice.invoice_type)
@@ -130,7 +131,7 @@ export function InvoiceDocument({
                 <span className="text-right">Tax Amount</span>
                 <span className="text-right">Total Amount</span>
               </div>
-              {lines.map((line) =>
+              {paperLines.map((line) =>
                 line.kind === 'HEADING' ? (
                   <div
                     key={line.key}

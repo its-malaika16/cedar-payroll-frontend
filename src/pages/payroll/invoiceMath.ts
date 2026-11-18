@@ -163,6 +163,21 @@ export function headingLine(description: string, extras: Partial<InvoiceLine> = 
   }
 }
 
+export function isBlankInvoicePaperLine(line: Pick<InvoiceLine, 'kind' | 'description' | 'employee_id' | 'amount' | 'pay_amount' | 'employer_nic' | 'employer_pension' | 'total_amount'>) {
+  const description = String(line.description ?? '').trim()
+  if (line.kind === 'HEADING') return description === '' || /^heading$/i.test(description)
+  if (line.employee_id) return false
+  const unnamed = description === '' || /^employee$/i.test(description)
+  if (!unnamed) return false
+  return [line.amount, line.pay_amount, line.employer_nic, line.employer_pension, line.total_amount].every(
+    (value) => roundMoney(value) === 0,
+  )
+}
+
+export function invoicePaperLines(lines: InvoiceLine[]) {
+  return lines.filter((line) => !isBlankInvoicePaperLine(line))
+}
+
 export function invoiceTotals(lines: InvoiceLine[]) {
   const items = lines.filter((line) => line.kind === 'ITEM')
   const subtotal = roundMoney(items.reduce((sum, line) => sum + line.total_amount, 0))

@@ -83,9 +83,10 @@ export function EmployeeCheckInPanel({
     checkedIn || today?.attendance?.check_in_at || today?.open_attendance?.check_in_at,
   )
   const opensAt = checkInOpensAt(today)
-  const windowOpen = !opensAt || now >= opensAt.getTime()
+  const hasShift = Boolean(today?.shift)
+  const windowOpen = Boolean(hasShift && (!opensAt || now >= opensAt.getTime()))
   const canCheckIn = Boolean(
-    hasWorkplace && !alreadyCheckedIn && windowOpen && insideRadius !== false && !geoError && !busy,
+    hasShift && hasWorkplace && !alreadyCheckedIn && windowOpen && insideRadius !== false && !geoError && !busy,
   )
   const canCheckOut = Boolean(today?.can_check_out && insideRadius !== false && !geoError && !busy)
   const tooEarly = Boolean(!alreadyCheckedIn && opensAt && now < opensAt.getTime())
@@ -106,7 +107,11 @@ export function EmployeeCheckInPanel({
         </div>
       </div>
 
-      {!hasWorkplace ? (
+      {!hasShift ? (
+        <p className="rounded-[12px] bg-[#e8eef6] px-3 py-2 text-sm font-medium text-navy">
+          No shift is assigned for today. Check-in is only available when a shift is assigned.
+        </p>
+      ) : !hasWorkplace ? (
         <p className="rounded-[12px] bg-[#e8eef6] px-3 py-2 text-sm font-medium text-navy">
           Your employer still needs to save the workplace pin in Company info.
         </p>

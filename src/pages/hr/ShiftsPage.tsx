@@ -200,7 +200,7 @@ export function ShiftsPage() {
     const scheduledIds = new Set(assigned.map((shift) => String(shift.employee_id)))
     const hours = assigned.reduce((total, shift) => {
       const meta = decodeShiftNotes(shift.notes)
-      return total + hoursBetween(shift.start_time, shift.end_time, meta.breakMinutes)
+      return total + hoursBetween(shift.start_time, shift.end_time, meta.breakMinutes, meta.paidBreak)
     }, 0)
     const leaveIds = new Set(
       leave
@@ -227,7 +227,8 @@ export function ShiftsPage() {
         employee_ids: employeeId ? [employeeId] : [],
         date: dateKey(date),
         dates: [dateKey(date)],
-        time: '9:00 am - 5:00 pm',
+        checkIn: '9:00 am',
+        checkOut: '5:00 pm',
         role: person ? jobTitleOf(person) ?? '' : '',
       },
     })

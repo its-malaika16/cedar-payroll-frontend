@@ -113,9 +113,10 @@ export function TimesheetDetailPage({ mode }: { mode: 'review' | 'edit' }) {
       const day = { ...next[index], ...patch }
       const start = day.clock_in ? new Date(day.clock_in) : null
       const end = day.clock_out ? new Date(day.clock_out) : null
+      const unpaid = day.paid_break ? 0 : (day.break_minutes || 0) / 60
       const worked =
         start && end
-          ? Math.max(0, (end.getTime() - start.getTime()) / 3_600_000 - (day.break_minutes || 0) / 60)
+          ? Math.max(0, (end.getTime() - start.getTime()) / 3_600_000 - unpaid)
           : 0
       day.worked_hours = Math.round(worked * 100) / 100
       day.overtime_hours = Math.max(0, Math.round((day.worked_hours - day.scheduled_hours) * 100) / 100)
@@ -141,7 +142,7 @@ export function TimesheetDetailPage({ mode }: { mode: 'review' | 'edit' }) {
         start_time: day.clock_in || undefined,
         end_time: day.clock_out || undefined,
         break_minutes: day.break_minutes,
-        hours: day.worked_hours > 0 ? day.worked_hours : day.scheduled_hours,
+        hours: day.worked_hours,
       })),
     })
     await queryClient.invalidateQueries({ queryKey: ['timesheet-detail', companyId, employeeId, from, to] })

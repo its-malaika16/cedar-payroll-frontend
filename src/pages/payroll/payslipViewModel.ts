@@ -175,6 +175,8 @@ export function buildPayslipViewModel(
     hourlyPay ? 'hours' : null,
   )
   for (const line of extraPay) {
+    if (line.kind === 'meta') continue
+    if (line.notional) continue
     if (!display.benefitDescriptions && line.kind === 'benefit') continue
     const n = payLineAmount(line)
     if (n === 0) continue

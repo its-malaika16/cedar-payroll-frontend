@@ -1,15 +1,16 @@
 import { useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { useQuery } from '@tanstack/react-query'
-import { ChevronLeft, ChevronRight, User, UserCheck, UserX, Clock3, BadgeCheck, LogOut } from 'lucide-react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { ChevronLeft, ChevronRight, User, UserCheck, UserX, Clock3, BadgeCheck, MapPin, X } from 'lucide-react'
 import { hrApi } from '../../api'
 import { useAuth } from '../../auth/AuthContext'
-import { Button, EmptyState, Loading } from '../../components/ui'
+import { Alert, Button, EmptyState, Loading } from '../../components/ui'
 import { fullName } from '../../lib/format'
 import { StatCard } from './timesheets/TimesheetStatusBadge'
 import { addDays, dateKey, formatWeekRange, startOfWeek } from './rota/rotaDates'
 import { formatClock, formatTimeRange } from './rota/rotaModel'
 import { HrTitle } from './HrChrome'
+import { AttendancePlaceMap } from './AttendancePlaceMap'
 
 type AttendanceStatus =
   | 'Present'
@@ -32,9 +33,29 @@ type DayCell = {
   check_out: string
   check_in_label: string
   break_minutes: number
+  paid_break?: boolean
+  on_break?: boolean
+  break_started_at?: string | null
+  break_ended_at?: string | null
+  can_start_break?: boolean
+  can_end_break?: boolean
   total_hours: number
   overtime_hours?: number
   status: AttendanceStatus
+  can_check_in?: boolean
+  can_check_out?: boolean
+  check_in_opens_at?: string | null
+  work_site?: string | null
+  check_in_place?: string | null
+  check_out_place?: string | null
+  check_in_latitude?: number | null
+  check_in_longitude?: number | null
+  check_out_latitude?: number | null
+  check_out_longitude?: number | null
+  check_in_within_radius?: boolean | null
+  check_out_within_radius?: boolean | null
+  check_in_distance_m?: number | null
+  check_out_distance_m?: number | null
 }
 
 type AttendanceRow = DayCell & {
@@ -90,6 +111,50 @@ function shiftLabel(cell?: Pick<DayCell, 'scheduled_start' | 'scheduled_end' | '
   return cell?.scheduled_shift && cell.scheduled_shift !== '—' ? cell.scheduled_shift : '—'
 }
 
+function metresLabel(value?: number | null) {
+  if (value == null || Number.isNaN(value)) return ''
+  if (value < 1000) return `${Math.round(value)} m`
+  const km = value / 1000
+  return Number.isInteger(km) ? `${km} km` : `${km.toFixed(1)} km`
+}
+
+function RadiusLine({
+  label,
+  within,
+  distance,
+}: {
+  label: string
+  within?: boolean | null
+  distance?: number | null
+}) {
+  if (within == null && distance == null) return null
+  return (
+    <p className={within ? 'text-xs font-medium text-[#2f8a4b]' : 'text-xs font-medium text-brand'}>
+      {label}: {within ? 'Within radius' : 'Outside radius'}
+      {distance != null ? ` · ${metresLabel(distance)}` : ''}
+    </p>
+  )
+}
+
+function BreakTimes({ row }: { row: Pick<DayCell, 'break_started_at' | 'break_ended_at' | 'break_minutes' | 'paid_break' | 'on_break'> }) {
+  const started = clockLabel(row.break_started_at)
+  const ended = row.on_break ? 'On break' : clockLabel(row.break_ended_at)
+  if (started === '—' && ended === '—') {
+    return <span>—</span>
+  }
+  return (
+    <div className="whitespace-nowrap text-navy/80">
+      <p>Start {started}</p>
+      <p>End {ended}</p>
+      {row.break_minutes ? (
+        <p className="text-xs text-muted">
+          {row.break_minutes} min{row.paid_break ? ' paid' : ''}
+        </p>
+      ) : null}
+    </div>
+  )
+}
+
 function overtimeHours(cell?: Pick<DayCell, 'overtime_hours' | 'total_hours' | 'scheduled_hours'>) {
   if (!cell) return 0
   if (cell.overtime_hours != null && !Number.isNaN(cell.overtime_hours)) return Math.max(0, cell.overtime_hours)
@@ -103,6 +168,122 @@ function overtimeLabel(cell?: Pick<DayCell, 'overtime_hours' | 'total_hours' | '
 
 function personName(row: AttendanceRow) {
   return fullName(row.first_name, row.last_name)
+}
+
+type LiveLocation = {
+  employee_id: string
+  first_name?: string | null
+  last_name?: string | null
+  work_site?: string | null
+  check_in_at?: string
+  last_seen_at?: string | null
+  latitude: number
+  longitude: number
+  place?: string | null
+  within_radius?: boolean | null
+  distance_m?: number | null
+  workplace_latitude?: number | null
+  workplace_longitude?: number | null
+  attendance_radius_meters?: number | null
+}
+
+function seenLabel(iso?: string | null) {
+  if (!iso) return 'Waiting for a location update'
+  const date = new Date(iso)
+  if (Number.isNaN(date.getTime())) return 'Waiting for a location update'
+  const minutes = Math.max(0, Math.round((Date.now() - date.getTime()) / 60_000))
+  if (minutes < 1) return 'Updated just now'
+  if (minutes === 1) return 'Updated 1 minute ago'
+  if (minutes < 60) return `Updated ${minutes} minutes ago`
+  return `Updated at ${date.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}`
+}
+
+function hasClock(iso?: string | null, fallback?: string) {
+  return clockLabel(iso, fallback) !== '—'
+}
+
+function MarkAttendanceButtons({
+  name,
+  row,
+  busy,
+  onCheckIn,
+  onCheckOut,
+  onStartBreak,
+  onEndBreak,
+}: {
+  name: string
+  row: AttendanceRow
+  busy: boolean
+  onCheckIn: () => void
+  onCheckOut: () => void
+  onStartBreak: () => void
+  onEndBreak: () => void
+}) {
+  if (row.status === 'On Leave') {
+    return <span className="text-xs text-muted">On leave</span>
+  }
+  if (row.can_check_out) {
+    return (
+      <div className="flex flex-wrap gap-1.5">
+        {row.on_break || row.can_end_break ? (
+          <Button
+            variant="secondary"
+            className="px-3 py-1.5 text-xs"
+            disabled={busy}
+            onClick={onEndBreak}
+            aria-label={`End break for ${name}`}
+          >
+            End break
+          </Button>
+        ) : row.can_start_break ? (
+          <Button
+            variant="secondary"
+            className="px-3 py-1.5 text-xs"
+            disabled={busy}
+            onClick={onStartBreak}
+            aria-label={`Start break for ${name}`}
+          >
+            Start break
+          </Button>
+        ) : null}
+        <Button
+          variant="secondary"
+          className="px-3 py-1.5 text-xs"
+          disabled={busy}
+          onClick={onCheckOut}
+          aria-label={`Check ${name} out`}
+        >
+          Check out
+        </Button>
+      </div>
+    )
+  }
+  if (row.can_check_in) {
+    return (
+      <Button className="px-3 py-1.5 text-xs" disabled={busy} onClick={onCheckIn} aria-label={`Check ${name} in`}>
+        Check in
+      </Button>
+    )
+  }
+  if (hasClock(row.check_in_at, row.check_in) && hasClock(row.check_out_at, row.check_out)) {
+    return <span className="text-xs text-muted">Recorded</span>
+  }
+  if (!row.scheduled_start) {
+    return <span className="text-xs text-muted">No shift</span>
+  }
+  if (row.scheduled_start && row.check_in_opens_at) {
+    return (
+      <div>
+        <Button className="px-3 py-1.5 text-xs" disabled>
+          Check in
+        </Button>
+        <p className="mt-1 text-[11px] font-medium text-muted">
+          Opens 30 minutes before the shift ({clockLabel(row.check_in_opens_at)})
+        </p>
+      </div>
+    )
+  }
+  return <span className="text-xs text-muted">—</span>
 }
 
 function WeekCell({ cell }: { cell?: DayCell }) {
@@ -142,16 +323,28 @@ function WeekCell({ cell }: { cell?: DayCell }) {
 
 export function AttendancePage() {
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
   const { companyId } = useAuth()
   const [view, setView] = useState<'day' | 'week'>('day')
   const [anchor, setAnchor] = useState(() => new Date())
+  const [busyId, setBusyId] = useState<string | null>(null)
+  const [notice, setNotice] = useState<{ tone: 'success' | 'danger'; text: string } | null>(null)
+  const [locationsOpen, setLocationsOpen] = useState(false)
   const date = dateKey(view === 'week' ? startOfWeek(anchor) : anchor)
+  const isToday = view === 'day' && date === dateKey(new Date())
 
   const query = useQuery({
     queryKey: ['attendance-overview', companyId, date, view],
     queryFn: () => hrApi.attendanceOverview(companyId!, date, view),
     enabled: Boolean(companyId),
   })
+  const locationsQuery = useQuery({
+    queryKey: ['attendance-live-locations', companyId],
+    queryFn: () => hrApi.liveAttendanceLocations(companyId!),
+    enabled: Boolean(companyId && locationsOpen),
+    refetchInterval: locationsOpen ? 15_000 : false,
+  })
+  const liveLocations = (locationsQuery.data?.data as LiveLocation[] | undefined) ?? []
 
   const payload = query.data?.data as
     | {
@@ -173,6 +366,42 @@ export function AttendancePage() {
     [weekStart],
   )
 
+  async function markAttendance(row: AttendanceRow, action: 'in' | 'out' | 'start-break' | 'end-break') {
+    if (!companyId) return
+    const name = personName(row) || 'this employee'
+    if ((action === 'in' || action === 'out') && !row.scheduled_start) {
+      setNotice({ tone: 'danger', text: `${name} has no shift assigned today` })
+      return
+    }
+    setBusyId(row.employee_id)
+    setNotice(null)
+    try {
+      if (action === 'in') await hrApi.markAttendanceCheckIn(companyId, row.employee_id)
+      else if (action === 'out') await hrApi.markAttendanceCheckOut(companyId, row.employee_id)
+      else if (action === 'start-break') await hrApi.markAttendanceStartBreak(companyId, row.employee_id)
+      else await hrApi.markAttendanceEndBreak(companyId, row.employee_id)
+      await queryClient.invalidateQueries({ queryKey: ['attendance-overview'] })
+      setNotice({
+        tone: 'success',
+        text:
+          action === 'in'
+            ? `Checked ${name} in`
+            : action === 'out'
+              ? `Checked ${name} out`
+              : action === 'start-break'
+                ? `Started ${name}'s break`
+                : `Ended ${name}'s break`,
+      })
+    } catch (err) {
+      setNotice({
+        tone: 'danger',
+        text: err instanceof Error ? err.message : 'Could not update attendance',
+      })
+    } finally {
+      setBusyId(null)
+    }
+  }
+
   const heading =
     view === 'day'
       ? `${anchor.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}${
@@ -186,21 +415,95 @@ export function AttendancePage() {
         <div>
           <HrTitle title="Attendance" onBack={() => navigate('/hr')} />
           <p className="mt-2 text-sm font-semibold text-muted">
-            Daily and weekly check-in, lateness and absence across the team.
+            Daily and weekly check-in, lateness and absence across the team. If someone cannot use
+            their phone, a company admin or manager can check them in or out from this page.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Link to="/hr/leave">
-            <Button variant="secondary">
-              <LogOut size={16} />
-              Leave
-            </Button>
-          </Link>
+          <Button variant="secondary" onClick={() => setLocationsOpen(true)}>
+            <MapPin size={16} />
+            Check Location
+          </Button>
           <Link to="/timesheets">
             <Button variant="secondary">Review timesheets</Button>
           </Link>
         </div>
       </div>
+
+      {locationsOpen ? (
+        <div className="fixed inset-0 z-40 overflow-y-auto bg-navy/40 p-4">
+          <div className="mx-auto mt-8 w-full max-w-3xl rounded-[16px] bg-white p-5 shadow-lg">
+            <div className="mb-4 flex items-start justify-between gap-3">
+              <div>
+                <h2 className="text-lg font-semibold text-navy">Check Location</h2>
+                <p className="mt-1 text-sm text-muted">
+                  Live position for employees who are checked in. The map updates while their app is
+                  open, so you can see if they are still inside the workplace radius.
+                </p>
+              </div>
+              <button
+                type="button"
+                className="rounded-full p-1 text-navy hover:bg-cream"
+                onClick={() => setLocationsOpen(false)}
+                aria-label="Close"
+              >
+                <X size={18} />
+              </button>
+            </div>
+            {locationsQuery.isLoading ? (
+              <Loading />
+            ) : liveLocations.length === 0 ? (
+              <p className="text-sm text-muted">Nobody is checked in at the moment.</p>
+            ) : (
+              <div className="space-y-4">
+                {liveLocations.map((item) => {
+                  const name = fullName(item.first_name, item.last_name) || 'Employee'
+                  const onsite = String(item.work_site ?? '').toUpperCase() !== 'OFFSITE'
+                  return (
+                    <div key={item.employee_id} className="rounded-[12px] border border-[#eceae6] p-4">
+                      <div className="mb-2 flex flex-wrap items-start justify-between gap-2">
+                        <div>
+                          <p className="font-semibold text-navy">{name}</p>
+                          <p className="text-xs text-muted">{seenLabel(item.last_seen_at)}</p>
+                        </div>
+                        {onsite ? (
+                          <p
+                            className={
+                              item.within_radius
+                                ? 'text-sm font-semibold text-[#2f8a4b]'
+                                : 'text-sm font-semibold text-brand'
+                            }
+                          >
+                            {item.within_radius ? 'Within radius' : 'Outside radius'}
+                            {item.distance_m != null ? ` · ${metresLabel(item.distance_m)}` : ''}
+                          </p>
+                        ) : (
+                          <p className="text-sm font-semibold text-navy">Offsite</p>
+                        )}
+                      </div>
+                      {item.place ? <p className="mb-2 text-xs text-navy/80">{item.place}</p> : null}
+                      <AttendancePlaceMap
+                        latitude={item.latitude}
+                        longitude={item.longitude}
+                        label={item.place}
+                        workplaceLatitude={item.workplace_latitude}
+                        workplaceLongitude={item.workplace_longitude}
+                        radiusMeters={onsite ? item.attendance_radius_meters : null}
+                      />
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+      ) : null}
+
+      {notice ? (
+        <div className="mb-4">
+          <Alert tone={notice.tone}>{notice.text}</Alert>
+        </div>
+      ) : null}
 
       <div className="mb-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard icon={<UserCheck size={18} />} label="Present" value={`${summary?.present ?? 0} Employees`} />
@@ -272,16 +575,25 @@ export function AttendancePage() {
             body="Employees will appear here once they are on the rota or have checked in."
           />
         ) : view === 'day' ? (
-          <table className="w-full min-w-[920px] text-left text-sm">
+          <table className="w-full min-w-[1040px] text-left text-sm">
             <thead className="border-b border-[#eceae6] bg-[#f7f6f3] text-xs font-semibold uppercase tracking-[0.08em] text-muted">
               <tr>
-                {['Employee', 'Scheduled Shift', 'Check In', 'Check Out', 'Break', 'Total Hours', 'Overtime', 'Status'].map(
-                  (column) => (
-                    <th key={column} className="px-4 py-3">
-                      {column}
-                    </th>
-                  ),
-                )}
+                {[
+                  'Employee',
+                  'Scheduled Shift',
+                  'Check In',
+                  'Check Out',
+                  'Location',
+                  'Break',
+                  'Total Hours',
+                  'Overtime',
+                  'Status',
+                  ...(isToday ? ['Mark'] : []),
+                ].map((column) => (
+                  <th key={column} className="px-4 py-3">
+                    {column}
+                  </th>
+                ))}
               </tr>
             </thead>
             <tbody className="divide-y divide-[#eee]">
@@ -308,8 +620,67 @@ export function AttendancePage() {
                   <td className="px-4 py-3 whitespace-nowrap text-navy/80">
                     {clockLabel(row.check_out_at, row.check_out)}
                   </td>
-                  <td className="px-4 py-3 whitespace-nowrap text-navy/80">
-                    {row.break_minutes ? `${row.break_minutes} min` : '—'}
+                  <td className="min-w-[240px] max-w-[320px] px-4 py-3 text-navy/80">
+                    {row.work_site === 'OFFSITE' ? (
+                      <>
+                        <p className="mb-1 text-[10px] font-semibold uppercase tracking-[0.08em] text-muted">
+                          Offsite
+                        </p>
+                        {row.check_in_latitude != null || row.check_out_latitude != null ? (
+                          <div className="grid grid-cols-2 gap-2">
+                            <div>
+                              <p className="mb-1 truncate text-[11px] font-medium text-navy" title={row.check_in_place ?? undefined}>
+                                In {row.check_in_place || 'saved'}
+                              </p>
+                              <AttendancePlaceMap
+                                compact
+                                latitude={row.check_in_latitude}
+                                longitude={row.check_in_longitude}
+                                label={row.check_in_place}
+                              />
+                            </div>
+                            <div>
+                              <p className="mb-1 truncate text-[11px] font-medium text-navy" title={row.check_out_place ?? undefined}>
+                                Out {row.check_out_place || (row.check_out_latitude != null ? 'saved' : '—')}
+                              </p>
+                              <AttendancePlaceMap
+                                compact
+                                latitude={row.check_out_latitude}
+                                longitude={row.check_out_longitude}
+                                label={row.check_out_place}
+                              />
+                            </div>
+                          </div>
+                        ) : (
+                          <span>—</span>
+                        )}
+                      </>
+                    ) : (
+                      <div className="space-y-1">
+                        <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-muted">
+                          Onsite
+                        </p>
+                        {row.check_in_at ? (
+                          <RadiusLine
+                            label="In"
+                            within={row.check_in_within_radius}
+                            distance={row.check_in_distance_m}
+                          />
+                        ) : (
+                          <p className="text-xs text-muted">Not checked in</p>
+                        )}
+                        {row.check_out_at ? (
+                          <RadiusLine
+                            label="Out"
+                            within={row.check_out_within_radius}
+                            distance={row.check_out_distance_m}
+                          />
+                        ) : null}
+                      </div>
+                    )}
+                  </td>
+                  <td className="px-4 py-3">
+                    <BreakTimes row={row} />
                   </td>
                   <td className="px-4 py-3 whitespace-nowrap text-navy/80">{hoursLabel(row.total_hours)}</td>
                   <td className="px-4 py-3 whitespace-nowrap text-navy/80">{overtimeLabel(row)}</td>
@@ -320,6 +691,19 @@ export function AttendancePage() {
                       {row.status}
                     </span>
                   </td>
+                  {isToday ? (
+                    <td className="px-4 py-3 whitespace-nowrap">
+                      <MarkAttendanceButtons
+                        name={personName(row)}
+                        row={row}
+                        busy={busyId === row.employee_id}
+                        onCheckIn={() => void markAttendance(row, 'in')}
+                        onCheckOut={() => void markAttendance(row, 'out')}
+                        onStartBreak={() => void markAttendance(row, 'start-break')}
+                        onEndBreak={() => void markAttendance(row, 'end-break')}
+                      />
+                    </td>
+                  ) : null}
                 </tr>
               ))}
             </tbody>

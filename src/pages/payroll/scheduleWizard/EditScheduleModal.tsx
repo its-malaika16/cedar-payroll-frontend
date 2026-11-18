@@ -13,9 +13,11 @@ import {
   asPayFrequency,
   dateKey,
   formatPreviewDate,
+  inferPayDateRule,
+  inferPeriodEndRule,
   isCalendarFrequency,
-  monthDayOptions,
   monthYearOptions,
+  periodEndRuleGroups,
   payDateNeedsCount,
   payDateNeedsWeekday,
   payDateRuleGroups,
@@ -37,16 +39,7 @@ function ruleFromSchedule(schedule: PayrollSchedule): PayDateRule {
   const preview = periodsFromSavedSchedule(schedule)
   const first = preview.periods[0]
   if (!first) return { key: 'period_end', count: 1, weekday: 5 }
-  const startUtc = Date.UTC(first.end.getFullYear(), first.end.getMonth(), first.end.getDate())
-  const payUtc = Date.UTC(
-    first.payDate.getFullYear(),
-    first.payDate.getMonth(),
-    first.payDate.getDate(),
-  )
-  const offset = Math.round((payUtc - startUtc) / 86_400_000)
-  if (offset === 0) return { key: 'period_end', count: 1, weekday: first.payDate.getDay() }
-  if (offset < 0) return { key: 'days_before', count: Math.abs(offset), weekday: 5 }
-  return { key: 'days_after', count: offset, weekday: 5 }
+  return inferPayDateRule(first.end, first.payDate)
 }
 
 export function EditScheduleModal({
@@ -98,11 +91,11 @@ export function EditScheduleModal({
     setError(null)
   }, [selected])
 
-  const monthDay = firstEnd
-    ? firstEnd.getDate() === new Date(firstEnd.getFullYear(), firstEnd.getMonth() + 1, 0).getDate()
-      ? 'last'
-      : String(firstEnd.getDate())
-    : 'last'
+  const periodEndKey = firstEnd ? inferPeriodEndRule(firstEnd) : 'last_day'
+  const periodEndLabel =
+    periodEndRuleGroups()
+      .flatMap((group) => group.options)
+      .find((option) => option.value === periodEndKey)?.label ?? 'Last day'
   const monthYear = firstEnd ? `${firstEnd.getFullYear()}-${firstEnd.getMonth()}` : ''
   const monthOptions = useMemo(() => {
     const options = monthYearOptions()
@@ -121,8 +114,8 @@ export function EditScheduleModal({
   }, [firstEnd])
 
   const groups = useMemo(
-    () => (meta ? payDateRuleGroups(meta.unit) : []),
-    [meta],
+    () => (meta ? payDateRuleGroups(meta.unit, calendar) : []),
+    [meta, calendar],
   )
   const rule: PayDateRule = useMemo(
     () => ({ key: ruleKey, count: Math.max(1, count), weekday }),
@@ -210,13 +203,7 @@ export function EditScheduleModal({
                     </p>
                     {calendar ? (
                       <div className="flex flex-wrap items-center gap-2">
-                        <select className={`${lockedFieldClass} max-w-[140px]`} value={monthDay} disabled>
-                          {monthDayOptions().map((option) => (
-                            <option key={option.value} value={option.value}>
-                              {option.label}
-                            </option>
-                          ))}
-                        </select>
+                        <input className={`${lockedFieldClass} min-w-[220px] flex-1`} value={periodEndLabel} disabled />
                         <span className="text-sm text-navy">of</span>
                         <select
                           className={`${lockedFieldClass} max-w-[220px]`}

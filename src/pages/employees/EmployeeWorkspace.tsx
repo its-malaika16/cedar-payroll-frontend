@@ -98,6 +98,8 @@ type Draft = {
   leave_calculation_method: string
   annual_leave_days: string
   annual_leave_weeks: string
+  leave_already_taken_days: string
+  leave_already_taken_weeks: string
   carry_over_leave: boolean
   carry_over_days: string
   additional_leave: boolean
@@ -148,6 +150,7 @@ type Draft = {
   flexible_drawdown: boolean
   off_payroll_worker: boolean
   portal_access: boolean
+  work_site: 'ONSITE' | 'OFFSITE'
   mid_year: MidYearTotalsDraft
 }
 
@@ -184,6 +187,8 @@ const emptyDraft = (company?: Company | null): Draft => {
     defaults?.leave_calculation_method || 'Set number of annual leave days',
   annual_leave_days: String(defaults?.leave_entitlement_days ?? 28),
   annual_leave_weeks: String(defaults?.leave_entitlement_weeks ?? 5.6),
+  leave_already_taken_days: '0',
+  leave_already_taken_weeks: '0',
   carry_over_leave: Boolean(defaults?.carry_over_leave),
   carry_over_days: '0',
   additional_leave: false,
@@ -235,6 +240,7 @@ const emptyDraft = (company?: Company | null): Draft => {
   flexible_drawdown: false,
   off_payroll_worker: false,
   portal_access: false,
+  work_site: 'ONSITE',
   mid_year: emptyMidYearDraft(),
   }
 }
@@ -573,6 +579,7 @@ export function EmployeeWorkspace() {
       phone_type: primaryPhone?.type ?? 'Mobile',
       extra_phones: extraPhones.map((row) => ({ type: row.type, number: row.value })),
       portal_access: draft.portal_access,
+      work_site: draft.work_site,
     }
 
     let savedId = isNew ? createdEmployeeId : employeeId
@@ -623,6 +630,8 @@ export function EmployeeWorkspace() {
       leave_calculation_method: draft.leave_calculation_method,
       annual_leave_entitlement: toNumber(draft.annual_leave_days),
       leave_entitlement_weeks: toNumber(draft.annual_leave_weeks),
+      leave_already_taken_days: toNumber(draft.leave_already_taken_days) ?? 0,
+      leave_already_taken_weeks: toNumber(draft.leave_already_taken_weeks) ?? 0,
       carry_over_leave: draft.carry_over_leave,
       carry_over_days: draft.carry_over_leave ? toNumber(draft.carry_over_days) : 0,
       additional_leave: draft.additional_leave,
@@ -916,6 +925,37 @@ export function EmployeeWorkspace() {
                       <Input value={age} readOnly className="bg-[#f8f7f4]" />
                     </Field>
                   </div>
+                  <Field label="Work location">
+                    <div className="flex flex-wrap gap-2">
+                      {(
+                        [
+                          ['ONSITE', 'Onsite worker'],
+                          ['OFFSITE', 'Offsite worker'],
+                        ] as const
+                      ).map(([value, label]) => {
+                        const active = draft.work_site === value
+                        return (
+                          <button
+                            key={value}
+                            type="button"
+                            onClick={() => setDraft({ ...draft, work_site: value })}
+                            className={`rounded-full border px-3 py-1.5 text-xs font-semibold ${
+                              active
+                                ? 'border-navy bg-navy text-white'
+                                : 'border-[#d9d9d9] bg-white text-navy'
+                            }`}
+                          >
+                            {label}
+                          </button>
+                        )
+                      })}
+                    </div>
+                    <p className="mt-1.5 text-[11px] text-muted">
+                      {draft.work_site === 'OFFSITE'
+                        ? 'Can check in from anywhere.'
+                        : 'Must be inside the workplace radius to check in and out.'}
+                    </p>
+                  </Field>
                 </div>
               </div>
             </Section>
@@ -1067,6 +1107,9 @@ export function EmployeeWorkspace() {
                           annual_leave_weeks: draft.annual_leave_days
                             ? weeksFromDays(draft.annual_leave_days, working_days)
                             : draft.annual_leave_weeks,
+                          leave_already_taken_weeks: draft.leave_already_taken_days
+                            ? weeksFromDays(draft.leave_already_taken_days, working_days)
+                            : draft.leave_already_taken_weeks,
                         })
                       }}
                     />
@@ -1119,6 +1162,36 @@ export function EmployeeWorkspace() {
                             ...draft,
                             annual_leave_weeks: value,
                             annual_leave_days: daysFromWeeks(value, draft.working_days),
+                          })
+                        }
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <p className="mb-1.5 text-xs font-medium text-navy">Leave already taken this year</p>
+                    <div className="flex gap-3">
+                      <UnitInput
+                        value={draft.leave_already_taken_days}
+                        unit="days"
+                        placeholder="0"
+                        onChange={(value) =>
+                          setDraft({
+                            ...draft,
+                            leave_already_taken_days: value,
+                            leave_already_taken_weeks: weeksFromDays(value, draft.working_days),
+                          })
+                        }
+                      />
+                      <UnitInput
+                        value={draft.leave_already_taken_weeks}
+                        unit="weeks"
+                        placeholder="0"
+                        className="w-[171px]"
+                        onChange={(value) =>
+                          setDraft({
+                            ...draft,
+                            leave_already_taken_weeks: value,
+                            leave_already_taken_days: daysFromWeeks(value, draft.working_days),
                           })
                         }
                       />
@@ -2393,6 +2466,7 @@ function draftFromEmployee(employee: Employee, schedules: PayrollSchedule[] = []
     postcode: str(address.postcode),
     country: str(address.country) || 'United Kingdom',
     photo_url: employee.photo_url || '',
+    work_site: String(employee.work_site ?? '').toUpperCase() === 'OFFSITE' ? 'OFFSITE' : 'ONSITE',
     works_number: visibleWorksNumber(employee.employee_code),
     departments: departments.length ? departments : [],
     working_days: workingDays.length
@@ -2408,6 +2482,15 @@ function draftFromEmployee(employee: Employee, schedules: PayrollSchedule[] = []
       str(employment.leave_entitlement_weeks) ||
       weeksFromDays(
         str(employment.annual_leave_entitlement) || '28',
+        workingDays.length
+          ? workingDays
+          : ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'],
+      ),
+    leave_already_taken_days: str(employment.leave_already_taken_days) || '0',
+    leave_already_taken_weeks:
+      str(employment.leave_already_taken_weeks) ||
+      weeksFromDays(
+        str(employment.leave_already_taken_days) || '0',
         workingDays.length
           ? workingDays
           : ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'],

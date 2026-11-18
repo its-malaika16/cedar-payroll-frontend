@@ -82,8 +82,8 @@ export function flagsFromPayLine(line: {
   return {
     tax: line.tax !== false,
     nics: line.nics !== false,
-    employeePension: line.employeePension !== false,
-    employerPension: line.employerPension !== false,
+    employeePension: line.employeePension === true,
+    employerPension: line.employerPension === true,
     notional: line.notional === true,
     minWage: line.minWage !== false,
   }

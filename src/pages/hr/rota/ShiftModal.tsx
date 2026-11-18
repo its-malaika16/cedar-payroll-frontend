@@ -13,11 +13,12 @@ import {
 import { Alert, Button } from '../../../components/ui'
 import { isFormDirty } from '../../../lib/formDirty'
 import {
+  BREAK_MINUTE_OPTIONS,
   combineDateAndMinutes,
   decodeShiftNotes,
   encodeShiftNotes,
-  formatTimeRange,
-  parseTimeRange,
+  formatClock,
+  parseClock,
   type RotaEmployee,
   type RotaShift,
 } from './rotaModel'
@@ -34,8 +35,10 @@ export type ShiftFormValue = {
   employee_ids: string[]
   date: string
   dates: string[]
-  time: string
+  checkIn: string
+  checkOut: string
   breakMinutes: string
+  paidBreak: boolean
   role: string
   requireApproval: boolean
   notes: string
@@ -50,8 +53,10 @@ function emptyForm(overrides: Partial<ShiftFormValue> = {}): ShiftFormValue {
     employee_ids: overrides.employee_ids ?? (employeeId ? [employeeId] : []),
     date: dates[0] ?? date,
     dates,
-    time: overrides.time ?? '',
+    checkIn: overrides.checkIn ?? '',
+    checkOut: overrides.checkOut ?? '',
     breakMinutes: overrides.breakMinutes ?? '',
+    paidBreak: overrides.paidBreak ?? false,
     role: overrides.role ?? '',
     requireApproval: overrides.requireApproval ?? false,
     notes: overrides.notes ?? '',
@@ -82,8 +87,10 @@ export function formFromShift(shift: RotaShift): ShiftFormValue {
     employee_ids: employeeId ? [employeeId] : [],
     date: String(shift.shift_date ?? '').slice(0, 10),
     dates: [String(shift.shift_date ?? '').slice(0, 10)].filter(Boolean),
-    time: formatTimeRange(shift.start_time, shift.end_time),
+    checkIn: formatClock(new Date(shift.start_time)),
+    checkOut: formatClock(new Date(shift.end_time)),
     breakMinutes: meta.breakMinutes ? String(meta.breakMinutes) : '',
+    paidBreak: meta.paidBreak,
     role: shift.role_name ?? '',
     requireApproval: meta.requireApproval,
     notes: meta.notes,
@@ -91,16 +98,18 @@ export function formFromShift(shift: RotaShift): ShiftFormValue {
 }
 
 export function shiftPayload(form: ShiftFormValue, date = selectedDates(form)[0]) {
-  const range = parseTimeRange(form.time)
-  if (!range) {
-    throw new Error('Enter a time range such as 9 am - 5 pm')
+  const startMinutes = parseClock(form.checkIn)
+  const endMinutes = parseClock(form.checkOut)
+  if (startMinutes == null || endMinutes == null) {
+    throw new Error('Enter a check-in and check-out time, or pick them from the clock')
   }
   if (!date) {
     throw new Error('Select a date')
   }
-  const start = combineDateAndMinutes(date, range.startMinutes)
-  const end = combineDateAndMinutes(date, range.endMinutes)
+  const start = combineDateAndMinutes(date, startMinutes)
+  const end = combineDateAndMinutes(date, endMinutes)
   if (end <= start) end.setDate(end.getDate() + 1)
+  const breakMinutes = Math.max(0, Math.min(120, Number(form.breakMinutes) || 0))
   return {
     employee_id: selectedEmployeeIds(form)[0] ?? null,
     shift_date: date,
@@ -108,7 +117,8 @@ export function shiftPayload(form: ShiftFormValue, date = selectedDates(form)[0]
     end_time: end.toISOString(),
     role_name: form.role.trim() || undefined,
     notes: encodeShiftNotes({
-      breakMinutes: Number(form.breakMinutes) || 0,
+      breakMinutes,
+      paidBreak: breakMinutes > 0 && form.paidBreak,
       requireApproval: form.requireApproval,
       notes: form.notes,
     }),
@@ -121,6 +131,67 @@ export function shiftPayloads(form: ShiftFormValue) {
     throw new Error('Select at least one date')
   }
   return dates.map((date) => shiftPayload(form, date))
+}
+
+function minutesToTimeValue(minutes: number) {
+  return `${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`
+}
+
+function ClockTimeField({
+  label,
+  value,
+  onChange,
+}: {
+  label: string
+  value: string
+  onChange: (value: string) => void
+}) {
+  const pickerRef = useRef<HTMLInputElement>(null)
+  const minutes = parseClock(value)
+  const timeValue = minutes == null ? '' : minutesToTimeValue(minutes)
+
+  function applyPicker(next: string) {
+    if (!next) return
+    const [hours, mins] = next.split(':').map(Number)
+    const date = new Date()
+    date.setHours(hours || 0, mins || 0, 0, 0)
+    onChange(formatClock(date))
+  }
+
+  return (
+    <label className="block">
+      <Label icon={<Clock size={14} />}>{label}</Label>
+      <div className="relative">
+        <input
+          className={`${fieldClass} pr-11`}
+          placeholder="e.g. 9:00 am"
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+        />
+        <button
+          type="button"
+          className="absolute top-1/2 right-1 flex size-9 -translate-y-1/2 items-center justify-center rounded-[6px] text-navy/70 hover:bg-[#eef2f6] hover:text-navy"
+          aria-label={`Pick ${label.toLowerCase()} from clock`}
+          onClick={() => {
+            const picker = pickerRef.current
+            if (!picker) return
+            if (typeof picker.showPicker === 'function') picker.showPicker()
+            else picker.click()
+          }}
+        >
+          <Clock size={16} />
+        </button>
+        <input
+          ref={pickerRef}
+          type="time"
+          tabIndex={-1}
+          className="pointer-events-none absolute h-0 w-0 opacity-0"
+          value={timeValue}
+          onChange={(event) => applyPicker(event.target.value)}
+        />
+      </div>
+    </label>
+  )
 }
 
 function Label({ icon, children }: { icon: ReactNode; children: ReactNode }) {
@@ -469,32 +540,55 @@ export function ShiftModal({
             </label>
           )}
 
-          <div className={moveOnly ? '' : 'grid grid-cols-[1fr_120px] gap-3'}>
-            <label className="block">
-              <Label icon={<Clock size={14} />}>Time</Label>
-              <input
-                className={fieldClass}
-                placeholder="e.g. 9 am - 5 pm"
-                value={form.time}
-                onChange={(event) => setForm({ ...form, time: event.target.value })}
-                required
-              />
-            </label>
-            {moveOnly ? null : (
-              <label className="block">
-                <Label icon={<Coffee size={14} />}>Break</Label>
-                <div className="flex items-center gap-2">
-                  <input
-                    className={fieldClass}
-                    inputMode="numeric"
-                    value={form.breakMinutes}
-                    onChange={(event) => setForm({ ...form, breakMinutes: event.target.value })}
-                  />
-                  <span className="text-sm text-muted">min</span>
-                </div>
-              </label>
-            )}
+          <div className="grid grid-cols-2 gap-3">
+            <ClockTimeField
+              label="Check-in"
+              value={form.checkIn}
+              onChange={(checkIn) => setForm({ ...form, checkIn })}
+            />
+            <ClockTimeField
+              label="Check-out"
+              value={form.checkOut}
+              onChange={(checkOut) => setForm({ ...form, checkOut })}
+            />
           </div>
+
+          {moveOnly ? null : (
+            <div className="space-y-3">
+              <label className="block">
+                <Label icon={<Coffee size={14} />}>Break time</Label>
+                <select
+                  className={fieldClass}
+                  value={form.breakMinutes}
+                  onChange={(event) =>
+                    setForm({
+                      ...form,
+                      breakMinutes: event.target.value,
+                      paidBreak: event.target.value ? form.paidBreak : false,
+                    })
+                  }
+                >
+                  <option value="">No break</option>
+                  {BREAK_MINUTE_OPTIONS.map((minutes) => (
+                    <option key={minutes} value={String(minutes)}>
+                      {minutes} min
+                    </option>
+                  ))}
+                </select>
+              </label>
+              {form.breakMinutes ? (
+                <label className="flex cursor-pointer items-center gap-2 text-sm font-medium text-navy">
+                  <input
+                    type="checkbox"
+                    className="size-3.5 accent-navy"
+                    checked={form.paidBreak}
+                    onChange={(event) => setForm({ ...form, paidBreak: event.target.checked })}
+                  />
+                  Paid break
+                </label>
+              ) : null}
+            </div>
+          )}
 
           {moveOnly ? null : (
             <label className="block">

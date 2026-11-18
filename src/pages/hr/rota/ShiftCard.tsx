@@ -64,7 +64,7 @@ export function ShiftCard({
         ) : null
       ) : (
         <p className={`${compact ? 'pl-1.5 text-[10px] opacity-75' : 'mt-1 pl-1.5 text-[11px] opacity-80'}`}>
-          {durationLabel(shift.start_time, shift.end_time, meta.breakMinutes)}
+          {durationLabel(shift.start_time, shift.end_time, meta.breakMinutes, meta.paidBreak)}
         </p>
       )}
       <button

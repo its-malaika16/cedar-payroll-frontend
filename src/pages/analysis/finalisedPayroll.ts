@@ -12,7 +12,9 @@ import {
 
 export function isFinalisedPayrollRun(run?: PayrollRun | null) {
   const status = (run?.status ?? '').toUpperCase()
-  return status === 'LOCKED' || status === 'COMPLETED'
+  if (status === 'LOCKED' || status === 'COMPLETED') return true
+  if (Number(run?.finalised_record_count ?? 0) > 0) return true
+  return (run?.payroll_records ?? []).some((record) => isFinalisedPayrollRecord(record))
 }
 
 export function isFinalisedPayrollRecord(record?: PayrollRecord | null) {
@@ -82,6 +84,23 @@ export function finalisedRunsInRange(
   )
 }
 
+function matchingFinalisedRuns(
+  runs: PayrollRun[],
+  draft: AnalysisReportDraft,
+  grain: PeriodGrain,
+  scheduleId: string,
+) {
+  return runs.filter((run) => {
+    if (!isFinalisedPayrollRun(run)) return false
+    if (isSchedulePeriodMode(draft.periodMode)) {
+      if (scheduleId && String(run.schedule_id) !== String(scheduleId)) return false
+      return Number(run.tax_year_start) === Number(draft.taxYear)
+    }
+    if (grain === 'year') return true
+    return Number(run.tax_year_start) === Number(draft.taxYear)
+  })
+}
+
 export function finalisedPeriodChoices(
   choices: PeriodChoice[],
   runs: PayrollRun[],
@@ -90,20 +109,18 @@ export function finalisedPeriodChoices(
   scheduleId: string,
 ) {
   const taxPeriod = draft.periodMode.startsWith('tax-')
-  const numbers = new Set(
-    runs
-      .filter((run) => {
-        if (!isFinalisedPayrollRun(run)) return false
-        if (isSchedulePeriodMode(draft.periodMode)) {
-          if (scheduleId && String(run.schedule_id) !== scheduleId) return false
-          return Number(run.tax_year_start) === draft.taxYear
-        }
-        if (grain === 'year') return true
-        return Number(run.tax_year_start) === draft.taxYear
-      })
-      .map((run) => runPeriodNumber(run, grain, taxPeriod)),
-  )
-  return choices.filter((choice) => numbers.has(choice.value))
+  const matching = matchingFinalisedRuns(runs, draft, grain, scheduleId)
+  const byValue = new Map<number, PeriodChoice>()
+  for (const choice of choices) byValue.set(choice.value, choice)
+  for (const run of matching) {
+    const value = runPeriodNumber(run, grain, taxPeriod)
+    if (!Number.isFinite(value) || value <= 0) continue
+    if (!byValue.has(value)) byValue.set(value, { value, end: runPeriodEnd(run) })
+  }
+  const allowed = new Set(matching.map((run) => runPeriodNumber(run, grain, taxPeriod)))
+  return [...byValue.values()]
+    .filter((choice) => allowed.has(choice.value))
+    .sort((left, right) => left.value - right.value)
 }
 
 export function employeesFromFinalisedRuns(runs: PayrollRun[], companyId: string): Employee[] {

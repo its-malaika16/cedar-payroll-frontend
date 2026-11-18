@@ -33,6 +33,7 @@ export type LeaveItem = {
 
 export type ShiftMeta = {
   breakMinutes: number
+  paidBreak: boolean
   requireApproval: boolean
   notes: string
 }
@@ -40,6 +41,7 @@ export type ShiftMeta = {
 export function encodeShiftNotes(meta: ShiftMeta): string | undefined {
   const payload = JSON.stringify({
     breakMinutes: meta.breakMinutes || 0,
+    paidBreak: Boolean(meta.paidBreak),
     requireApproval: Boolean(meta.requireApproval),
   })
   const notes = meta.notes.trim()
@@ -47,27 +49,32 @@ export function encodeShiftNotes(meta: ShiftMeta): string | undefined {
 }
 
 export function decodeShiftNotes(raw?: string | null): ShiftMeta {
-  if (!raw) return { breakMinutes: 0, requireApproval: false, notes: '' }
+  if (!raw) return { breakMinutes: 0, paidBreak: false, requireApproval: false, notes: '' }
   if (!raw.startsWith(META_PREFIX)) {
-    return { breakMinutes: 0, requireApproval: false, notes: raw }
+    return { breakMinutes: 0, paidBreak: false, requireApproval: false, notes: raw }
   }
   const rest = raw.slice(META_PREFIX.length)
   const newline = rest.indexOf('\n')
   const json = newline === -1 ? rest : rest.slice(0, newline)
   const notes = newline === -1 ? '' : rest.slice(newline + 1)
   try {
-    const parsed = JSON.parse(json) as { breakMinutes?: number; requireApproval?: boolean }
+    const parsed = JSON.parse(json) as {
+      breakMinutes?: number
+      paidBreak?: boolean
+      requireApproval?: boolean
+    }
     return {
       breakMinutes: Number(parsed.breakMinutes) || 0,
+      paidBreak: Boolean(parsed.paidBreak),
       requireApproval: Boolean(parsed.requireApproval),
       notes,
     }
   } catch {
-    return { breakMinutes: 0, requireApproval: false, notes: raw }
+    return { breakMinutes: 0, paidBreak: false, requireApproval: false, notes: raw }
   }
 }
 
-function parseClock(value: string): number | null {
+export function parseClock(value: string): number | null {
   const match = value.trim().match(/^(\d{1,2})(?::(\d{2}))?\s*(am|pm)?$/i)
   if (!match) return null
   let hours = Number(match[1])
@@ -110,11 +117,16 @@ export function combineDateAndMinutes(key: string, minutes: number): Date {
   return date
 }
 
-export function durationLabel(start: string | Date, end: string | Date, breakMinutes = 0): string {
+export function durationLabel(
+  start: string | Date,
+  end: string | Date,
+  breakMinutes = 0,
+  paidBreak = false,
+): string {
   const startDate = start instanceof Date ? start : new Date(start)
   const endDate = end instanceof Date ? end : new Date(end)
   if (Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime())) return ''
-  const hours = (endDate.getTime() - startDate.getTime()) / 36e5 - breakMinutes / 60
+  const hours = (endDate.getTime() - startDate.getTime()) / 36e5 - (paidBreak ? 0 : breakMinutes / 60)
   const rounded = Math.max(0, Math.round(hours * 10) / 10)
   return Number.isInteger(rounded) ? `${rounded} hr` : `${rounded} hr`
 }
@@ -203,12 +215,27 @@ export function employeeIdOf(value: { employee_id?: string | number | null; id?:
   return ''
 }
 
-export function hoursBetween(start: string | Date, end: string | Date, breakMinutes = 0): number {
+export function hoursBetween(
+  start: string | Date,
+  end: string | Date,
+  breakMinutes = 0,
+  paidBreak = false,
+): number {
   const startDate = start instanceof Date ? start : new Date(start)
   const endDate = end instanceof Date ? end : new Date(end)
   if (Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime())) return 0
-  return Math.max(0, (endDate.getTime() - startDate.getTime()) / 36e5 - breakMinutes / 60)
+  return Math.max(0, (endDate.getTime() - startDate.getTime()) / 36e5 - (paidBreak ? 0 : breakMinutes / 60))
 }
+
+export function shiftHoursFromMeta(
+  start: string | Date,
+  end: string | Date,
+  meta: Pick<ShiftMeta, 'breakMinutes' | 'paidBreak'>,
+) {
+  return hoursBetween(start, end, meta.breakMinutes, meta.paidBreak)
+}
+
+export const BREAK_MINUTE_OPTIONS = Array.from({ length: 120 }, (_, index) => index + 1)
 
 export function inRange(key: string, start: Date, end: Date): boolean {
   const from = dateKey(start)

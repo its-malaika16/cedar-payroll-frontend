@@ -109,6 +109,66 @@ function nthWeekdayAfter(date: Date, weekday: number, count: number): Date {
   return cursor
 }
 
+function lastDateOfMonth(year: number, month: number): Date {
+  return new Date(year, month + 1, 0)
+}
+
+function dayOfMonthDate(
+  periodEnd: Date,
+  monthOffset: 0 | 1,
+  spec: number | 'last' | 'penultimate' | 'antepenultimate',
+): Date {
+  const year = periodEnd.getFullYear()
+  const month = periodEnd.getMonth() + monthOffset
+  const last = lastDateOfMonth(year, month)
+  const lastDay = last.getDate()
+  const day =
+    spec === 'last'
+      ? lastDay
+      : spec === 'penultimate'
+        ? Math.max(1, lastDay - 1)
+        : spec === 'antepenultimate'
+          ? Math.max(1, lastDay - 2)
+          : Math.min(spec, lastDay)
+  return new Date(last.getFullYear(), last.getMonth(), day)
+}
+
+function ordinalDay(day: number) {
+  const teens = day % 100
+  if (teens >= 11 && teens <= 13) return `${day}th`
+  const ones = day % 10
+  if (ones === 1) return `${day}st`
+  if (ones === 2) return `${day}nd`
+  if (ones === 3) return `${day}rd`
+  return `${day}th`
+}
+
+const MONTH_DAY_SPECS: Array<{ key: string; spec: number | 'last' | 'penultimate' | 'antepenultimate'; label: string }> =
+  [
+    ...Array.from({ length: 28 }, (_, index) => {
+      const day = index + 1
+      return { key: String(day), spec: day, label: `${ordinalDay(day)} day` }
+    }),
+    { key: 'antepenultimate', spec: 'antepenultimate' as const, label: 'Antepenultimate day' },
+    { key: 'penultimate', spec: 'penultimate' as const, label: 'Penultimate day' },
+    { key: 'last', spec: 'last' as const, label: 'Last day' },
+  ]
+
+function parseMonthDayRule(key: string): {
+  offset: 0 | 1
+  spec: number | 'last' | 'penultimate' | 'antepenultimate'
+} | null {
+  const match = key.match(/^(next_)?dom_(last|penultimate|antepenultimate|\d+)$/)
+  if (!match) return null
+  const specRaw = match[2]
+  const spec =
+    specRaw === 'last' || specRaw === 'penultimate' || specRaw === 'antepenultimate'
+      ? specRaw
+      : Number(specRaw)
+  if (typeof spec === 'number' && (!Number.isInteger(spec) || spec < 1 || spec > 28)) return null
+  return { offset: match[1] ? 1 : 0, spec }
+}
+
 export function weekdayFromKey(key: string): number | null {
   const match = key.match(/^(monday|tuesday|wednesday|thursday|friday|saturday|sunday)/i)
   if (!match) return null
@@ -120,8 +180,10 @@ export function applyPayDateRule(periodEnd: Date, rule: PayDateRule): Date {
   const namedWeekday = weekdayFromKey(rule.key)
   const weekday = namedWeekday ?? rule.weekday
   const count = Math.max(1, rule.count || 1)
+  const monthDay = parseMonthDayRule(rule.key)
 
-  if (rule.key === 'period_end' || rule.key.endsWith('_end')) return periodEnd
+  if (monthDay) return dayOfMonthDate(periodEnd, monthDay.offset, monthDay.spec)
+  if (rule.key === 'period_end') return periodEnd
   if (rule.key === 'days_before') return addDays(periodEnd, -count)
   if (rule.key === 'days_after') return addDays(periodEnd, count)
   if (rule.key === 'weekday_on_or_before' || rule.key.endsWith('_on_or_before')) {
@@ -130,13 +192,55 @@ export function applyPayDateRule(periodEnd: Date, rule: PayDateRule): Date {
   if (rule.key === 'weekday_on_or_after' || rule.key.endsWith('_on_or_after')) {
     return onOrAfterWeekday(periodEnd, weekday)
   }
-  if (rule.key === 'weekdays_before' || rule.key.endsWith('s_before')) {
+  if (rule.key === 'weekdays_before' || /s_before$/.test(rule.key)) {
     return nthWeekdayBefore(periodEnd, weekday, count)
   }
-  if (rule.key === 'weekdays_after' || rule.key.endsWith('s_after')) {
+  if (rule.key === 'weekdays_after' || /s_after$/.test(rule.key)) {
     return nthWeekdayAfter(periodEnd, weekday, count)
   }
   return periodEnd
+}
+
+function sameDay(left: Date, right: Date) {
+  return dateKey(left) === dateKey(right)
+}
+
+export function inferPayDateRule(periodEnd: Date, payDate: Date): PayDateRule {
+  const weekday = payDate.getDay()
+  const fallback = (): PayDateRule => {
+    const startUtc = Date.UTC(periodEnd.getFullYear(), periodEnd.getMonth(), periodEnd.getDate())
+    const payUtc = Date.UTC(payDate.getFullYear(), payDate.getMonth(), payDate.getDate())
+    const offset = Math.round((payUtc - startUtc) / 86_400_000)
+    if (offset === 0) return { key: 'period_end', count: 1, weekday }
+    if (offset < 0) return { key: 'days_before', count: Math.abs(offset), weekday }
+    return { key: 'days_after', count: offset, weekday }
+  }
+
+  if (sameDay(periodEnd, payDate)) return { key: 'period_end', count: 1, weekday }
+
+  for (const day of WEEKDAYS) {
+    const slug = day.name.toLowerCase()
+    if (sameDay(payDate, onOrBeforeWeekday(periodEnd, day.id))) {
+      return { key: `${slug}_on_or_before`, count: 1, weekday: day.id }
+    }
+    if (sameDay(payDate, onOrAfterWeekday(periodEnd, day.id))) {
+      return { key: `${slug}_on_or_after`, count: 1, weekday: day.id }
+    }
+  }
+
+  const payMonth =
+    (payDate.getFullYear() - periodEnd.getFullYear()) * 12 + (payDate.getMonth() - periodEnd.getMonth())
+  if (payMonth === 0 || payMonth === 1) {
+    const last = lastDateOfMonth(payDate.getFullYear(), payDate.getMonth()).getDate()
+    const prefix = payMonth === 1 ? 'next_dom' : 'dom'
+    const day = payDate.getDate()
+    if (day === last) return { key: `${prefix}_last`, count: 1, weekday }
+    if (day === last - 1) return { key: `${prefix}_penultimate`, count: 1, weekday }
+    if (day === last - 2) return { key: `${prefix}_antepenultimate`, count: 1, weekday }
+    if (day >= 1 && day <= 28) return { key: `${prefix}_${day}`, count: 1, weekday }
+  }
+
+  return fallback()
 }
 
 export function payDateNeedsCount(key: string): boolean {
@@ -159,7 +263,7 @@ export function payDateNeedsWeekday(key: string): boolean {
   )
 }
 
-export function payDateRuleGroups(unit: string) {
+export function payDateRuleGroups(unit: string, calendar = false) {
   const end = `the ${unit} end date`
   const groups: { label: string; options: { value: string; label: string }[] }[] = [
     {
@@ -194,6 +298,23 @@ export function payDateRuleGroups(unit: string) {
         { value: `${slug}s_before`, label: `${day.name}(s) before ${end}` },
         { value: `${slug}s_after`, label: `${day.name}(s) after ${end}` },
       ],
+    })
+  }
+
+  if (calendar) {
+    groups.push({
+      label: 'Day of month',
+      options: MONTH_DAY_SPECS.map((item) => ({
+        value: `dom_${item.key}`,
+        label: `${item.label} of month`,
+      })),
+    })
+    groups.push({
+      label: 'Day of following month',
+      options: MONTH_DAY_SPECS.map((item) => ({
+        value: `next_dom_${item.key}`,
+        label: `${item.label} of following month`,
+      })),
     })
   }
 
@@ -271,13 +392,178 @@ function calendarPeriodStart(end: Date, months: number): Date {
   return new Date(after.getFullYear(), after.getMonth() - months, after.getDate())
 }
 
-function nextCalendarEnd(previousEnd: Date, months: number, day: number | 'last'): Date {
-  const year = previousEnd.getFullYear()
-  const month = previousEnd.getMonth() + months
+function daysOfMonth(year: number, month: number): Date[] {
+  const last = lastDateOfMonth(year, month).getDate()
+  return Array.from({ length: last }, (_, index) => new Date(year, month, index + 1))
+}
+
+function isWeekdayDate(date: Date) {
+  const day = date.getDay()
+  return day !== 0 && day !== 6
+}
+
+function weekdaysOfMonth(year: number, month: number) {
+  return daysOfMonth(year, month).filter(isWeekdayDate)
+}
+
+function calendarDayFromEnd(year: number, month: number, fromEnd: number): Date {
+  const last = lastDateOfMonth(year, month)
+  const day = Math.max(1, last.getDate() - (Math.max(1, fromEnd) - 1))
+  return new Date(last.getFullYear(), last.getMonth(), day)
+}
+
+function weekdayFromEnd(year: number, month: number, fromEnd: number): Date {
+  const days = weekdaysOfMonth(year, month)
+  if (days.length === 0) return lastDateOfMonth(year, month)
+  const index = Math.max(0, days.length - Math.max(1, fromEnd))
+  return days[index] ?? days[0]
+}
+
+function namedWeekdayOfMonth(
+  year: number,
+  month: number,
+  weekday: number,
+  occurrence: 1 | 2 | 3 | 4 | 'last',
+): Date {
+  const matches = daysOfMonth(year, month).filter((date) => date.getDay() === weekday)
+  if (matches.length === 0) return lastDateOfMonth(year, month)
+  if (occurrence === 'last') return matches[matches.length - 1]
+  return matches[occurrence - 1] ?? matches[matches.length - 1]
+}
+
+export function applyPeriodEndRule(year: number, month: number, key: string): Date {
   const cursor = new Date(year, month, 1)
-  const last = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 0).getDate()
-  const dayNumber = day === 'last' ? last : Math.min(day, last)
-  return new Date(cursor.getFullYear(), cursor.getMonth(), dayNumber)
+  const y = cursor.getFullYear()
+  const m = cursor.getMonth()
+  if (key === 'first_day') return new Date(y, m, 1)
+  if (key === 'last_day') return lastDateOfMonth(y, m)
+  if (key === 'penultimate_day') return calendarDayFromEnd(y, m, 2)
+  if (key === 'antepenultimate_day') return calendarDayFromEnd(y, m, 3)
+  const fromLastDay = /^from_last_day_(\d+)$/.exec(key)
+  if (fromLastDay) return calendarDayFromEnd(y, m, Number(fromLastDay[1]))
+
+  const weekdays = weekdaysOfMonth(y, m)
+  if (key === 'first_weekday') return weekdays[0] ?? new Date(y, m, 1)
+  if (key === 'last_weekday') return weekdays[weekdays.length - 1] ?? lastDateOfMonth(y, m)
+  if (key === 'penultimate_weekday') return weekdayFromEnd(y, m, 2)
+  if (key === 'antepenultimate_weekday') return weekdayFromEnd(y, m, 3)
+  const fromLastWeekday = /^from_last_weekday_(\d+)$/.exec(key)
+  if (fromLastWeekday) return weekdayFromEnd(y, m, Number(fromLastWeekday[1]))
+
+  const named = /^(monday|tuesday|wednesday|thursday|friday|saturday|sunday)_(1|2|3|4|last)$/.exec(key)
+  if (named) {
+    const weekday = weekdayFromKey(`${named[1]}_on_or_before`) ?? 1
+    const occurrence = named[2] === 'last' ? 'last' : (Number(named[2]) as 1 | 2 | 3 | 4)
+    return namedWeekdayOfMonth(y, m, weekday, occurrence)
+  }
+
+  const particular = /^dom_(\d+)$/.exec(key)
+  if (particular) {
+    const last = lastDateOfMonth(y, m)
+    return new Date(last.getFullYear(), last.getMonth(), Math.min(Number(particular[1]), last.getDate()))
+  }
+
+  if (key === 'last') return lastDateOfMonth(y, m)
+  const numeric = Number(key)
+  if (Number.isInteger(numeric) && numeric >= 1) {
+    const last = lastDateOfMonth(y, m)
+    return new Date(last.getFullYear(), last.getMonth(), Math.min(numeric, last.getDate()))
+  }
+  return lastDateOfMonth(y, m)
+}
+
+export function inferPeriodEndRule(date: Date): string {
+  const year = date.getFullYear()
+  const month = date.getMonth()
+  const day = date.getDate()
+  const last = lastDateOfMonth(year, month).getDate()
+  if (day === 1) return 'first_day'
+  if (day === last) return 'last_day'
+
+  const slug = WEEKDAYS.find((item) => item.id === date.getDay())?.name.toLowerCase()
+  if (slug) {
+    const matches = daysOfMonth(year, month).filter((item) => item.getDay() === date.getDay())
+    const index = matches.findIndex((item) => item.getDate() === day)
+    if (index === matches.length - 1) return `${slug}_last`
+    if (index >= 0 && index < 4) return `${slug}_${index + 1}`
+  }
+
+  if (isWeekdayDate(date)) {
+    const weekdays = weekdaysOfMonth(year, month)
+    const index = weekdays.findIndex((item) => item.getDate() === day)
+    if (index === 0) return 'first_weekday'
+    const fromEnd = weekdays.length - index
+    if (fromEnd === 1) return 'last_weekday'
+    if (fromEnd === 2) return 'penultimate_weekday'
+    if (fromEnd === 3) return 'antepenultimate_weekday'
+    if (fromEnd >= 4 && fromEnd <= 7) return `from_last_weekday_${fromEnd}`
+  }
+
+  const fromEnd = last - day + 1
+  if (fromEnd === 2) return 'penultimate_day'
+  if (fromEnd === 3) return 'antepenultimate_day'
+  if (fromEnd >= 4 && fromEnd <= 7) return `from_last_day_${fromEnd}`
+  if (day >= 1 && day <= 28) return `dom_${day}`
+  return 'last_day'
+}
+
+export function periodEndRuleGroups() {
+  const relativeDays = [
+    { value: 'first_day', label: 'First day' },
+    { value: 'last_day', label: 'Last day' },
+    { value: 'penultimate_day', label: 'Penultimate day' },
+    { value: 'antepenultimate_day', label: 'Antepenultimate day' },
+    { value: 'from_last_day_4', label: 'Fourth from last day' },
+    { value: 'from_last_day_5', label: 'Fifth from last day' },
+    { value: 'from_last_day_6', label: 'Sixth from last day' },
+    { value: 'from_last_day_7', label: 'Seventh from last day' },
+  ]
+  const relativeWeekdays = [
+    { value: 'first_weekday', label: 'First weekday' },
+    { value: 'last_weekday', label: 'Last weekday' },
+    { value: 'penultimate_weekday', label: 'Penultimate weekday' },
+    { value: 'antepenultimate_weekday', label: 'Antepenultimate weekday' },
+    { value: 'from_last_weekday_4', label: 'Fourth from last weekday' },
+    { value: 'from_last_weekday_5', label: 'Fifth from last weekday' },
+    { value: 'from_last_weekday_6', label: 'Sixth from last weekday' },
+    { value: 'from_last_weekday_7', label: 'Seventh from last weekday' },
+  ]
+  const particular = Array.from({ length: 28 }, (_, index) => {
+    const day = index + 1
+    return { value: `dom_${day}`, label: ordinalDay(day) }
+  })
+  const groups: { label: string; options: { value: string; label: string }[] }[] = [
+    { label: 'Relative day', options: relativeDays },
+    { label: 'Relative weekday', options: relativeWeekdays },
+    { label: 'Particular day', options: particular },
+  ]
+  for (const day of WEEKDAYS) {
+    const slug = day.name.toLowerCase()
+    groups.push({
+      label: day.name,
+      options: [
+        { value: `${slug}_1`, label: `First ${day.name}` },
+        { value: `${slug}_2`, label: `Second ${day.name}` },
+        { value: `${slug}_3`, label: `Third ${day.name}` },
+        { value: `${slug}_4`, label: `Fourth ${day.name}` },
+        { value: `${slug}_last`, label: `Last ${day.name}` },
+      ],
+    })
+  }
+  return groups
+}
+
+function nextCalendarEnd(previousEnd: Date, months: number, periodEndKey: string): Date {
+  const cursor = new Date(previousEnd.getFullYear(), previousEnd.getMonth() + months, 1)
+  return applyPeriodEndRule(cursor.getFullYear(), cursor.getMonth(), periodEndKey)
+}
+
+function periodEndKeyFromMonthDay(monthDay?: number | 'last' | string) {
+  if (monthDay == null || monthDay === 'last') return 'last_day'
+  if (typeof monthDay === 'string' && Number.isNaN(Number(monthDay))) return monthDay
+  const day = typeof monthDay === 'number' ? monthDay : Number(monthDay)
+  if (day >= 1 && day <= 28) return `dom_${day}`
+  return 'last_day'
 }
 
 export function defaultFirstPeriodEnd(frequency: PayFrequency, from = new Date()): Date {
@@ -301,19 +587,23 @@ export function isCalendarFrequency(frequency: PayFrequency): boolean {
   return frequency === 'MONTHLY' || frequency === 'QUARTERLY' || frequency === 'YEARLY'
 }
 
-export function calendarEndFromParts(monthDay: number | 'last', year: number, month: number): Date {
-  const last = new Date(year, month + 1, 0).getDate()
-  const day = monthDay === 'last' ? last : Math.min(monthDay, last)
-  return new Date(year, month, day)
+export function calendarEndFromParts(
+  monthDay: number | 'last' | string,
+  year: number,
+  month: number,
+): Date {
+  return applyPeriodEndRule(year, month, periodEndKeyFromMonthDay(monthDay))
 }
 
 export function buildSchedulePreview(options: {
   frequency: PayFrequency
   firstEnd: Date
   rule: PayDateRule
-  monthDay?: number | 'last'
+  monthDay?: number | 'last' | string
+  periodEndKey?: string
 }): { taxYear: number; periods: SchedulePeriod[] } {
-  const { frequency, firstEnd, rule, monthDay = 'last' } = options
+  const { frequency, firstEnd, rule } = options
+  const periodEndKey = options.periodEndKey ?? periodEndKeyFromMonthDay(options.monthDay)
   const taxYear = taxYearStartFromDate(firstEnd)
   const yearEnd = taxYearEndDate(taxYear)
   const periods: SchedulePeriod[] = []
@@ -334,7 +624,7 @@ export function buildSchedulePreview(options: {
         taxWeek: hmrc.taxWeek,
         taxMonth: hmrc.taxMonth,
       })
-      end = nextCalendarEnd(end, months, monthDay)
+      end = nextCalendarEnd(end, months, periodEndKey)
       number += 1
     }
     return { taxYear, periods }
@@ -424,21 +714,12 @@ export function periodsFromSavedSchedule(schedule: {
   const firstPay = schedule.first_pay_date
     ? parseDateKey(String(schedule.first_pay_date).slice(0, 10))
     : firstEnd
-  const startUtc = Date.UTC(firstEnd.getFullYear(), firstEnd.getMonth(), firstEnd.getDate())
-  const payUtc = Date.UTC(firstPay.getFullYear(), firstPay.getMonth(), firstPay.getDate())
-  const offset = Math.round((payUtc - startUtc) / 86_400_000)
-  const rule: PayDateRule =
-    offset === 0
-      ? { key: 'period_end', count: 1, weekday: 5 }
-      : offset < 0
-        ? { key: 'days_before', count: Math.abs(offset), weekday: 5 }
-        : { key: 'days_after', count: offset, weekday: 5 }
-  const last = new Date(firstEnd.getFullYear(), firstEnd.getMonth() + 1, 0).getDate()
+  const rule = inferPayDateRule(firstEnd, firstPay)
   return buildSchedulePreview({
     frequency,
     firstEnd,
     rule,
-    monthDay: firstEnd.getDate() === last ? 'last' : firstEnd.getDate(),
+    periodEndKey: inferPeriodEndRule(firstEnd),
   })
 }
 
@@ -461,13 +742,7 @@ export function firstPayDateInvalid(periods: SchedulePeriod[], taxYear: number):
 }
 
 export function monthDayOptions() {
-  return [
-    { value: 'last', label: 'Last day' },
-    ...Array.from({ length: 31 }, (_, index) => ({
-      value: String(index + 1),
-      label: String(index + 1),
-    })),
-  ]
+  return periodEndRuleGroups().flatMap((group) => group.options)
 }
 
 export function monthYearOptions(from = new Date()) {

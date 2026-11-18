@@ -284,6 +284,7 @@ export type Employee = {
   phone_type?: string | null
   extra_phones?: { type?: string; number?: string }[] | null
   photo_url?: string | null
+  work_site?: 'ONSITE' | 'OFFSITE' | string | null
   portal_access?: boolean
   employee_addresses?: {
     id: string
@@ -338,6 +339,7 @@ export type PayrollRun = {
   pension_paid_at?: string | null
   payroll_schedules?: PayrollSchedule
   payroll_records?: PayrollRecord[]
+  finalised_record_count?: number
   _count?: { payroll_records?: number }
   waiting_employees?: {
     employee_id: string

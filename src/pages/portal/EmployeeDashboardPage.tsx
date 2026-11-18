@@ -1,13 +1,16 @@
 import { Link } from 'react-router-dom'
-import { useState, type ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { CalendarDays, CreditCard, UserRound } from 'lucide-react'
-import { employeesApi } from '../../api'
+import { employeesApi, hrApi } from '../../api'
 import { useAuth } from '../../auth/AuthContext'
 import { Loading } from '../../components/ui'
 import { fullName, money } from '../../lib/format'
 import type { EmployeePortalDashboard } from '../../types'
 import { PayslipPreviewModal } from '../payroll/PayslipPreviewModal'
+import { hoursBetween } from '../hr/rota/rotaModel'
+
+const CHECK_IN_OPENS_MINUTES = 30
 
 const SLICE_COLORS = {
   additions: '#17375e',
@@ -351,6 +354,107 @@ function PaySeriesChart({
   )
 }
 
+function TodayShiftPanel({ today, now }: { today: TodayShiftPayload | null; now: Date }) {
+  const shift = today?.shift
+  if (!today || !shift) return null
+  const scheduled =
+    today.expected_hours ??
+    hoursBetween(shift.start_time, shift.end_time, shift.break_minutes ?? 0, Boolean(shift.paid_break))
+  const checkInAt = today.attendance?.check_in_at ?? today.open_attendance?.check_in_at
+  const checkOutAt = today.attendance?.check_out_at
+  const onShift = Boolean(checkInAt && !checkOutAt)
+  const done = Boolean(checkInAt && checkOutAt)
+  const start = new Date(shift.start_time)
+  const opensAt = Number.isNaN(start.getTime())
+    ? null
+    : new Date(start.getTime() - (today.check_in_opens_minutes ?? CHECK_IN_OPENS_MINUTES) * 60_000)
+  const windowOpen = !opensAt || now.getTime() >= opensAt.getTime()
+  const worked = checkInAt
+    ? hoursBetween(
+        checkInAt,
+        checkOutAt ? new Date(checkOutAt) : now,
+        today.break_minutes_taken ?? 0,
+        Boolean(today.paid_break ?? shift.paid_break),
+      )
+    : today.hours_worked ?? 0
+  const remaining = Math.max(0, scheduled - worked)
+  const progress = scheduled > 0 ? Math.min(1, worked / scheduled) : 0
+  const radius = 44
+  const circ = 2 * Math.PI * radius
+
+  return (
+    <article className="mt-6 rounded-[24px] bg-white px-6 py-5">
+      <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted">Today’s shift</p>
+      <p className="mt-2 text-[26px] font-semibold leading-none text-navy">
+        {clockLabel(shift.start_time)} – {clockLabel(shift.end_time)}
+      </p>
+      <p className="mt-2 text-sm text-navy/70">
+        Scheduled {hoursLabel(scheduled)}
+        {shift.location ? ` · ${shift.location}` : ''}
+      </p>
+
+      {onShift || done ? (
+        <div className="mt-5 flex flex-wrap items-center gap-6">
+          <div className="relative size-[112px]">
+            <svg viewBox="0 0 112 112" className="size-full -rotate-90">
+              <circle cx="56" cy="56" r={radius} fill="none" stroke="#eceae6" strokeWidth="9" />
+              <circle
+                cx="56"
+                cy="56"
+                r={radius}
+                fill="none"
+                stroke="#17375e"
+                strokeWidth="9"
+                strokeLinecap="round"
+                strokeDasharray={circ}
+                strokeDashoffset={circ * (1 - progress)}
+              />
+            </svg>
+            <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
+              <p className="text-sm font-semibold text-navy">{hoursLabel(worked)}</p>
+              <p className="text-[10px] text-muted">{onShift ? 'Worked so far' : 'Hours worked'}</p>
+            </div>
+          </div>
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.08em] text-muted">To work</p>
+            <p className="mt-1 text-xl font-semibold text-navy">{hoursLabel(scheduled)}</p>
+            <p className="mt-3 text-xs font-semibold uppercase tracking-[0.08em] text-muted">
+              {done ? 'Overtime' : 'Remaining'}
+            </p>
+            <p className="mt-1 text-xl font-semibold text-navy">
+              {hoursLabel(done ? Math.max(0, worked - scheduled) : remaining)}
+            </p>
+            <p
+              className={`mt-3 inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${
+                onShift ? 'bg-[#e7f6ec] text-[#1b7d4f]' : 'bg-[#eef3fb] text-navy'
+              }`}
+            >
+              {onShift ? 'On shift' : 'Checked out'}
+            </p>
+          </div>
+        </div>
+      ) : null}
+
+      {windowOpen && !checkInAt ? (
+        <Link
+          to="/portal/attendance"
+          className="mt-5 inline-flex h-11 items-center rounded-[12px] bg-navy px-4 text-sm font-semibold text-white"
+        >
+          Mark attendance
+        </Link>
+      ) : !checkInAt && opensAt ? (
+        <p className="mt-4 text-sm text-muted">Check-in opens at {clockLabel(opensAt)}</p>
+      ) : null}
+
+      {checkInAt ? (
+        <Link to="/portal/attendance" className="mt-4 inline-block text-sm font-semibold text-navy">
+          {onShift ? 'Open attendance' : 'View attendance'} →
+        </Link>
+      ) : null}
+    </article>
+  )
+}
+
 function StatIcon({ children }: { children: ReactNode }) {
   return (
     <span className="flex size-14 shrink-0 items-center justify-center rounded-full bg-navy text-white">
@@ -359,9 +463,41 @@ function StatIcon({ children }: { children: ReactNode }) {
   )
 }
 
+type TodayShiftPayload = {
+  shift?: {
+    start_time: string
+    end_time: string
+    location?: string | null
+    break_minutes?: number
+    paid_break?: boolean
+  } | null
+  attendance?: { check_in_at?: string | null; check_out_at?: string | null } | null
+  open_attendance?: { check_in_at?: string | null } | null
+  hours_worked?: number
+  expected_hours?: number
+  break_minutes_taken?: number
+  paid_break?: boolean
+  check_in_opens_minutes?: number
+}
+
+function clockLabel(value?: string | Date | null) {
+  if (!value) return ''
+  const date = value instanceof Date ? value : new Date(value)
+  if (Number.isNaN(date.getTime())) return ''
+  return date.toLocaleTimeString('en-GB', { hour: 'numeric', minute: '2-digit', hour12: true }).toUpperCase()
+}
+
+function hoursLabel(value: number) {
+  const total = Math.max(0, Math.round(value * 60))
+  const hours = Math.floor(total / 60)
+  const minutes = total % 60
+  return `${String(hours).padStart(2, '0')}h ${String(minutes).padStart(2, '0')}m`
+}
+
 export function EmployeeDashboardPage() {
   const { companyId, currentEmployee, user, companies, companyHasModule } = useAuth()
   const hasPayroll = companyHasModule('PAYROLL')
+  const hasHr = companyHasModule('HR')
   const employeeId = currentEmployee?.employee_id
   const company = companies.find((item) => item.id === companyId)
   const query = useQuery({
@@ -371,6 +507,19 @@ export function EmployeeDashboardPage() {
     refetchOnMount: 'always',
     refetchOnWindowFocus: true,
   })
+  const todayQuery = useQuery({
+    queryKey: ['employee-today-shift', companyId, employeeId],
+    queryFn: () => hrApi.todayAttendance(companyId!, employeeId!),
+    enabled: Boolean(hasHr && companyId && employeeId),
+    refetchInterval: 60_000,
+    refetchOnWindowFocus: true,
+  })
+  const [now, setNow] = useState(() => new Date())
+  useEffect(() => {
+    if (!todayQuery.data?.data?.shift) return
+    const tick = window.setInterval(() => setNow(new Date()), 30_000)
+    return () => window.clearInterval(tick)
+  }, [todayQuery.data?.data?.shift])
   const data = query.data?.data
   const name = fullName(data?.first_name ?? user?.first_name, data?.last_name ?? user?.last_name) || 'there'
   const slices = data ? toSlices(data.breakdown) : []
@@ -392,6 +541,8 @@ export function EmployeeDashboardPage() {
       <h1 className="text-[32px] font-semibold leading-none text-navy">Dashboard</h1>
       <p className="mt-3 text-lg font-medium text-navy">Welcome, {name}</p>
       <p className="mt-1 text-sm text-muted">{company?.name || 'Your company'}</p>
+
+      {hasHr ? <TodayShiftPanel today={(todayQuery.data?.data ?? null) as TodayShiftPayload | null} now={now} /> : null}
 
       <div className={`mt-8 grid gap-5 ${hasPayroll ? 'md:grid-cols-3' : 'md:grid-cols-2'}`}>
         {hasPayroll ? (

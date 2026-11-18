@@ -56,11 +56,14 @@ import {
   DEDUCTION_LINKS,
   payBenefitItems,
   taxableAdditionsFromRecord,
+  nicableAdditionsFromRecord,
+  pensionableAdditionsFromRecord,
   contractualPayFromRecord,
   pensionableGrossForPayslip,
   payslipNetPay,
   payslipNetPayToDate,
   allowableDeductionsFromRecord,
+  additionTreatmentFromRecord,
   type PayBenefitId,
 } from './payslipMenus'
 import { PayTypeEditor } from './PayTypeEditor'
@@ -654,18 +657,21 @@ export function PayrollRecordPage() {
   )
   const summaryRows = useMemo(() => {
     if (!record) return [] as Array<readonly [string, unknown]>
-    const additions = taxableAdditionsFromRecord(record)
+    const additions = additionTreatmentFromRecord(record)
+    const taxableAdditions = taxableAdditionsFromRecord(record)
+    const nicableAdditions = nicableAdditionsFromRecord(record)
+    const pensionableAdditions = pensionableAdditionsFromRecord(record)
     const deductions = allowableDeductionsFromRecord(record)
     const rows: Array<readonly [string, unknown]> = [['Pay', contractualPayFromRecord(record)]]
-    if (additions > 0) {
-      rows.push(['Taxable additions', additions])
+    if (taxableAdditions > 0) {
+      rows.push(['Taxable additions', taxableAdditions])
     }
     if (deductions.taxAllowable > 0) {
       rows.push(['Tax allowable deductions', deductions.taxAllowable])
     }
     rows.push(['Taxable gross', record.taxable_gross], ['Tax', record.tax])
-    if (additions > 0) {
-      rows.push(['NIC-able additions', additions])
+    if (nicableAdditions > 0) {
+      rows.push(['NIC-able additions', nicableAdditions])
     }
     if (deductions.nicAllowable > 0) {
       rows.push(['NIC allowable deductions', deductions.nicAllowable])
@@ -684,13 +690,14 @@ export function PayrollRecordPage() {
     rows.push(['Net pay', payslipNetPay(record)])
     const additionsToNet =
       Number(record.non_tax_non_nic_additions ?? 0) +
-      Number(record.night_allowance ?? 0)
+      Number(record.night_allowance ?? 0) +
+      additions.netPay
     if (additionsToNet > 0) {
       rows.push(['Additions to net pay', additionsToNet])
     }
     if (pensionEnrolled) {
-      if (additions > 0) {
-        rows.push(['Pension-able additions', additions])
+      if (pensionableAdditions > 0) {
+        rows.push(['Pension-able additions', pensionableAdditions])
       }
       if (deductions.pensionAllowable > 0) {
         rows.push(['Pension allowable deductions', deductions.pensionAllowable])
@@ -1010,6 +1017,7 @@ export function PayrollRecordPage() {
         kind: 'addition' as const,
         label,
         amount: Number(amounts[label] || 0),
+        ...flagsFromDraft(emptyPayTypeDraft()),
       }))
     const custom = customs.map((row) => ({
       id: `addition-${row.name}`,
