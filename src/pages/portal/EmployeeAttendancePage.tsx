@@ -728,7 +728,7 @@ export function EmployeeAttendancePage() {
                   ) : null}
                 </div>
               ) : null}
-              {onShift && (today?.break_allowance_minutes ?? 0) > 0 ? (
+              {onShift && today && (today.break_allowance_minutes ?? 0) > 0 ? (
                 <div className="mt-4 rounded-[12px] border border-[#eceae6] bg-[#f8f7f4] p-4">
                   <div className="flex items-start gap-2">
                     <Coffee size={16} className="mt-0.5 text-navy" />

@@ -515,11 +515,12 @@ export function EmployeeDashboardPage() {
     refetchOnWindowFocus: true,
   })
   const [now, setNow] = useState(() => new Date())
+  const todayShift = (todayQuery.data?.data ?? null) as TodayShiftPayload | null
   useEffect(() => {
-    if (!todayQuery.data?.data?.shift) return
+    if (!todayShift?.shift) return
     const tick = window.setInterval(() => setNow(new Date()), 30_000)
     return () => window.clearInterval(tick)
-  }, [todayQuery.data?.data?.shift])
+  }, [todayShift?.shift])
   const data = query.data?.data
   const name = fullName(data?.first_name ?? user?.first_name, data?.last_name ?? user?.last_name) || 'there'
   const slices = data ? toSlices(data.breakdown) : []
@@ -542,7 +543,7 @@ export function EmployeeDashboardPage() {
       <p className="mt-3 text-lg font-medium text-navy">Welcome, {name}</p>
       <p className="mt-1 text-sm text-muted">{company?.name || 'Your company'}</p>
 
-      {hasHr ? <TodayShiftPanel today={(todayQuery.data?.data ?? null) as TodayShiftPayload | null} now={now} /> : null}
+      {hasHr ? <TodayShiftPanel today={todayShift} now={now} /> : null}
 
       <div className={`mt-8 grid gap-5 ${hasPayroll ? 'md:grid-cols-3' : 'md:grid-cols-2'}`}>
         {hasPayroll ? (
