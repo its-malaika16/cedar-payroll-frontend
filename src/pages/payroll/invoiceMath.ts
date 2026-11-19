@@ -55,6 +55,18 @@ export type InvoiceRecord = {
 
 export const DEFAULT_VAT_RATE = 20
 
+export function normalisedTaxRate(value: unknown, fallback = DEFAULT_VAT_RATE) {
+  if (value === '' || value == null) return fallback
+  const amount = Number(value)
+  if (!Number.isFinite(amount)) return fallback
+  return roundMoney(amount)
+}
+
+export function formatTaxRate(value: unknown) {
+  const rate = normalisedTaxRate(value)
+  return Number.isInteger(rate) ? `${rate}%` : `${rate.toFixed(2)}%`
+}
+
 export function roundMoney(value: unknown) {
   const amount = Number(value ?? 0)
   if (!Number.isFinite(amount)) return 0
@@ -85,7 +97,7 @@ export function invoiceLineFromAmount(
   extras: Partial<InvoiceLine> = {},
   type: InvoiceType = 'PAY',
 ): InvoiceLine {
-  const rate = roundMoney(taxRate) || DEFAULT_VAT_RATE
+  const rate = normalisedTaxRate(taxRate)
   const given = roundMoney(amount)
   const next: InvoiceLine = {
     key: extras.key ?? `row-${Math.random().toString(36).slice(2, 9)}`,
@@ -134,7 +146,7 @@ export function withLineTotals(line: InvoiceLine, type: InvoiceType): InvoiceLin
     else cleaned.pay_amount = roundMoney(line.amount)
     amount = lineAmountForType(cleaned, type)
   }
-  const rate = roundMoney(cleaned.tax_rate) || DEFAULT_VAT_RATE
+  const rate = normalisedTaxRate(cleaned.tax_rate)
   return {
     ...cleaned,
     amount,

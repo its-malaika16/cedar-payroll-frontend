@@ -307,7 +307,7 @@ export function InvoiceEditorPage() {
     (invoiceId ? invoiceQuery.isLoading : metaQuery.isLoading) ||
     (Boolean(selectedRunId) && !invoiceId && defaultsQuery.isLoading && !defaultsQuery.data)
   const status = String(asRecord(invoiceQuery.data?.data).status ?? 'DRAFT')
-  const locked = Boolean(invoiceId) && status !== 'DRAFT'
+  const locked = Boolean(invoiceId) && status === 'PAID'
 
   function changeSchedule(nextId: string) {
     setDirty(true)
@@ -461,7 +461,7 @@ export function InvoiceEditorPage() {
             View invoice
           </Button>
           <Button disabled={busy || locked} onClick={() => void approve()}>
-            Approve invoice
+            {status === 'APPROVED' ? 'Publish invoice' : 'Approve invoice'}
           </Button>
           {savedId ? (
             <Button variant="danger" disabled={busy} onClick={() => setConfirmDelete(true)}>
@@ -735,7 +735,18 @@ export function InvoiceEditorPage() {
                         }
                       />
                     )}
-                    <InvoiceInput className="text-center" value="20%" readOnly />
+                    <InvoiceInput
+                      className="text-center"
+                      inputMode="decimal"
+                      value={line.tax_rate === 0 ? '0' : String(line.tax_rate)}
+                      disabled={locked}
+                      onChange={(e) => {
+                        const raw = e.target.value.replace(/%/g, '').trim()
+                        updateLine(line.key, {
+                          tax_rate: raw === '' ? 20 : Number(raw),
+                        })
+                      }}
+                    />
                     <InvoiceInput className="text-right" value={line.tax_amount.toFixed(2)} readOnly />
                     <InvoiceInput className="text-right" value={line.total_amount.toFixed(2)} readOnly />
                   </>
@@ -847,8 +858,10 @@ export function InvoiceEditorPage() {
             }} />
           </label>
         </div>
-        {locked ? (
-          <p className="mt-3 text-sm text-muted">Line items are locked after approval. Bank details can still be updated.</p>
+        {status === 'APPROVED' ? (
+          <p className="mt-3 text-sm text-muted">
+            This invoice has already been sent. Save your changes, then publish it again.
+          </p>
         ) : null}
       </div>
       {confirmDelete && savedId ? (

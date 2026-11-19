@@ -149,7 +149,7 @@ export function InvoiceViewPage() {
           <Badge status={invoiceBadgeStatus(invoice.status, invoice.due_date)}>
             {invoiceStatusLabel(invoice.status)}
           </Badge>
-          {canManage && invoice.status === 'DRAFT' ? (
+          {canManage && invoice.status !== 'PAID' ? (
             <Button variant="secondary" onClick={() => navigate(`/payroll/invoices/${idOf(invoice)}/edit`)}>
               Edit
             </Button>

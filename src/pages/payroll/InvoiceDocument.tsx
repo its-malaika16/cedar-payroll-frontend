@@ -1,7 +1,7 @@
 import { money } from '../../lib/format'
 import { assetUrl } from '../../api/client'
 import type { InvoiceLine, InvoiceRecord } from './invoiceMath'
-import { invoicePaperLines, invoiceTotals, parseInvoiceType } from './invoiceMath'
+import { formatTaxRate, invoicePaperLines, invoiceTotals, normalisedTaxRate, parseInvoiceType } from './invoiceMath'
 
 const NAVY = '#17375e'
 const PALE = '#e8eef6'
@@ -42,7 +42,7 @@ export function InvoiceDocument({
 }) {
   const paperLines = invoicePaperLines(lines)
   const totals = invoiceTotals(lines)
-  const vatRate = invoice.vat_rate || 20
+  const itemRates = [...new Set(paperLines.filter((line) => line.kind === 'ITEM').map((line) => normalisedTaxRate(line.tax_rate)))]
   const invoiceType = parseInvoiceType(invoice.invoice_type)
   const employer = invoiceType === 'EMPLOYER_ONCOST'
   const gridClass = employer
@@ -71,12 +71,9 @@ export function InvoiceDocument({
                   <img
                     src={fromLogo}
                     alt={`${fromName} logo`}
-                    className="ml-auto mb-2 max-h-14 max-w-[160px] object-contain"
+                    className="ml-auto max-h-14 max-w-[160px] object-contain"
                   />
                 ) : null}
-                <p className="text-sm font-semibold" style={{ color: NAVY }}>
-                  {fromName}
-                </p>
               </div>
             </div>
 
@@ -155,7 +152,7 @@ export function InvoiceDocument({
                     ) : (
                       <span className="text-right tabular-nums">{amount(line.amount)}</span>
                     )}
-                    <span className="text-right tabular-nums">{Number(line.tax_rate).toFixed(0)}%</span>
+                    <span className="text-right tabular-nums">{formatTaxRate(line.tax_rate)}</span>
                     <span className="text-right tabular-nums">{amount(line.tax_amount)}</span>
                     <span className="text-right font-semibold tabular-nums">{amount(line.total_amount)}</span>
                   </div>
@@ -180,7 +177,9 @@ export function InvoiceDocument({
                   <span className="tabular-nums">{amount(totals.subtotal)}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span>Total VAT {vatRate}%</span>
+                  <span>
+                    {itemRates.length === 1 ? `Total VAT ${formatTaxRate(itemRates[0])}` : 'Total VAT'}
+                  </span>
                   <span className="tabular-nums">{amount(totals.vatTotal)}</span>
                 </div>
                 <div className="flex justify-between font-semibold">
