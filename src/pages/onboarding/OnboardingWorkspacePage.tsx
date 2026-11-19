@@ -87,7 +87,7 @@ function detailsComplete(company: OnboardingCompany) {
 }
 
 function contractsComplete(company: OnboardingCompany) {
-  return company.contracts.length > 0 && company.contracts.every((item) => item.signed)
+  return company.contracts.length === 0 || company.contracts.every((item) => item.signed)
 }
 
 function isRejected(company: OnboardingCompany) {
@@ -195,7 +195,7 @@ export function OnboardingWorkspacePage() {
       title: 'Sign contracts',
       hint: company.contracts.length
         ? `${signedCount} of ${company.contracts.length} signed`
-        : 'Download, sign and upload',
+        : 'No contract',
       done: contractsDone || submitted,
     },
     {
@@ -416,12 +416,15 @@ export function OnboardingWorkspacePage() {
         <section className="rounded-[16px] border border-[#e6eaf0] bg-white p-6 shadow-[0_1px_8px_rgba(23,55,94,0.04)]">
           <h2 className="text-lg font-semibold text-navy">Sign contracts</h2>
           <p className="mt-1 mb-5 text-sm text-muted">
-            Download each contract, sign it, then upload the signed copy. Modules:{' '}
-            {company.modules.map(moduleLabel).join(', ') || 'None yet'}.
+            {company.contracts.length === 0
+              ? 'There is no contract to sign for this company.'
+              : `Download each contract, sign it, then upload the signed copy. Modules: ${
+                  company.modules.map(moduleLabel).join(', ') || 'None yet'
+                }.`}
           </p>
           {company.contracts.length === 0 ? (
             <p className="rounded-[12px] border border-[#e8edf5] bg-[#f7f9fc] px-4 py-3 text-sm text-muted">
-              Waiting for Cedar Payroll to upload your contract(s).
+              There is no contract. You can continue to the next step.
             </p>
           ) : (
             <ul className="space-y-3">
@@ -495,7 +498,7 @@ export function OnboardingWorkspacePage() {
             </Button>
             {contractsDone && !locked ? (
               <Button type="button" onClick={() => goTo(3)}>
-                Continue
+                {company.contracts.length === 0 ? 'Next' : 'Continue'}
               </Button>
             ) : null}
           </div>
@@ -515,7 +518,9 @@ export function OnboardingWorkspacePage() {
             </li>
             <li className="flex items-center gap-2">
               <Check size={16} className="text-emerald-700" />
-              {signedCount} contract{signedCount === 1 ? '' : 's'} signed
+              {company.contracts.length === 0
+                ? 'No contract to sign'
+                : `${signedCount} contract${signedCount === 1 ? '' : 's'} signed`}
             </li>
           </ul>
           <div className="flex flex-wrap items-center justify-between gap-3">

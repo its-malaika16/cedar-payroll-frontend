@@ -50,10 +50,6 @@ function draftFromSource(source: OnboardingContractSource, current?: Partial<Con
   }
 }
 
-function emptyUpload(): ContractDraft {
-  return draftFromSource('upload')
-}
-
 export function CompanyOnboardPage() {
   const auth = useAuth()
   const navigate = useNavigate()
@@ -64,9 +60,7 @@ export function CompanyOnboardPage() {
   const [firstName, setFirstName] = useState('')
   const [lastName, setLastName] = useState('')
   const [email, setEmail] = useState('')
-  const [contracts, setContracts] = useState<ContractDraft[]>(() =>
-    ONBOARDING_CONTRACT_TEMPLATES.map((item) => draftFromSource(item.id)),
-  )
+  const [contracts, setContracts] = useState<ContractDraft[]>([])
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [preview, setPreview] = useState<{ id: string; title: string; filename: string } | null>(null)
@@ -92,7 +86,7 @@ export function CompanyOnboardPage() {
     <div className="flex min-h-0 flex-1 flex-col overflow-y-auto pb-8">
       <PageHeader
         title="Onboard a company"
-        subtitle="Create the organisation in onboarding status, assign modules, and send the contract(s) they need to sign."
+        subtitle="Create the organisation in onboarding status and assign modules. Add a contract only if this company needs to sign one."
         actions={
           <Link to="/companies" className="text-sm font-semibold text-navy hover:underline">
             Back to organisations
@@ -112,11 +106,8 @@ export function CompanyOnboardPage() {
           const readyContracts = contracts.filter((item) =>
             item.source === 'upload' ? item.title.trim() && item.file : Boolean(onboardingContractTemplate(item.source)),
           )
-          if (readyContracts.length === 0) {
-            throw new Error('Choose a contract template or upload at least one contract')
-          }
           if (contracts.some((item) => item.source === 'upload' && (!item.title.trim() || !item.file))) {
-            throw new Error('Give each uploaded contract a title and a file')
+            throw new Error('Give each uploaded contract a title and a file, or remove it')
           }
           const created = await onboardingApi.start({
             company_name: companyName.trim(),
@@ -223,19 +214,29 @@ export function CompanyOnboardPage() {
             <div>
               <h2 className="text-lg font-semibold text-navy">Contracts</h2>
               <p className="mt-1 text-sm text-muted">
-                Send the standard templates, or upload a contract from your system.
+                Optional. Nothing is sent unless you add a contract here.
               </p>
             </div>
             <Button
               variant="secondary"
               type="button"
-              onClick={() => setContracts((current) => [...current, emptyUpload()])}
+              onClick={() =>
+                setContracts((current) => [
+                  ...current,
+                  draftFromSource(ONBOARDING_CONTRACT_TEMPLATES[0].id),
+                ])
+              }
             >
               <Plus size={15} />
               Add contract
             </Button>
           </div>
           <div className="space-y-3">
+            {contracts.length === 0 ? (
+              <p className="rounded-[12px] border border-[#e8edf5] bg-[#f7f9fc] px-4 py-3 text-sm text-muted">
+                No contract will be sent to this company. Use Add contract if they need to sign one.
+              </p>
+            ) : null}
             {contracts.map((contract) => {
               const isUpload = contract.source === 'upload'
               return (

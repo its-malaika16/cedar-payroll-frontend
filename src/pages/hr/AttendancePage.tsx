@@ -422,7 +422,7 @@ export function AttendancePage() {
         <div className="flex flex-wrap gap-2">
           <Button variant="secondary" onClick={() => setLocationsOpen(true)}>
             <MapPin size={16} />
-            Check Location
+            Track Employees
           </Button>
           <Link to="/timesheets">
             <Button variant="secondary">Review timesheets</Button>
@@ -435,10 +435,10 @@ export function AttendancePage() {
           <div className="mx-auto mt-8 w-full max-w-3xl rounded-[16px] bg-white p-5 shadow-lg">
             <div className="mb-4 flex items-start justify-between gap-3">
               <div>
-                <h2 className="text-lg font-semibold text-navy">Check Location</h2>
+                <h2 className="text-lg font-semibold text-navy">Track Employees</h2>
                 <p className="mt-1 text-sm text-muted">
-                  Live position for employees who are checked in. The map updates while their app is
-                  open, so you can see if they are still inside the workplace radius.
+                  Live position for employees who are checked in. Their phone keeps sharing location
+                  from check-in until check-out, including when the app is in the background.
                 </p>
               </div>
               <button

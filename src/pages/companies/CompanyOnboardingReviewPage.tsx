@@ -196,7 +196,9 @@ export function CompanyOnboardingReviewPage() {
           ) : (
             <>
           <p className="mt-1 text-sm text-muted">
-            Approve once the details and signed contracts look correct. The company can then use Cedar Payroll.
+            Approve once the details look correct
+            {company.contracts.length ? ' and any contracts are signed' : ''}. The company can then
+            use Cedar Payroll.
           </p>
           {canApprove ? (
             <div className="mt-5 space-y-3">
@@ -252,7 +254,8 @@ export function CompanyOnboardingReviewPage() {
             </div>
           ) : (
             <p className="mt-5 rounded-[12px] bg-[#f7f9fc] px-4 py-3 text-sm text-muted">
-              The company still needs to complete details and sign every contract.
+              The company still needs to complete their details
+              {company.contracts.length ? ' and sign every contract' : ''}.
             </p>
           )}
             </>
@@ -263,6 +266,9 @@ export function CompanyOnboardingReviewPage() {
       {isEnquiry ? null : (
       <section className="mt-6 rounded-[16px] border border-[#e6eaf0] bg-white p-6 shadow-[0_1px_8px_rgba(23,55,94,0.04)]">
         <h2 className="text-lg font-semibold text-navy">Contracts</h2>
+        {company.contracts.length === 0 ? (
+          <p className="mt-3 text-sm text-muted">There is no contract for this company.</p>
+        ) : null}
         <ul className="mt-4 space-y-3">
           {company.contracts.map((contract) => (
             <li key={contract.id} className="flex flex-wrap items-center justify-between gap-3 rounded-[14px] border border-[#eef1f5] px-4 py-3">
