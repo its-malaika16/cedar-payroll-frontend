@@ -17,7 +17,7 @@ import iconPensions from '../../assets/brand/icon-pensions.svg'
 import { EmployeeCsvImport } from './EmployeeCsvImport'
 import { guessCsvMapping, parseCsvText, type ParsedCsv } from './csvImport'
 import { EmployeesFormsMenu } from './EmployeesFormsMenu'
-import { formLabel } from './formsOptions'
+import { formLabel, isFormType } from './formsOptions'
 
 export function EmployeesPage() {
   const { companyId } = useAuth()

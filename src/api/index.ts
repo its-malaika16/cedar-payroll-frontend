@@ -555,12 +555,12 @@ export const hrApi = {
   myExpenses: (companyId: string, employeeId: string) =>
     get(`/companies/${companyId}/hr/employees/${employeeId}/expenses`),
   createExpense: (companyId: string, employeeId: string, form: FormData) =>
-    api(`/companies/${companyId}/hr/employees/${employeeId}/expenses`, {
+    api<ApiSuccess<unknown>>(`/companies/${companyId}/hr/employees/${employeeId}/expenses`, {
       method: 'POST',
       body: form,
     }),
   assignExpense: (companyId: string, form: FormData) =>
-    api(`/companies/${companyId}/hr/expenses`, {
+    api<ApiSuccess<unknown>>(`/companies/${companyId}/hr/expenses`, {
       method: 'POST',
       body: form,
     }),
