@@ -19,8 +19,12 @@ export type PayTypeDraft = PayTypeFlags & {
 }
 
 export type CustomAdditionLine = PayTypeFlags & {
+  id?: string
   name: string
   amount: string
+  qty?: number
+  qtyText?: string
+  rate?: number
   calculationMethod?: string
   repetition?: string
 }

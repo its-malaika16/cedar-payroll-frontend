@@ -230,7 +230,7 @@ export function AddLeaveModal({
   )
 }
 
-function EmployeePicker({
+export function EmployeePicker({
   people,
   value,
   onChange,

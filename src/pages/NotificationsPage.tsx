@@ -33,6 +33,8 @@ function notificationPath(item: AppNotification, inEmployeePortal: boolean) {
   }
   if (item.type === 'LEAVE_REQUESTED') return '/hr/leave/requests'
   if (item.type === 'LEAVE_APPROVED' || item.type === 'LEAVE_REJECTED') return '/portal/leave'
+  if (item.type === 'EXPENSE_REQUESTED') return '/hr/expenses'
+  if (item.type === 'EXPENSE_APPROVED' || item.type === 'EXPENSE_REJECTED') return '/portal/expenses'
   if (item.type === 'COMMUNICATION') return ''
   if (item.type === 'ONBOARDING') {
     return item.data?.company_id ? `/companies/${item.data.company_id}/onboarding` : '/onboarding'

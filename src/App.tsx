@@ -9,6 +9,7 @@ import { EmployeeLayout } from './components/EmployeeLayout'
 import { Loading } from './components/ui'
 import { LoginPage } from './pages/LoginPage'
 import { RegisterPage } from './pages/RegisterPage'
+import { EmployeeTermsPage } from './pages/EmployeeTermsPage'
 import { DashboardPage } from './pages/DashboardPage'
 import { CompaniesPage } from './pages/companies/CompaniesPage'
 import { CompanyFormPage } from './pages/companies/CompanyFormPage'
@@ -48,9 +49,11 @@ import { InvoiceEditorPage } from './pages/payroll/InvoiceEditorPage'
 import { InvoiceViewPage } from './pages/payroll/InvoiceViewPage'
 import { LeavePage } from './pages/hr/LeavePage'
 import { LeaveRequestsPage } from './pages/hr/LeaveRequestsPage'
+import { ExpenseRequestsPage } from './pages/hr/ExpenseRequestsPage'
 import { AttendancePage } from './pages/hr/AttendancePage'
 import { ShiftsPage } from './pages/hr/ShiftsPage'
 import { CompliancePage } from './pages/hr/CompliancePage'
+import { HrDocumentsPage } from './pages/hr/HrDocumentsPage'
 import { FinancialReportPage } from './pages/hr/FinancialReportPage'
 import { HrDashboardPage, RequireHr } from './pages/hr/HrDashboardPage'
 import { ActivitiesPage } from './pages/ActivitiesPage'
@@ -75,6 +78,7 @@ import { EmployeeInformationPage } from './pages/portal/EmployeeInformationPage'
 import { EmployeeProfilePage } from './pages/portal/EmployeeProfilePage'
 import { PortalAttendancePage } from './pages/portal/EmployeeAttendancePage'
 import { PortalLeavePage, EmployeeLeaveRequestsPage } from './pages/portal/EmployeeLeavePage'
+import { EmployeeExpensePage } from './pages/portal/EmployeeExpensePage'
 import { PortalDocumentsPage, EmployeeDocumentUploadPage } from './pages/portal/EmployeeDocumentsPage'
 import {
   PortalPayslipsPage,
@@ -118,7 +122,12 @@ function AdminLayout() {
   if (auth.isCompanyAdmin && !isCompanyAdminPath(location.pathname)) {
     return <Navigate to={APP_HOME} replace />
   }
-  return <AppLayout />
+  return (
+    <>
+      <AppLayout />
+      {auth.needsEmployeeTerms ? <EmployeeTermsPage /> : null}
+    </>
+  )
 }
 
 function EmployeePortalLayout() {
@@ -126,7 +135,12 @@ function EmployeePortalLayout() {
   if (auth.loading) return <Loading />
   if (!auth.token) return <Navigate to="/login" replace />
   if (!auth.canUseEmployeePortal) return <Navigate to={APP_HOME} replace />
-  return <EmployeeLayout />
+  return (
+    <>
+      <EmployeeLayout />
+      {auth.needsEmployeeTerms ? <EmployeeTermsPage /> : null}
+    </>
+  )
 }
 
 function RequirePayrollModule({ children }: { children: ReactNode }) {
@@ -294,10 +308,12 @@ export default function App() {
         <Route path="/hr" element={<RequireHr><HrDashboardPage /></RequireHr>} />
         <Route path="/hr/leave" element={<RequireHr><LeavePage /></RequireHr>} />
         <Route path="/hr/leave/requests" element={<RequireHr><LeaveRequestsPage /></RequireHr>} />
+        <Route path="/hr/expenses" element={<RequireHr><ExpenseRequestsPage /></RequireHr>} />
         <Route path="/hr/leave/:employeeId" element={<RequireHr><LeavePage /></RequireHr>} />
         <Route path="/hr/attendance" element={<RequireHr><AttendancePage /></RequireHr>} />
         <Route path="/hr/shifts" element={<RequireHr><ShiftsPage /></RequireHr>} />
         <Route path="/hr/compliance" element={<RequireHr><CompliancePage /></RequireHr>} />
+        <Route path="/hr/documents" element={<RequireHr><HrDocumentsPage /></RequireHr>} />
         <Route path="/hr/financial" element={<RequireHr><FinancialReportPage /></RequireHr>} />
       </Route>
       <Route element={<EmployeePortalLayout />}>
@@ -322,6 +338,7 @@ export default function App() {
         <Route path="/portal/rota" element={<PortalRotaPage />} />
         <Route path="/portal/leave" element={<PortalLeavePage />} />
         <Route path="/portal/leave/requests" element={<EmployeeLeaveRequestsPage />} />
+        <Route path="/portal/expenses" element={<EmployeeExpensePage />} />
         <Route path="/portal/attendance" element={<PortalAttendancePage />} />
         <Route path="/portal/documents" element={<PortalDocumentsPage />} />
         <Route path="/portal/documents/upload" element={<EmployeeDocumentUploadPage />} />

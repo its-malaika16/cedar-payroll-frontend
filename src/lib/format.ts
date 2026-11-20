@@ -6,6 +6,31 @@ export function idOf(value: unknown): string {
   return String(value)
 }
 
+/** 12h 03m as payroll qty `12.03` (hours.minutes, not decimal hours). */
+export function hoursToClockQty(hours: number): string {
+  const totalMinutes = Math.max(0, Math.round((Number(hours) || 0) * 60))
+  if (totalMinutes === 0) return ''
+  const h = Math.floor(totalMinutes / 60)
+  const m = totalMinutes % 60
+  return `${h}.${String(m).padStart(2, '0')}`
+}
+
+/** Payroll qty `12.03` means 12 hours 3 minutes. */
+export function clockQtyToHours(value: string): number {
+  const trimmed = String(value ?? '').trim()
+  if (!trimmed) return 0
+  const match = trimmed.match(/^(\d+)(?:\.(\d{0,2}))?$/)
+  if (match) {
+    const hours = Number(match[1])
+    const minutes = Number((match[2] ?? '').padEnd(2, '0') || '0')
+    if (minutes < 60) {
+      return Math.round((hours + minutes / 60) * 100) / 100
+    }
+  }
+  const n = Number(trimmed)
+  return Number.isFinite(n) ? n : 0
+}
+
 export function money(value: unknown) {
   const amount = Number(value ?? 0)
   if (Number.isNaN(amount)) return '—'

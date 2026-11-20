@@ -29,6 +29,46 @@ export function pickPaySchedule(schedules: PayrollSchedule[], preferredId?: stri
   )
 }
 
+function selectionStorageKey(companyId: string) {
+  return `cedar.timesheets.selection.${companyId}`
+}
+
+export function readTimesheetSelection(companyId: string) {
+  try {
+    const raw = sessionStorage.getItem(selectionStorageKey(companyId))
+    if (!raw) return { scheduleId: '', periodKey: '' }
+    const parsed = JSON.parse(raw) as { scheduleId?: string; periodKey?: string }
+    return {
+      scheduleId: String(parsed.scheduleId ?? ''),
+      periodKey: String(parsed.periodKey ?? ''),
+    }
+  } catch {
+    return { scheduleId: '', periodKey: '' }
+  }
+}
+
+export function writeTimesheetSelection(companyId: string, scheduleId: string, periodKey: string) {
+  sessionStorage.setItem(
+    selectionStorageKey(companyId),
+    JSON.stringify({ scheduleId, periodKey }),
+  )
+}
+
+export function timesheetsListSearch(input: {
+  scheduleId?: string | null
+  periodKey?: string | null
+  from?: string | null
+  to?: string | null
+}) {
+  const params = new URLSearchParams()
+  if (input.scheduleId) params.set('schedule', input.scheduleId)
+  if (input.periodKey) params.set('period', input.periodKey)
+  if (input.from) params.set('from', input.from)
+  if (input.to) params.set('to', input.to)
+  const query = params.toString()
+  return query ? `/timesheets?${query}` : '/timesheets'
+}
+
 export function scheduleWeekStartDay(schedule?: PayrollSchedule | null): number {
   const frequency = asPayFrequency(schedule?.pay_frequency)
   if (frequency === 'MONTHLY' || frequency === 'QUARTERLY' || frequency === 'YEARLY') return 1

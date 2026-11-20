@@ -55,8 +55,55 @@ export type TimesheetDetail = TimesheetRow & {
   days: TimesheetDay[]
 }
 
+export function resolveClockOut(
+  clockIn: string | null | undefined,
+  clockOut: string | null | undefined,
+  scheduledEnd?: string | null,
+): string | null | undefined {
+  if (!clockIn || !clockOut) return clockOut
+  const start = new Date(clockIn)
+  const end = new Date(clockOut)
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return clockOut
+  if (end.getTime() >= start.getTime()) return clockOut
+  const plus12 = new Date(end.getTime() + 12 * 3_600_000)
+  const overnight = new Date(end.getTime() + 24 * 3_600_000)
+  const scheduled = scheduledEnd ? new Date(scheduledEnd) : null
+  if (scheduled && !Number.isNaN(scheduled.getTime()) && plus12.getTime() > start.getTime()) {
+    const scheduledMs =
+      scheduled.getTime() > start.getTime()
+        ? scheduled.getTime() - start.getTime()
+        : scheduled.getTime() + 24 * 3_600_000 - start.getTime()
+    const err12 = Math.abs(plus12.getTime() - start.getTime() - scheduledMs)
+    const err24 = Math.abs(overnight.getTime() - start.getTime() - scheduledMs)
+    if (err12 <= err24) return plus12.toISOString()
+  }
+  return overnight.toISOString()
+}
+
+export function hoursFromClocks(
+  clockIn: string | null | undefined,
+  clockOut: string | null | undefined,
+  breakMinutes = 0,
+  paidBreak = false,
+  scheduledEnd?: string | null,
+) {
+  const resolvedOut = resolveClockOut(clockIn, clockOut, scheduledEnd)
+  if (!clockIn || !resolvedOut) return { clock_out: clockOut ?? null, worked_hours: 0 }
+  const start = new Date(clockIn)
+  const end = new Date(resolvedOut)
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+    return { clock_out: clockOut ?? null, worked_hours: 0 }
+  }
+  const unpaid = paidBreak ? 0 : (Number(breakMinutes) || 0) / 60
+  const worked = Math.max(0, (end.getTime() - start.getTime()) / 3_600_000 - unpaid)
+  return {
+    clock_out: resolvedOut,
+    worked_hours: Math.round(worked * 100) / 100,
+  }
+}
+
 export function formatHours(hours: number): string {
-  const totalMinutes = Math.max(0, Math.round(hours * 60))
+  const totalMinutes = Math.max(0, Math.round((Number(hours) || 0) * 60))
   const h = Math.floor(totalMinutes / 60)
   const m = totalMinutes % 60
   if (h === 0) return `${m}m`
@@ -87,7 +134,20 @@ export function canSend(status: TimesheetStatus) {
 }
 
 export function canEdit(status: TimesheetStatus) {
-  return status === 'SUBMITTED' || status === 'DRAFT' || status === 'REJECTED' || status === 'APPROVED'
+  return status === 'SUBMITTED' || status === 'DRAFT' || status === 'REJECTED'
+}
+
+export function isTimesheetDirty(days: TimesheetDay[], baseline: TimesheetDay[] | null) {
+  if (!baseline) return false
+  if (days.length !== baseline.length) return true
+  return days.some((day, index) => {
+    const prev = baseline[index]
+    return (
+      (day.clock_in || '') !== (prev.clock_in || '') ||
+      (day.clock_out || '') !== (prev.clock_out || '') ||
+      Number(day.break_minutes || 0) !== Number(prev.break_minutes || 0)
+    )
+  })
 }
 
 export function canReopen(status: TimesheetStatus) {

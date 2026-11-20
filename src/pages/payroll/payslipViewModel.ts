@@ -5,6 +5,7 @@ import {
   formatPayslipPeriod,
   formatTaxCodeWithBasis,
   fullName,
+  hoursToClockQty,
 } from '../../lib/format'
 import type { Company, Employee, PayrollPayLine, PayrollRecord, PayrollRun } from '../../types'
 import { parsePayslipDisplayOptions, type PayslipDisplayOptions } from './payslipDisplayOptions'
@@ -170,7 +171,7 @@ export function buildPayslipViewModel(
   pushEarning(
     'Basic Salary',
     record.basic_pay,
-    hourlyPay ? amount(record.total_hours) : null,
+    hourlyPay ? Number(hoursToClockQty(amount(record.total_hours))) || amount(record.total_hours) : null,
     hourlyPay ? hourlyRate : null,
     hourlyPay ? 'hours' : null,
   )
@@ -183,11 +184,20 @@ export function buildPayslipViewModel(
     const description = payLineLabel(line)
     const daily = line.kind === 'daily'
     const showQty = daily && line.qty && line.qty > 0
+    const hourlyAddition = line.kind === 'addition' && Number(line.qty) > 0 && Number(line.rate) > 0
     earnings.push({
       description,
-      hours: showQty ? line.qty : null,
-      rate: showQty && line.rate && line.rate > 0 ? line.rate : null,
-      units: showQty ? 'days' : null,
+      hours: hourlyAddition
+        ? Number(hoursToClockQty(Number(line.qty))) || Number(line.qty)
+        : showQty
+          ? line.qty
+          : null,
+      rate: hourlyAddition
+        ? line.rate
+        : showQty && line.rate && line.rate > 0
+          ? line.rate
+          : null,
+      units: hourlyAddition ? 'hours' : showQty ? 'days' : null,
       amount: n,
     })
   }

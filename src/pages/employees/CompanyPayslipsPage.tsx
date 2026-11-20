@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
+import { Landmark } from 'lucide-react'
 import { payrollApi, payslipsApi } from '../../api'
 import { useAuth } from '../../auth/AuthContext'
 import {
@@ -16,12 +17,13 @@ import { downloadBlobFile, zipBinaryFiles } from './formPdf'
 import { PayslipPreviewModal } from '../payroll/PayslipPreviewModal'
 import {
   formatDate,
+  formatLongDate,
   formatPayslipPeriod,
   fullName,
   idOf,
   money,
 } from '../../lib/format'
-import type { PayrollRun, PayrollSchedule } from '../../types'
+import type { PayrollPension, PayrollRun, PayrollSchedule } from '../../types'
 import { hmrcPeriodLabel, parseDateKey } from '../payroll/scheduleWizard/payDateRules'
 
 type PublishedEmployee = {
@@ -104,10 +106,12 @@ export function CompanyPayslipsPage() {
   )
   const runs = (runsQuery.data?.data ?? []) as PayrollRun[]
   const payload = payslipsQuery.data?.data as
-    | { payroll_run?: PayrollRun; employees?: PublishedEmployee[] }
+    | { payroll_run?: PayrollRun; employees?: PublishedEmployee[]; pension?: PayrollPension }
     | undefined
   const run = payload?.payroll_run ?? runs.find((item) => idOf(item) === runId)
   const employees = payload?.employees ?? []
+  const pension = payload?.pension
+  const pensionPaid = (pension?.status ?? run?.pension_status ?? '').toUpperCase() === 'PAID'
 
   useEffect(() => {
     if (!scheduleId && schedules[0]) setScheduleId(idOf(schedules[0]))
@@ -260,6 +264,15 @@ export function CompanyPayslipsPage() {
             />
           </div>
         ) : null}
+        {pensionPaid ? (
+          <div className="mt-5 flex items-center gap-2 rounded-[12px] bg-[#eaf8ee] px-4 py-3 text-sm font-semibold text-[#15803d]">
+            <Landmark size={16} />
+            Pension paid
+            {pension?.paid_at ? (
+              <span className="font-medium text-[#3d8b54]">· {formatLongDate(pension.paid_at)}</span>
+            ) : null}
+          </div>
+        ) : null}
       </Card>
 
       {error ? <Alert className="mb-4">{error}</Alert> : null}
@@ -274,7 +287,7 @@ export function CompanyPayslipsPage() {
           <p className="text-sm font-semibold text-navy">
             {employees.length} employee{employees.length === 1 ? '' : 's'}
           </p>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <Button
               variant="secondary"
               disabled={busy || selectedEmployees.filter((item) => item.payslip_id).length === 0}
@@ -364,6 +377,74 @@ export function CompanyPayslipsPage() {
           </div>
         )}
       </Card>
+      {pensionPaid && pension ? (
+        <Card className="mt-6 overflow-hidden">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#eceae6] px-5 py-4">
+            <div>
+              <h2 className="text-lg font-semibold text-navy">Pension report</h2>
+              <p className="mt-1 text-sm text-muted">Employee and employer contributions for this pay period.</p>
+            </div>
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-[#16a34a] px-3 py-1 text-xs font-semibold text-white">
+              <Landmark size={12} />
+              Paid
+            </span>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[640px] text-sm">
+              <thead className="border-b border-[#eceae6] text-xs font-semibold uppercase tracking-[0.08em] text-muted">
+                <tr>
+                  <th className="px-5 py-3 text-left font-semibold">Employee</th>
+                  <th className="w-[160px] px-5 py-3 text-right font-semibold">Employee pension</th>
+                  <th className="w-[160px] px-5 py-3 text-right font-semibold">Employer pension</th>
+                  <th className="w-[120px] px-5 py-3 text-right font-semibold">Total</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[#eceae6]">
+                {(pension.employees ?? []).length === 0 ? (
+                  <tr>
+                    <td colSpan={4} className="px-5 py-8 text-center text-muted">
+                      No pension amounts for this period.
+                    </td>
+                  </tr>
+                ) : (
+                  (pension.employees ?? []).map((row) => (
+                    <tr key={row.record_id}>
+                      <td className="px-5 py-3 font-medium text-navy">{row.name}</td>
+                      <td className="px-5 py-3 text-right tabular-nums text-navy">{money(row.employee_pension)}</td>
+                      <td className="px-5 py-3 text-right tabular-nums text-navy">{money(row.employer_pension)}</td>
+                      <td className="px-5 py-3 text-right tabular-nums text-navy">
+                        {money(Number(row.employee_pension ?? 0) + Number(row.employer_pension ?? 0))}
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+              {(pension.employees ?? []).length > 0 ? (
+                <tfoot>
+                  <tr className="border-t border-navy">
+                    <th className="px-5 py-3 text-left font-semibold text-navy">Total</th>
+                    <td className="px-5 py-3 text-right font-semibold tabular-nums text-navy">
+                      {money((pension.employees ?? []).reduce((sum, row) => sum + Number(row.employee_pension ?? 0), 0))}
+                    </td>
+                    <td className="px-5 py-3 text-right font-semibold tabular-nums text-navy">
+                      {money((pension.employees ?? []).reduce((sum, row) => sum + Number(row.employer_pension ?? 0), 0))}
+                    </td>
+                    <td className="px-5 py-3 text-right font-semibold tabular-nums text-navy">
+                      {money(
+                        (pension.employees ?? []).reduce(
+                          (sum, row) => sum + Number(row.employee_pension ?? 0) + Number(row.employer_pension ?? 0),
+                          0,
+                        ),
+                      )}
+                    </td>
+                  </tr>
+                </tfoot>
+              ) : null}
+            </table>
+          </div>
+        </Card>
+      ) : null}
+
       {previewRecordId && runId ? (
         <PayslipPreviewModal
           runId={runId}

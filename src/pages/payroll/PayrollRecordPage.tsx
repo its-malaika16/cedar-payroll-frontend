@@ -25,11 +25,13 @@ import { useAuth } from '../../auth/AuthContext'
 import { Alert, Button, Loading } from '../../components/ui'
 import { BrandIcon } from '../../components/BrandIcon'
 import {
+  clockQtyToHours,
   formatLongDate,
   formatPeriodEndingLabel,
   formatPeriodRange,
   formatTaxCodeWithBasis,
   fullName,
+  hoursToClockQty,
   idOf,
   isEmployeeOnPayrollRun,
   money,
@@ -193,6 +195,14 @@ function extraPayFromRecord(record: PayrollRecord, hasHours: boolean): ExtraPay[
 
 function additionLinesFromRecord(record: PayrollRecord) {
   return (record.pay_lines ?? []).filter((line) => line.kind === 'addition')
+}
+
+function isOvertimeAddition(row: { id?: string; name: string }) {
+  return row.id === 'timesheet-overtime' || /^overtime$/i.test(row.name.trim())
+}
+
+function isHourlyAddition(row: { id?: string; name: string; qty?: number; rate?: number }) {
+  return isOvertimeAddition(row) || Number(row.qty) > 0 || Number(row.rate) > 0
 }
 
 function MenuItem({
@@ -426,7 +436,7 @@ export function PayrollRecordPage() {
       return
     }
     const hasHours = Number(record.total_hours ?? 0) > 0
-    setHours(hasHours ? str(record.total_hours) : '')
+    setHours(hasHours ? hoursToClockQty(Number(record.total_hours)) : '')
     const hourlyFromEmployee = firstPositiveRate(
       asRecord(employee?.employment_details).basic_rate_per_hour,
       asRecord(employee?.employment_details).extra_hourly_rates,
@@ -471,14 +481,31 @@ export function PayrollRecordPage() {
       ),
     })
     setExtraPay(extraPayFromRecord(record, hasHours))
+    const hourlyRate = Number(record.wage_per_hour ?? 0)
     setCustomAdditions(
-      unmappedStored.map((line) => ({
-        name: line.label || 'Addition',
-        amount: moneyInput(line.amount),
-        calculationMethod: line.calculationMethod,
-        repetition: line.repetition ?? 'Include in this period only',
-        ...flagsFromPayLine(line),
-      })),
+      unmappedStored.map((line) => {
+        const amount = Number(line.amount) || 0
+        const overtime = isOvertimeAddition({ id: line.id, name: line.label || 'Addition' })
+        let qty = Number(line.qty) || 0
+        let rate = Number(line.rate) || 0
+        if (overtime && amount > 0) {
+          if (rate <= 0 && hourlyRate > 0) rate = Math.round(hourlyRate * 1.5 * 100) / 100
+          if (qty <= 0 && rate > 0) qty = Math.round((amount / rate) * 100) / 100
+        } else if (qty <= 0 && rate > 0 && amount > 0) {
+          qty = Math.round((amount / rate) * 100) / 100
+        }
+        return {
+          id: line.id,
+          name: line.label || 'Addition',
+          amount: moneyInput(line.amount),
+          qty: qty > 0 ? qty : undefined,
+          qtyText: qty > 0 ? hoursToClockQty(qty) : undefined,
+          rate: rate > 0 ? rate : undefined,
+          calculationMethod: line.calculationMethod,
+          repetition: line.repetition ?? 'Include in this period only',
+          ...flagsFromPayLine(line),
+        }
+      }),
     )
     setSuppressedRepeating(
       (record.pay_lines ?? []).flatMap((line) =>
@@ -563,7 +590,7 @@ export function PayrollRecordPage() {
   const employment = asRecord(employee?.employment_details)
   const pension = asRecord(employee?.employee_pension_details)
   const hasBank = Boolean(employee?.bank_details?.length)
-  const payTotal = Number(hours || 0) * Number(rate || 0)
+  const payTotal = clockQtyToHours(hours) * Number(rate || 0)
   const minWageWarning = useMemo(() => {
     if (!showHourlyPay && !(Number(record?.wage_per_hour ?? 0) > 0)) return null
     return assessHourlyMinimumWage({
@@ -920,7 +947,7 @@ export function PayrollRecordPage() {
     skipHydrate.current = true
     try {
       const leave = Number(form.leaveAmount)
-      const hoursWorked = form.hours === '' ? undefined : Number(form.hours)
+      const hoursWorked = form.hours === '' ? undefined : clockQtyToHours(form.hours)
       const result = await payrollApi.updateRecord(companyId, runId, recordId, {
         total_hours: hoursWorked,
         wage_per_hour: form.rate === '' ? undefined : Number(form.rate),
@@ -975,7 +1002,7 @@ export function PayrollRecordPage() {
     if (next?.hours !== undefined) setHours(next.hours)
     if (next?.rate !== undefined) setRate(next.rate)
     const hoursWorked =
-      (next?.hours ?? hours) === '' ? undefined : Number(next?.hours ?? hours)
+      (next?.hours ?? hours) === '' ? undefined : clockQtyToHours(next?.hours ?? hours)
     await patchRecord(
       {
         total_hours: hoursWorked,
@@ -1020,10 +1047,12 @@ export function PayrollRecordPage() {
         ...flagsFromDraft(emptyPayTypeDraft()),
       }))
     const custom = customs.map((row) => ({
-      id: `addition-${row.name}`,
+      id: row.id || `addition-${row.name}`,
       kind: 'addition' as const,
       label: row.name,
       amount: Number(row.amount || 0),
+      ...(Number(row.qty) > 0 ? { qty: Number(row.qty) } : {}),
+      ...(Number(row.rate) > 0 ? { rate: Number(row.rate) } : {}),
       calculationMethod: row.calculationMethod,
       repetition: row.repetition ?? 'Include in this period only',
       ...flagsFromDraft(row),
@@ -1789,7 +1818,7 @@ export function PayrollRecordPage() {
               {showHourlyPay ? (
                 <PayRow
                   qty={hours}
-                  qtySuffix="hours"
+                  qtySuffix="basic hours"
                   rate={rate}
                   rateOptions={rateOptions}
                   rateUnit="per hour"
@@ -2026,7 +2055,67 @@ export function PayrollRecordPage() {
             )}
             {customAdditions.length > 0 || visibleAdditions.length > 0 ? (
               <PayLineGroup title="Additions" tone="addition">
-                {customAdditions.map((row) => (
+                {customAdditions.map((row) =>
+                  isHourlyAddition(row) ? (
+                    <PayRow
+                      key={row.id || row.name}
+                      label={row.name}
+                      qty={row.qtyText ?? (row.qty != null ? hoursToClockQty(Number(row.qty)) : '')}
+                      qtySuffix="hours"
+                      rate={row.rate != null ? Number(row.rate).toFixed(2) : ''}
+                      rateOptions={[
+                        ...new Set(
+                          [row.rate != null ? Number(row.rate).toFixed(2) : '', ...rateOptions].filter(Boolean),
+                        ),
+                      ]}
+                      rateUnit="per hour"
+                      total={row.amount}
+                      locked={locked}
+                      onRemove={locked ? undefined : () => removeCustomAddition(row.name)}
+                      onQtyChange={(value) => {
+                        setCustomAdditions((current) =>
+                          current.map((item) =>
+                            item.name === row.name ? { ...item, qtyText: value } : item,
+                          ),
+                        )
+                      }}
+                      onQtyBlur={() => {
+                        setCustomAdditions((current) => {
+                          const next = current.map((item) => {
+                            if (item.name !== row.name) return item
+                            const qty = clockQtyToHours(item.qtyText ?? '')
+                            return {
+                              ...item,
+                              qty,
+                              qtyText: hoursToClockQty(qty) || item.qtyText,
+                              amount: (qty * Number(item.rate || 0)).toFixed(2),
+                            }
+                          })
+                          latestRef.current = { ...latestRef.current, customAdditions: next }
+                          return next
+                        })
+                        window.clearTimeout(calcTimer.current)
+                        void persistAndCalculate()
+                      }}
+                      onRateChange={(value) => {
+                        const nextRate = Number(value) || 0
+                        setCustomAdditions((current) => {
+                          const next = current.map((item) =>
+                            item.name === row.name
+                              ? {
+                                  ...item,
+                                  rate: nextRate,
+                                  amount: (Number(item.qty || 0) * nextRate).toFixed(2),
+                                }
+                              : item,
+                          )
+                          latestRef.current = { ...latestRef.current, customAdditions: next }
+                          return next
+                        })
+                        queueCalculate()
+                      }}
+                    />
+                  ) : (
                   <AmountRow
                     key={row.name}
                     label={row.name}
@@ -2049,7 +2138,8 @@ export function PayrollRecordPage() {
                       void persistAndCalculate()
                     }}
                   />
-                ))}
+                  ),
+                )}
                 {visibleAdditions.map((label) => (
                   <AmountRow
                     key={label}
@@ -2569,16 +2659,16 @@ function PayRow({
         </button>
       {label ? <span className="shrink-0 text-xs font-medium text-navy">{label}</span> : null}
       {hideQty ? null : (
-        <div className="flex w-[138px]">
+        <div className="flex min-w-[138px]">
           <input
-            className={`${inputClass} min-w-0 flex-1 rounded-r-none`}
+            className={`${inputClass} w-[72px] min-w-0 rounded-r-none`}
             value={qty}
             placeholder=""
             disabled={locked}
             onChange={(event) => onQtyChange?.(event.target.value)}
             onBlur={onQtyBlur}
           />
-          <span className="flex h-[35px] items-center rounded-r-[6px] border-[0.5px] border-l-0 border-[#d9d9d9] bg-[#f8f7f4] px-3 text-xs text-navy">
+          <span className="flex h-[35px] items-center whitespace-nowrap rounded-r-[6px] border-[0.5px] border-l-0 border-[#d9d9d9] bg-[#f8f7f4] px-3 text-xs text-navy">
             {qtySuffix}
           </span>
         </div>
@@ -2686,6 +2776,7 @@ function PayLineGroup({
 
 function AmountRow({
   label,
+  detail,
   value,
   locked,
   tone = 'addition',
@@ -2695,6 +2786,7 @@ function AmountRow({
   onRemove,
 }: {
   label: string
+  detail?: string
   value: string
   locked: boolean
   tone?: 'addition' | 'deduction'
@@ -2709,7 +2801,10 @@ function AmountRow({
     : 'border-[#c5d4ea] text-navy hover:bg-white'
   return (
     <div className={`flex items-center justify-between gap-3 text-xs ${deduction ? 'text-brand' : 'text-navy'}`}>
-      <span className="min-w-0 truncate">{label}</span>
+      <span className="min-w-0">
+        <span className="block truncate">{label}</span>
+        {detail ? <span className="mt-0.5 block text-[11px] text-[#607080]">{detail}</span> : null}
+      </span>
       <div className="flex shrink-0 items-center gap-1.5">
         {!locked && onEdit ? (
           <button

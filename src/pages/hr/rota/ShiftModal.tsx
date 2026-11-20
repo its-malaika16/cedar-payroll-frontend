@@ -387,6 +387,7 @@ export function ShiftModal({
   initial,
   saving,
   error,
+  locked = false,
   onClose,
   onSubmit,
 }: {
@@ -397,6 +398,7 @@ export function ShiftModal({
   initial: Partial<ShiftFormValue>
   saving?: boolean
   error?: string | null
+  locked?: boolean
   onClose: () => void
   onSubmit: (form: ShiftFormValue) => Promise<void>
 }) {
@@ -421,7 +423,7 @@ export function ShiftModal({
           ? `Add ${shiftCount} Shifts`
           : 'Add Shift'
   const moveOnly = mode === 'move'
-  const canSave = mode === 'create' || isFormDirty(form, emptyForm(initial))
+  const canSave = !locked && (mode === 'create' || isFormDirty(form, emptyForm(initial)))
 
     return (
     <div
@@ -439,6 +441,7 @@ export function ShiftModal({
           className="space-y-4"
           onSubmit={async (event) => {
             event.preventDefault()
+            if (locked) return
             try {
               setLocalError(null)
               await onSubmit(form)
@@ -448,7 +451,13 @@ export function ShiftModal({
           }}
         >
           {error || localError ? <Alert>{error || localError}</Alert> : null}
+          {locked ? (
+            <Alert>
+              This shift cannot be changed because the employee has already checked in.
+            </Alert>
+          ) : null}
 
+          <fieldset disabled={locked} className="space-y-4 border-0 p-0">
           {moveOnly ? null : (
             <label className="block">
               <Label icon={<User size={14} />}>
@@ -641,14 +650,17 @@ export function ShiftModal({
               />
             </label>
           )}
+          </fieldset>
 
           <div className="flex justify-end gap-2 pt-2">
             <Button type="button" variant="secondary" onClick={onClose}>
               Cancel
             </Button>
+            {locked ? null : (
             <Button type="submit" disabled={saving || !canSave}>
               {submitLabel}
             </Button>
+            )}
           </div>
         </form>
       </div>

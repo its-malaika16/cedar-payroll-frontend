@@ -6,6 +6,7 @@ import { useAuth } from '../auth/AuthContext'
 import { Alert, onSubmit } from '../components/ui'
 import logoLogin from '../assets/brand/logo-login.png'
 import loginIllustration from '../assets/brand/login-illustration.png'
+import { EmployeeTermsPage } from './EmployeeTermsPage'
 
 const fieldClass =
   'h-[52px] w-full rounded-[15px] border-0 bg-input px-4 text-base font-medium text-navy outline-none placeholder:text-muted'
@@ -172,6 +173,10 @@ export function LoginPage() {
   const [info, setInfo] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [resendIn, setResendIn] = useState(0)
+  const termsMessage =
+    typeof (location.state as { termsMessage?: string } | null)?.termsMessage === 'string'
+      ? (location.state as { termsMessage: string }).termsMessage
+      : ''
 
   useEffect(() => {
     if (resendIn <= 0) return
@@ -179,7 +184,7 @@ export function LoginPage() {
     return () => window.clearTimeout(timer)
   }, [resendIn])
 
-  if (auth.token && auth.user) {
+  if (auth.token && auth.user && !auth.needsEmployeeTerms) {
     return <Navigate to={auth.homePath} replace />
   }
 
@@ -216,6 +221,7 @@ export function LoginPage() {
   }
 
   return (
+    <>
     <div className="grid min-h-screen bg-white lg:grid-cols-2">
       <section className="relative hidden min-h-screen flex-col bg-white lg:flex">
         <div className="flex flex-1 items-center justify-center px-10 xl:px-16">
@@ -266,10 +272,10 @@ export function LoginPage() {
             }
             if (mode === 'signup') {
               const next = await auth.register(email, password, confirm)
-              navigate(next)
+              if (next) navigate(next)
             } else {
               const next = await auth.login(email, password)
-              navigate(next)
+              if (next) navigate(next)
             }
           }, setError, setSaving)}
         >
@@ -343,6 +349,11 @@ export function LoginPage() {
           {info ? (
             <div className="mt-6">
               <Alert tone="info">{info}</Alert>
+            </div>
+          ) : null}
+          {!error && !info && termsMessage ? (
+            <div className="mt-6">
+              <Alert>{termsMessage}</Alert>
             </div>
           ) : null}
 
@@ -467,5 +478,7 @@ export function LoginPage() {
         </form>
       </section>
     </div>
+    {auth.token && auth.needsEmployeeTerms ? <EmployeeTermsPage /> : null}
+    </>
   )
 }

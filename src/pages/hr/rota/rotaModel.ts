@@ -20,6 +20,11 @@ export type RotaShift = {
   location?: string | null
   notes?: string | null
   employees?: RotaEmployee | null
+  checked_in?: boolean
+}
+
+export function isShiftCheckedIn(shift: Pick<RotaShift, 'checked_in'>): boolean {
+  return Boolean(shift.checked_in)
 }
 
 export type LeaveItem = {

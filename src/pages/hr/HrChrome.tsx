@@ -43,12 +43,14 @@ export function HrTitle({
 export function RequestsButton({
   count,
   active,
+  to = '/hr/leave/requests',
 }: {
   count?: number
   active?: boolean
+  to?: string
 }) {
   return (
-    <Link to="/hr/leave/requests">
+    <Link to={to}>
       <Button variant={active ? 'primary' : 'secondary'}>
         <Inbox size={16} />
         Requests

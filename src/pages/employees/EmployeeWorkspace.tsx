@@ -25,6 +25,7 @@ import { Alert, Button, Loading } from '../../components/ui'
 import { fullName, idOf, toDateInput } from '../../lib/format'
 import { taxYearLabel, taxYearStartFromDate } from '../../lib/hmrcTaxCalendar'
 import { ComplianceDocumentsPanel } from '../hr/compliance/ComplianceDocumentsPanel'
+import { GeneratedFormsPanel } from '../hr/GeneratedFormsPanel'
 import type { ComplianceFile } from '../hr/compliance/documentTypes'
 import type { Company, Employee, PayrollSchedule } from '../../types'
 import {
@@ -1829,6 +1830,14 @@ export function EmployeeWorkspace() {
                   documents={complianceDocuments}
                   loading={complianceQuery.isLoading}
                 />
+                <div className="border-t border-[#eceae6] px-5 py-5">
+                  <GeneratedFormsPanel
+                    employeeId={employeeId}
+                    showEmployee={false}
+                    title="Statutory forms"
+                    subtitle="P11, P45, P60 and other generated forms for this employee."
+                  />
+                </div>
               </>
             )}
           </section>

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 import {
@@ -6,6 +6,7 @@ import {
   Check,
   ChevronLeft,
   ChevronRight,
+  Clock,
   Clock3,
   FileText,
   Pencil,
@@ -16,18 +17,26 @@ import { payrollApi, timesheetsApi } from '../../../api'
 import { useAuth } from '../../../auth/AuthContext'
 import { Alert, Button, Loading } from '../../../components/ui'
 import { formatPeriodRange, fullName, idOf } from '../../../lib/format'
-import { isFormDirty } from '../../../lib/formDirty'
 import type { PayrollSchedule } from '../../../types'
 import { parseDateKey } from '../rota/rotaDates'
 import { formatClock, formatTimeRange } from '../rota/rotaModel'
 import { StatCard } from './TimesheetStatusBadge'
-import { adjacentTimesheetPeriod, pickPaySchedule, timesheetPeriodFromSchedule } from './timesheetPeriod'
+import {
+  adjacentTimesheetPeriod,
+  pickPaySchedule,
+  timesheetPeriodFromSchedule,
+  timesheetsListSearch,
+  writeTimesheetSelection,
+} from './timesheetPeriod'
 import {
   canApprove,
   canEdit,
+  canReopen,
   canSend,
   formatBreak,
   formatHours,
+  hoursFromClocks,
+  isTimesheetDirty,
   type TimesheetDay,
   type TimesheetDetail,
 } from './timesheetTypes'
@@ -45,6 +54,51 @@ function fromTimeInput(day: string, time: string) {
   const date = parseDateKey(day)
   date.setHours(hours || 0, minutes || 0, 0, 0)
   return date.toISOString()
+}
+
+function TimesheetClockField({
+  day,
+  value,
+  onChange,
+  ariaLabel,
+}: {
+  day: string
+  value?: string | null
+  onChange: (iso: string | null) => void
+  ariaLabel: string
+}) {
+  const pickerRef = useRef<HTMLInputElement>(null)
+  const display = value ? formatClock(new Date(value)) : ''
+
+  function openPicker() {
+    const picker = pickerRef.current
+    if (!picker) return
+    if (typeof picker.showPicker === 'function') picker.showPicker()
+    else picker.click()
+  }
+
+  return (
+    <div className="relative w-[148px]">
+      <button
+        type="button"
+        className="flex h-10 w-full items-center rounded-[8px] border border-[#d9d9d9] bg-white px-3 pr-10 text-left text-sm text-navy outline-none hover:border-navy/40 focus:border-navy"
+        aria-label={ariaLabel}
+        onClick={openPicker}
+      >
+        <span className={display ? 'truncate' : 'text-muted'}>{display || '—'}</span>
+      </button>
+      <Clock size={14} className="pointer-events-none absolute top-1/2 right-3 -translate-y-1/2 text-navy/40" />
+      <input
+        ref={pickerRef}
+        type="time"
+        tabIndex={-1}
+        aria-hidden
+        className="pointer-events-none absolute h-0 w-0 opacity-0"
+        value={toTimeInput(value)}
+        onChange={(event) => onChange(fromTimeInput(day, event.target.value))}
+      />
+    </div>
+  )
 }
 
 function dayLabel(value: string) {
@@ -80,7 +134,14 @@ export function TimesheetDetailPage({ mode }: { mode: 'review' | 'edit' }) {
   const periodStart = parseDateKey(from)
   const periodEnd = parseDateKey(to)
   const selectedScheduleId = paySchedule ? idOf(paySchedule) : ''
-  const editing = mode === 'edit'
+  const selectedPeriodKey = params.get('period') || fallback.periodKey
+  const listPath = timesheetsListSearch({
+    scheduleId: scheduleId || selectedScheduleId,
+    periodKey: selectedPeriodKey,
+    from,
+    to,
+  })
+  const requestEdit = mode === 'edit'
   const [error, setError] = useState<string | null>(null)
   const [days, setDays] = useState<TimesheetDay[]>([])
   const [daysBaseline, setDaysBaseline] = useState<TimesheetDay[] | null>(null)
@@ -92,12 +153,30 @@ export function TimesheetDetailPage({ mode }: { mode: 'review' | 'edit' }) {
   })
 
   const sheet = detail.data?.data as TimesheetDetail | undefined
+  const sheetKey = `${sheet?.timesheet_id ?? 'none'}:${employeeId}:${from}:${to}`
+  const hasDays = Boolean(sheet?.days)
+  const locked = Boolean(sheet && !canEdit(sheet.status))
+  const editing = requestEdit && !locked
+
+  useEffect(() => {
+    if (companyId && scheduleId) {
+      writeTimesheetSelection(companyId, scheduleId, selectedPeriodKey)
+    }
+  }, [companyId, scheduleId, selectedPeriodKey])
 
   useEffect(() => {
     if (!sheet?.days) return
     setDays(sheet.days)
     setDaysBaseline(sheet.days)
-  }, [sheet])
+  }, [sheetKey, hasDays])
+
+  useEffect(() => {
+    if (!requestEdit || !sheet || canEdit(sheet.status)) return
+    const search = new URLSearchParams({ from, to })
+    if (selectedScheduleId) search.set('schedule', selectedScheduleId)
+    if (selectedPeriodKey) search.set('period', selectedPeriodKey)
+    navigate(`/timesheets/${employeeId}?${search.toString()}`, { replace: true })
+  }, [requestEdit, sheet, employeeId, from, to, selectedScheduleId, selectedPeriodKey, navigate])
 
   const totals = useMemo(() => {
     return {
@@ -111,14 +190,15 @@ export function TimesheetDetailPage({ mode }: { mode: 'review' | 'edit' }) {
     setDays((current) => {
       const next = [...current]
       const day = { ...next[index], ...patch }
-      const start = day.clock_in ? new Date(day.clock_in) : null
-      const end = day.clock_out ? new Date(day.clock_out) : null
-      const unpaid = day.paid_break ? 0 : (day.break_minutes || 0) / 60
-      const worked =
-        start && end
-          ? Math.max(0, (end.getTime() - start.getTime()) / 3_600_000 - unpaid)
-          : 0
-      day.worked_hours = Math.round(worked * 100) / 100
+      const computed = hoursFromClocks(
+        day.clock_in,
+        day.clock_out,
+        day.break_minutes,
+        day.paid_break,
+        day.scheduled_end,
+      )
+      day.clock_out = computed.clock_out
+      day.worked_hours = computed.worked_hours
       day.overtime_hours = Math.max(0, Math.round((day.worked_hours - day.scheduled_hours) * 100) / 100)
       next[index] = day
       return next
@@ -127,6 +207,7 @@ export function TimesheetDetailPage({ mode }: { mode: 'review' | 'edit' }) {
 
   async function persist(nextDays = days) {
     if (!companyId || !sheet) return sheet?.timesheet_id ?? null
+    if (!canEdit(sheet.status)) return sheet.timesheet_id
     let timesheetId = sheet.timesheet_id
     if (!timesheetId) {
       const created = await timesheetsApi.ensure(companyId, {
@@ -136,13 +217,13 @@ export function TimesheetDetailPage({ mode }: { mode: 'review' | 'edit' }) {
       })
       timesheetId = idOf(created.data)
     }
-    await timesheetsApi.update(companyId, timesheetId, {
+        await timesheetsApi.update(companyId, timesheetId, {
       entries: nextDays.map((day) => ({
         work_date: day.date,
-        start_time: day.clock_in || undefined,
-        end_time: day.clock_out || undefined,
-        break_minutes: day.break_minutes,
-        hours: day.worked_hours,
+        start_time: day.clock_in || null,
+        end_time: day.clock_out || null,
+        break_minutes: Math.round(Number(day.break_minutes) || 0),
+        hours: Number(day.worked_hours) || 0,
       })),
     })
     await queryClient.invalidateQueries({ queryKey: ['timesheet-detail', companyId, employeeId, from, to] })
@@ -152,15 +233,28 @@ export function TimesheetDetailPage({ mode }: { mode: 'review' | 'edit' }) {
 
   const save = useMutation({
     mutationFn: async () => persist(),
+    onSuccess: async () => {
+      setError(null)
+      const refreshed = await queryClient.fetchQuery({
+        queryKey: ['timesheet-detail', companyId, employeeId, from, to],
+        queryFn: () => timesheetsApi.detail(companyId!, employeeId, from, to),
+      })
+      const nextDays = (refreshed.data as TimesheetDetail | undefined)?.days
+      if (nextDays) {
+        setDays(nextDays)
+        setDaysBaseline(nextDays)
+      }
+    },
     onError: (err) => setError(err instanceof Error ? err.message : 'Could not save timesheet'),
   })
 
   const act = useMutation({
-    mutationFn: async (action: 'approve' | 'send' | 'changes') => {
+    mutationFn: async (action: 'approve' | 'send' | 'changes' | 'reopen') => {
       const timesheetId = await persist()
       if (!timesheetId || !companyId) throw new Error('Timesheet could not be saved')
       if (action === 'approve') await timesheetsApi.review(companyId, timesheetId, { status: 'APPROVED' })
       if (action === 'send') await timesheetsApi.sendToPayroll(companyId, timesheetId)
+      if (action === 'reopen') await timesheetsApi.reopen(companyId, timesheetId)
       if (action === 'changes') {
         await timesheetsApi.review(companyId, timesheetId, {
           status: 'REJECTED',
@@ -171,7 +265,7 @@ export function TimesheetDetailPage({ mode }: { mode: 'review' | 'edit' }) {
     onSuccess: async () => {
       setError(null)
       await queryClient.invalidateQueries({ queryKey: ['timesheets', companyId] })
-      navigate('/timesheets')
+      navigate(listPath)
     },
     onError: (err) => setError(err instanceof Error ? err.message : 'Action failed'),
   })
@@ -181,6 +275,7 @@ export function TimesheetDetailPage({ mode }: { mode: 'review' | 'edit' }) {
     if (!next) return
     const search = new URLSearchParams({ from: next.from, to: next.to })
     if (selectedScheduleId) search.set('schedule', selectedScheduleId)
+    if (next.periodKey) search.set('period', next.periodKey)
     navigate(`${location.pathname}?${search.toString()}`)
   }
 
@@ -192,17 +287,32 @@ export function TimesheetDetailPage({ mode }: { mode: 'review' | 'edit' }) {
   const status = sheet.status
   const name = fullName(sheet.employee.first_name, sheet.employee.last_name)
 
+  const reviewSearch = new URLSearchParams({ from, to })
+  if (selectedScheduleId) reviewSearch.set('schedule', selectedScheduleId)
+  if (selectedPeriodKey) reviewSearch.set('period', selectedPeriodKey)
+  const reviewPath = `/timesheets/${employeeId}?${reviewSearch.toString()}`
+
   return (
     <div>
       <p className="text-xs font-semibold uppercase tracking-[0.12em] text-navy/50">
-        <Link to="/timesheets" className="hover:underline">
+        <Link to={listPath} className="hover:underline">
           Timesheets
         </Link>
         {' > '}
         Review
         {editing ? ' > Edit' : ''}
       </p>
-      <h1 className="mt-3 text-[32px] font-semibold text-navy">{name} Timesheet</h1>
+      <div className="mt-3 flex items-center gap-2">
+        <button
+          type="button"
+          className="flex items-center gap-2 text-[32px] font-semibold leading-none text-navy"
+          onClick={() => navigate(editing ? reviewPath : listPath)}
+          aria-label="Back"
+        >
+          <ChevronLeft size={25} strokeWidth={2.4} />
+          {name} Timesheet
+        </button>
+      </div>
       {error ? (
         <div className="mt-4">
           <Alert>{error}</Alert>
@@ -226,7 +336,7 @@ export function TimesheetDetailPage({ mode }: { mode: 'review' | 'edit' }) {
             <ChevronRight size={18} />
           </button>
         </div>
-        <table className="w-full min-w-[980px] text-left text-sm">
+        <table className="w-full min-w-[1080px] text-left text-sm">
           <thead className="border-b border-[#eceae6] bg-[#f7f6f3] text-xs font-semibold uppercase tracking-[0.08em] text-muted">
             <tr>
               <th className="px-4 py-3">Day</th>
@@ -250,17 +360,12 @@ export function TimesheetDetailPage({ mode }: { mode: 'review' | 'edit' }) {
                 </td>
                 <td className="px-4 py-3">
                   {editing ? (
-                    <label className="relative block">
-                      <input
-                        type="time"
-                        className="h-10 w-[118px] rounded-[8px] border border-[#d9d9d9] bg-white px-2 pr-8 text-sm text-navy"
-                        value={toTimeInput(day.clock_in)}
-                        onChange={(event) =>
-                          patchDay(index, { clock_in: fromTimeInput(day.date, event.target.value) })
-                        }
-                      />
-                      <Pencil size={12} className="pointer-events-none absolute top-1/2 right-2 -translate-y-1/2 text-navy/40" />
-                    </label>
+                    <TimesheetClockField
+                      day={day.date}
+                      value={day.clock_in}
+                      ariaLabel={`Clock in ${dayLabel(day.date)}`}
+                      onChange={(clock_in) => patchDay(index, { clock_in })}
+                    />
                   ) : day.clock_in ? (
                     formatClock(new Date(day.clock_in))
                   ) : (
@@ -269,17 +374,12 @@ export function TimesheetDetailPage({ mode }: { mode: 'review' | 'edit' }) {
                 </td>
                 <td className="px-4 py-3">
                   {editing ? (
-                    <label className="relative block">
-                      <input
-                        type="time"
-                        className="h-10 w-[118px] rounded-[8px] border border-[#d9d9d9] bg-white px-2 pr-8 text-sm text-navy"
-                        value={toTimeInput(day.clock_out)}
-                        onChange={(event) =>
-                          patchDay(index, { clock_out: fromTimeInput(day.date, event.target.value) })
-                        }
-                      />
-                      <Pencil size={12} className="pointer-events-none absolute top-1/2 right-2 -translate-y-1/2 text-navy/40" />
-                    </label>
+                    <TimesheetClockField
+                      day={day.date}
+                      value={day.clock_out}
+                      ariaLabel={`Clock out ${dayLabel(day.date)}`}
+                      onChange={(clock_out) => patchDay(index, { clock_out })}
+                    />
                   ) : day.clock_out ? (
                     formatClock(new Date(day.clock_out))
                   ) : (
@@ -288,18 +388,15 @@ export function TimesheetDetailPage({ mode }: { mode: 'review' | 'edit' }) {
                 </td>
                 <td className="px-4 py-3">
                   {editing ? (
-                    <label className="relative block">
-                      <input
-                        type="number"
-                        min={0}
-                        className="h-10 w-[88px] rounded-[8px] border border-[#d9d9d9] bg-white px-2 pr-8 text-sm text-navy"
-                        value={day.break_minutes}
-                        onChange={(event) =>
-                          patchDay(index, { break_minutes: Number(event.target.value) || 0 })
-                        }
-                      />
-                      <Pencil size={12} className="pointer-events-none absolute top-1/2 right-2 -translate-y-1/2 text-navy/40" />
-                    </label>
+                    <input
+                      type="number"
+                      min={0}
+                      className="h-10 w-[88px] rounded-[8px] border border-[#d9d9d9] bg-white px-3 text-sm text-navy outline-none focus:border-navy"
+                      value={day.break_minutes}
+                      onChange={(event) =>
+                        patchDay(index, { break_minutes: Number(event.target.value) || 0 })
+                      }
+                    />
                   ) : (
                     formatBreak(day.break_minutes)
                   )}
@@ -335,7 +432,7 @@ export function TimesheetDetailPage({ mode }: { mode: 'review' | 'edit' }) {
           <Button
             variant="secondary"
             onClick={() => save.mutate()}
-            disabled={save.isPending || !daysBaseline || !isFormDirty(days, daysBaseline)}
+            disabled={save.isPending || !isTimesheetDirty(days, daysBaseline)}
           >
             Save changes
           </Button>
@@ -346,14 +443,24 @@ export function TimesheetDetailPage({ mode }: { mode: 'review' | 'edit' }) {
               Change / Edit
             </Button>
           </Link>
-        ) : null}
-        {canSend(status) ? (
+        ) : (
+          <Button variant="secondary" disabled title="Reopen this timesheet before making changes">
+            <Pencil size={16} />
+            Change / Edit
+          </Button>
+        )}
+        {editing ? null : canSend(status) ? (
           <Button variant="secondary" onClick={() => act.mutate('send')} disabled={act.isPending}>
             <Send size={16} />
             Send to Payroll
           </Button>
         ) : null}
-        {canApprove(status) || editing ? (
+        {editing ? null : canReopen(status) ? (
+          <Button variant="secondary" onClick={() => act.mutate('reopen')} disabled={act.isPending}>
+            Reopen
+          </Button>
+        ) : null}
+        {canApprove(status) ? (
           <Button onClick={() => act.mutate('approve')} disabled={act.isPending}>
             <Check size={16} />
             Approve Timesheet

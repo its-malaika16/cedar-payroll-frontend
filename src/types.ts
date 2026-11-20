@@ -118,6 +118,20 @@ export type BureauDetails = {
   updated_at?: string | null
 }
 
+export type EmployeeTermsDocument = {
+  version: string
+  effective_on: string
+  title: string
+  company_number: string
+  intro: string
+  sections: { heading: string; paragraphs: string[] }[]
+  accept_caption: string
+  decline_caption: string
+  required: boolean
+  accepted_version?: string | null
+  signup_pending?: boolean
+}
+
 export type AuthPayload = {
   user: User
   access_token: string
@@ -125,6 +139,7 @@ export type AuthPayload = {
   company_access?: CompanyMembership[]
   employee_access?: EmployeeAccess[]
   bureau_access?: BureauAccess[]
+  employee_terms?: EmployeeTermsDocument | null
 }
 
 export type EmployerDefaults = {

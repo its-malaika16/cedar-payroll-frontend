@@ -45,6 +45,7 @@ import {
   hoursBetween,
   isApprovedLeave,
   isShiftOnLeaveError,
+  isShiftCheckedIn,
   leaveCoversDate,
   summariseLeaveSkipMessage,
   shiftDateKey,
@@ -102,6 +103,7 @@ export function ShiftsPage() {
     mode: ShiftModalMode
     initial: Partial<ShiftFormValue>
     shiftId?: string
+    locked?: boolean
   } | null>(null)
 
   const weekStart = startOfWeek(anchor)
@@ -241,6 +243,10 @@ export function ShiftsPage() {
 
   async function saveForm(form: ShiftFormValue) {
     if (!companyId || !modal) return
+    if (modal.locked) {
+      setError('This shift cannot be changed because the employee has already checked in.')
+      return
+    }
     setSaving(true)
     setError(null)
     setNotice(null)
@@ -318,18 +324,35 @@ export function ShiftsPage() {
     setNotice(null)
     try {
       if (action === 'edit') {
-        setModal({ mode: 'edit', initial: formFromShift(shift), shiftId: idOf(shift) })
+        setModal({
+          mode: 'edit',
+          initial: formFromShift(shift),
+          shiftId: idOf(shift),
+          locked: isShiftCheckedIn(shift),
+        })
         return
       }
       if (action === 'move') {
+        if (isShiftCheckedIn(shift)) {
+          setError('This shift cannot be changed because the employee has already checked in.')
+          return
+        }
         setModal({ mode: 'move', initial: formFromShift(shift), shiftId: idOf(shift) })
         return
       }
       if (action === 'delete') {
+        if (isShiftCheckedIn(shift)) {
+          setError('This shift cannot be changed because the employee has already checked in.')
+          return
+        }
         setPendingDelete(shift)
         return
       }
       if (action === 'open') {
+        if (isShiftCheckedIn(shift)) {
+          setError('This shift cannot be changed because the employee has already checked in.')
+          return
+        }
         await hrApi.updateShift(companyId, idOf(shift), { employee_id: '' })
         await refresh()
         return
@@ -579,6 +602,7 @@ export function ShiftsPage() {
           initial={modal.initial}
           saving={saving}
           error={error}
+          locked={modal.locked}
           onClose={() => {
             setModal(null)
             setError(null)

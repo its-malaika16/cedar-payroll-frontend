@@ -6,6 +6,7 @@ import {
   ClipboardList,
   Clock3,
   FileBarChart,
+  FileText,
   Image,
 } from 'lucide-react'
 import { useAuth } from '../../auth/AuthContext'
@@ -28,11 +29,25 @@ const MODULES = [
     icon: ClipboardList,
   },
   {
+    to: '/hr/documents',
+    name: 'Documents',
+    description: 'View and download generated P11, P45, P60 and other statutory forms.',
+    action: 'View Documents',
+    icon: FileText,
+  },
+  {
     to: '/hr/leave',
     name: 'Leave',
     description: 'Holiday balances, upcoming leave, and calendar by employee.',
     action: 'Handle Requests',
     icon: Image,
+  },
+  {
+    to: '/hr/expenses',
+    name: 'Expense',
+    description: 'Employee expense claims. Approve them to add to payroll for that date.',
+    action: 'Handle Requests',
+    icon: ClipboardList,
   },
   {
     to: '/hr/financial',

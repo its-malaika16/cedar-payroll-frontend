@@ -1,7 +1,13 @@
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { MoreVertical } from 'lucide-react'
-import { decodeShiftNotes, durationLabel, formatTimeRange, type RotaShift } from './rotaModel'
+import {
+  decodeShiftNotes,
+  durationLabel,
+  formatTimeRange,
+  isShiftCheckedIn,
+  type RotaShift,
+} from './rotaModel'
 
 export type ShiftAction = 'edit' | 'duplicate' | 'move' | 'delete' | 'open'
 
@@ -17,6 +23,7 @@ export function ShiftCard({
   onAction: (action: ShiftAction) => void
 }) {
   const open = !shift.employee_id
+  const locked = isShiftCheckedIn(shift)
   const meta = decodeShiftNotes(shift.notes)
   const [menu, setMenu] = useState<{ top: number; left: number } | null>(null)
   const buttonRef = useRef<HTMLButtonElement>(null)
@@ -67,6 +74,11 @@ export function ShiftCard({
           {durationLabel(shift.start_time, shift.end_time, meta.breakMinutes, meta.paidBreak)}
         </p>
       )}
+      {locked ? (
+        <p className={`pl-1.5 font-medium ${compact ? 'text-[9px] opacity-80' : 'mt-0.5 text-[10px] opacity-80'}`}>
+          Checked in
+        </p>
+      ) : null}
       <button
         ref={buttonRef}
         type="button"
@@ -99,22 +111,29 @@ export function ShiftCard({
                   ['delete', 'Delete Shift'],
                   ...(open ? [] : [['open', 'Mark as Open'] as const]),
                 ] as const
-              ).map(([action, label]) => (
+              ).map(([action, label]) => {
+                const disabled = locked && action !== 'duplicate'
+                return (
                 <button
                   key={action}
                   type="button"
-                  className="block w-full px-3 py-2 text-left hover:bg-cream"
+                  disabled={disabled}
+                  className={`block w-full px-3 py-2 text-left ${
+                    disabled ? 'cursor-not-allowed text-muted' : 'hover:bg-cream'
+                  }`}
                   onMouseDown={(event) => event.stopPropagation()}
                   onClick={(event) => {
                     event.preventDefault()
                     event.stopPropagation()
+                    if (disabled) return
                     setMenu(null)
                     onAction(action)
                   }}
                 >
-                  {label}
+                  {disabled ? `${label} (checked in)` : label}
                 </button>
-              ))}
+                )
+              })}
             </div>,
             document.body,
           )

@@ -8,6 +8,7 @@ import {
   createLucideIcon,
   FileText,
   Home,
+  Wallet,
   Search,
   Settings,
   User,
@@ -52,6 +53,7 @@ const mainNav: NavItem[] = [
   { to: '/portal/rota', label: 'Rota', icon: CalendarClock },
   { to: '/portal/attendance', label: 'Attendance', icon: CalendarUser },
   { to: '/portal/leave', label: 'Leave', icon: LeaveIcon },
+  { to: '/portal/expenses', label: 'Expense', icon: Wallet },
   { to: '/portal/documents', label: 'Documents', icon: FileText },
 ]
 

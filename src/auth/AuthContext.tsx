@@ -7,12 +7,13 @@ import {
   type ReactNode,
 } from 'react'
 import { authApi } from '../api'
-import { COMPANY_KEY, SESSION_EXPIRED_EVENT, TOKEN_KEY } from '../api/client'
+import { ApiError, COMPANY_KEY, SESSION_EXPIRED_EVENT, TOKEN_KEY } from '../api/client'
 import type {
   AuthPayload,
   BureauAccess,
   CompanyMembership,
   EmployeeAccess,
+  EmployeeTermsDocument,
   User,
 } from '../types'
 
@@ -43,6 +44,10 @@ type AuthContextValue = {
   register: (email: string, password: string, confirm: string) => Promise<string>
   logout: () => void
   refresh: () => Promise<void>
+  employeeTerms: EmployeeTermsDocument | null
+  needsEmployeeTerms: boolean
+  acceptEmployeeTerms: () => Promise<void>
+  declineEmployeeTerms: () => Promise<string>
   isBureauAdmin: boolean
   isBureauHrManager: boolean
   isCompanyAdmin: boolean
@@ -164,6 +169,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [memberships, setMemberships] = useState<CompanyMembership[]>([])
   const [employeeAccess, setEmployeeAccess] = useState<EmployeeAccess[]>([])
   const [bureauAccess, setBureauAccess] = useState<BureauAccess[]>([])
+  const [employeeTerms, setEmployeeTerms] = useState<EmployeeTermsDocument | null>(null)
   const [companyId, setCompanyIdState] = useState(
     () => localStorage.getItem(COMPANY_KEY),
   )
@@ -179,6 +185,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setMemberships(membershipsFrom(payload))
     setEmployeeAccess(payload.employee_access ?? [])
     setBureauAccess(payload.bureau_access ?? [])
+    if (payload.employee_terms !== undefined) setEmployeeTerms(payload.employee_terms ?? null)
   }
 
   useEffect(() => {
@@ -188,6 +195,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setMemberships([])
       setEmployeeAccess([])
       setBureauAccess([])
+      setEmployeeTerms(null)
     }
     window.addEventListener(SESSION_EXPIRED_EVENT, onSessionExpired)
     return () => window.removeEventListener(SESSION_EXPIRED_EVENT, onSessionExpired)
@@ -210,12 +218,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           memberships: membershipsFrom(response.data as AuthPayload),
           employee_access: (response.data as AuthPayload).employee_access,
           bureau_access: (response.data as AuthPayload).bureau_access,
+          employee_terms: (response.data as AuthPayload).employee_terms,
         })
-      } catch {
-        if (!cancelled) {
+      } catch (err) {
+        if (!cancelled && !(err instanceof ApiError && err.status === 403)) {
           localStorage.removeItem(TOKEN_KEY)
           setToken(null)
           setUser(null)
+          setEmployeeTerms(null)
         }
       } finally {
         if (!cancelled) setLoading(false)
@@ -328,14 +338,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         []
       ).includes(module),
     homePath,
+    employeeTerms,
+    needsEmployeeTerms: Boolean(employeeTerms?.required),
+    acceptEmployeeTerms: async () => {
+      const response = await authApi.acceptEmployeeTerms()
+      setEmployeeTerms({ ...response.data, required: false })
+    },
+    declineEmployeeTerms: async () => {
+      const response = await authApi.declineEmployeeTerms()
+      localStorage.removeItem(TOKEN_KEY)
+      localStorage.removeItem(COMPANY_KEY)
+      setToken(null)
+      setUser(null)
+      setMemberships([])
+      setEmployeeAccess([])
+      setBureauAccess([])
+      setEmployeeTerms(null)
+      setCompanyIdState(null)
+      return response.message || 'You have been logged out.'
+    },
     login: async (email, password) => {
       const response = await authApi.login(email, password)
       applySession(response.data, response.data.access_token)
+      if (response.data.employee_terms?.required) return ''
       return homePathFromAccess(response.data)
     },
     register: async (email, password, confirm) => {
       const response = await authApi.register(email, password, confirm)
       applySession(response.data, response.data.access_token)
+      if (response.data.employee_terms?.required) return ''
       return homePathFromAccess(response.data)
     },
     refresh: async () => {
@@ -348,6 +379,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         memberships: membershipsFrom(response.data as AuthPayload),
         employee_access: (response.data as AuthPayload).employee_access,
         bureau_access: (response.data as AuthPayload).bureau_access,
+        employee_terms: (response.data as AuthPayload).employee_terms,
       })
     },
     logout: () => {
@@ -358,6 +390,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setMemberships([])
       setEmployeeAccess([])
       setBureauAccess([])
+      setEmployeeTerms(null)
       setCompanyIdState(null)
     },
   }

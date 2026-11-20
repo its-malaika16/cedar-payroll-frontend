@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import {
   Check,
   ChevronDown,
@@ -21,7 +21,9 @@ import { StatCard, TimesheetStatusBadge } from './TimesheetStatusBadge'
 import {
   activePaySchedules,
   pickPaySchedule,
+  readTimesheetSelection,
   timesheetPeriodFromSchedule,
+  writeTimesheetSelection,
 } from './timesheetPeriod'
 import {
   canApprove,
@@ -40,9 +42,11 @@ function reviewPath(
   to: string,
   scheduleId?: string,
   edit = false,
+  periodKey?: string,
 ) {
   const params = new URLSearchParams({ from, to })
   if (scheduleId) params.set('schedule', scheduleId)
+  if (periodKey) params.set('period', periodKey)
   return `/timesheets/${row.employee.id}${edit ? '/edit' : ''}?${params.toString()}`
 }
 
@@ -60,6 +64,7 @@ function RowActions({
   from,
   to,
   scheduleId,
+  periodKey,
   open,
   onToggle,
   onClose,
@@ -71,6 +76,7 @@ function RowActions({
   from: string
   to: string
   scheduleId?: string
+  periodKey?: string
   open: boolean
   onToggle: () => void
   onClose: () => void
@@ -125,7 +131,7 @@ function RowActions({
   return (
     <div ref={wrapRef} className="inline-flex h-9 overflow-hidden rounded-[8px] border border-navy bg-white">
       <Link
-        to={reviewPath(row, from, to, scheduleId)}
+        to={reviewPath(row, from, to, scheduleId, false, periodKey)}
         className="inline-flex items-center px-3 text-sm font-medium text-navy hover:bg-cream"
       >
         Review
@@ -148,7 +154,7 @@ function RowActions({
             >
               <Link
                 className="block px-3 py-2 hover:bg-cream"
-                to={reviewPath(row, from, to, scheduleId)}
+                to={reviewPath(row, from, to, scheduleId, false, periodKey)}
                 onClick={onClose}
               >
                 Review
@@ -166,12 +172,19 @@ function RowActions({
               {canEdit(status) ? (
                 <Link
                   className="block px-3 py-2 hover:bg-cream"
-                  to={reviewPath(row, from, to, scheduleId, true)}
+                  to={reviewPath(row, from, to, scheduleId, true, periodKey)}
                   onClick={onClose}
                 >
                   Change / Edit
                 </Link>
-              ) : null}
+              ) : (
+                <span
+                  className="block cursor-not-allowed px-3 py-2 text-[#9aa3ad]"
+                  title="Reopen this timesheet before making changes"
+                >
+                  Change / Edit
+                </span>
+              )}
               {canReopen(status) ? (
                 <button type="button" className="block w-full px-3 py-2 text-left hover:bg-cream" onClick={onReopen}>
                   Reopen
@@ -189,8 +202,14 @@ export function TimesheetsPage() {
   const { companyId } = useAuth()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
-  const [scheduleId, setScheduleId] = useState('')
-  const [periodKey, setPeriodKey] = useState('')
+  const [searchParams, setSearchParams] = useSearchParams()
+  const stored = companyId ? readTimesheetSelection(companyId) : { scheduleId: '', periodKey: '' }
+  const [scheduleId, setScheduleId] = useState(
+    () => searchParams.get('schedule') || stored.scheduleId || '',
+  )
+  const [periodKey, setPeriodKey] = useState(
+    () => searchParams.get('period') || stored.periodKey || '',
+  )
   const [selected, setSelected] = useState<string[]>([])
   const [menuFor, setMenuFor] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -210,16 +229,44 @@ export function TimesheetsPage() {
   )
 
   useEffect(() => {
-    setScheduleId('')
-    setPeriodKey('')
+    const nextStored = companyId ? readTimesheetSelection(companyId) : { scheduleId: '', periodKey: '' }
+    setScheduleId(searchParams.get('schedule') || nextStored.scheduleId || '')
+    setPeriodKey(searchParams.get('period') || nextStored.periodKey || '')
     setSelected([])
   }, [companyId])
 
   useEffect(() => {
+    const urlSchedule = searchParams.get('schedule') || ''
+    const urlPeriod = searchParams.get('period') || ''
+    if (urlSchedule && urlSchedule !== scheduleId) setScheduleId(urlSchedule)
+    if (urlPeriod && urlPeriod !== periodKey) setPeriodKey(urlPeriod)
+    if (!urlSchedule && companyId) {
+      const nextStored = readTimesheetSelection(companyId)
+      if (!scheduleId && nextStored.scheduleId) setScheduleId(nextStored.scheduleId)
+      if (!periodKey && nextStored.periodKey) setPeriodKey(nextStored.periodKey)
+    }
+  }, [searchParams, companyId])
+
+  useEffect(() => {
     if (!selectedScheduleId) return
+    if (!scheduleId) {
+      const storedId = companyId ? readTimesheetSelection(companyId).scheduleId : ''
+      if (storedId || searchParams.get('schedule')) return
+      setScheduleId(selectedScheduleId)
+      return
+    }
     if (scheduleId !== selectedScheduleId) setScheduleId(selectedScheduleId)
     if (periodKey !== period.periodKey) setPeriodKey(period.periodKey)
-  }, [selectedScheduleId, scheduleId, period.periodKey, periodKey])
+    const next = new URLSearchParams()
+    next.set('schedule', selectedScheduleId)
+    next.set('period', period.periodKey)
+    next.set('from', period.from)
+    next.set('to', period.to)
+    if (next.toString() !== searchParams.toString()) {
+      setSearchParams(next, { replace: true })
+    }
+    if (companyId) writeTimesheetSelection(companyId, selectedScheduleId, period.periodKey)
+  }, [selectedScheduleId, scheduleId, period.periodKey, periodKey, period.from, period.to, companyId, searchParams, setSearchParams])
 
   const overview = useQuery({
     queryKey: ['timesheets', companyId, period.from, period.to, selectedScheduleId],
@@ -303,7 +350,7 @@ export function TimesheetsPage() {
       return
     }
     if (action === 'changes' && targets.length === 1) {
-      navigate(reviewPath(targets[0], period.from, period.to, selectedScheduleId, true))
+      navigate(reviewPath(targets[0], period.from, period.to, selectedScheduleId, true, period.periodKey))
       return
     }
     act.mutate({ action, rows: targets })
@@ -343,6 +390,7 @@ export function TimesheetsPage() {
             setScheduleId(nextId)
             setPeriodKey('')
             setSelected([])
+            if (companyId) writeTimesheetSelection(companyId, nextId, '')
           }}
           onPeriodChange={(nextKey) => {
             setPeriodKey(nextKey)
@@ -449,6 +497,7 @@ export function TimesheetsPage() {
                         from={period.from}
                         to={period.to}
                         scheduleId={selectedScheduleId}
+                        periodKey={period.periodKey}
                         open={menuFor === row.employee.id}
                         onToggle={() => setMenuFor(menuFor === row.employee.id ? null : row.employee.id)}
                         onClose={() => setMenuFor(null)}

@@ -1,6 +1,7 @@
 import type {
   ApiSuccess,
   AuthPayload,
+  EmployeeTermsDocument,
   CalendarDay,
   CalendarEntitlement,
   CalendarPayImpact,
@@ -36,6 +37,12 @@ export const authApi = {
     post<AuthPayload>('/auth/register', { email, password, confirm_password }),
   profile: () => get<User & AuthPayload>('/auth/profile'),
   access: () => get<AuthPayload>('/auth/me/access'),
+  employeeTerms: () => get<EmployeeTermsDocument>('/auth/employee-terms'),
+  acceptEmployeeTerms: () => post<EmployeeTermsDocument>('/auth/employee-terms/accept'),
+  declineEmployeeTerms: () =>
+    post<{ account_created: boolean; signup_rolled_back: boolean }>(
+      '/auth/employee-terms/decline',
+    ),
   forgotPassword: (email: string, resend = false) =>
     post<null>('/auth/forgot-password', { email, resend }),
   resetPassword: (
@@ -544,6 +551,30 @@ export const invoicesApi = {
 }
 
 export const hrApi = {
+  expensesAll: (companyId: string) => get(`/companies/${companyId}/hr/expenses`),
+  myExpenses: (companyId: string, employeeId: string) =>
+    get(`/companies/${companyId}/hr/employees/${employeeId}/expenses`),
+  createExpense: (companyId: string, employeeId: string, form: FormData) =>
+    api(`/companies/${companyId}/hr/employees/${employeeId}/expenses`, {
+      method: 'POST',
+      body: form,
+    }),
+  assignExpense: (companyId: string, form: FormData) =>
+    api(`/companies/${companyId}/hr/expenses`, {
+      method: 'POST',
+      body: form,
+    }),
+  expenseFilePath: (companyId: string, employeeId: string, expenseId: string) =>
+    `/companies/${companyId}/hr/employees/${employeeId}/expenses/${expenseId}/file`,
+  expenseAdminFilePath: (companyId: string, expenseId: string) =>
+    `/companies/${companyId}/hr/expenses/${expenseId}/file`,
+  cancelExpense: (companyId: string, employeeId: string, expenseId: string) =>
+    del(`/companies/${companyId}/hr/employees/${employeeId}/expenses/${expenseId}`),
+  reviewExpense: (
+    companyId: string,
+    expenseId: string,
+    body: { status: 'APPROVED' | 'REJECTED'; rejection_reason?: string },
+  ) => patch(`/companies/${companyId}/hr/expenses/${expenseId}/review`, body),
   leaveAll: (companyId: string) => get(`/companies/${companyId}/hr/leave`),
   myLeave: (companyId: string, employeeId: string) =>
     get(`/companies/${companyId}/hr/employees/${employeeId}/leave`),

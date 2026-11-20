@@ -7,6 +7,7 @@ import { useAuth } from '../../auth/AuthContext'
 import { Card, EmptyState, Loading } from '../../components/ui'
 import { fullName } from '../../lib/format'
 import { ComplianceDocumentsPanel } from './compliance/ComplianceDocumentsPanel'
+import { GeneratedFormsPanel } from './GeneratedFormsPanel'
 import type { ComplianceFile } from './compliance/documentTypes'
 import { HrTitle } from './HrChrome'
 
@@ -107,6 +108,14 @@ export function CompliancePage() {
                 documents={docs}
                 loading={query.isLoading}
               />
+              <div className="border-t border-[#eceae6] px-5 py-5">
+                <GeneratedFormsPanel
+                  employeeId={selected.employee_id}
+                  showEmployee={false}
+                  title="Statutory forms"
+                  subtitle="P11, P45, P60 and other generated forms for this employee."
+                />
+              </div>
             </>
           )}
         </Card>
