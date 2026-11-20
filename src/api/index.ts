@@ -594,13 +594,6 @@ export const hrApi = {
     del(`/companies/${companyId}/hr/leave/${leaveId}`),
   attendanceOverview: (companyId: string, date: string, range: 'day' | 'week') =>
     get(`/companies/${companyId}/hr/attendance/overview?date=${date}&range=${range}`),
-  liveAttendanceLocations: (companyId: string) =>
-    get(`/companies/${companyId}/hr/attendance/live-locations`),
-  pingAttendanceLocation: (
-    companyId: string,
-    employeeId: string,
-    body: { latitude: number; longitude: number },
-  ) => post(`/companies/${companyId}/employees/${employeeId}/attendance/location`, body),
   markAttendanceCheckIn: (companyId: string, employeeId: string) =>
     post(`/companies/${companyId}/hr/attendance/${employeeId}/check-in`, {}),
   markAttendanceCheckOut: (companyId: string, employeeId: string) =>
@@ -609,30 +602,14 @@ export const hrApi = {
     get(`/companies/${companyId}/employees/${employeeId}/attendance`),
   todayAttendance: (companyId: string, employeeId: string) =>
     get(`/companies/${companyId}/employees/${employeeId}/attendance/today`),
-  checkIn: (
-    companyId: string,
-    employeeId: string,
-    body: { latitude: number; longitude: number },
-  ) =>
-    post(`/companies/${companyId}/employees/${employeeId}/attendance/check-in`, body),
-  checkOut: (
-    companyId: string,
-    employeeId: string,
-    body: { latitude: number; longitude: number },
-  ) =>
-    post(`/companies/${companyId}/employees/${employeeId}/attendance/check-out`, body),
-  startBreak: (
-    companyId: string,
-    employeeId: string,
-    body: { latitude: number; longitude: number },
-  ) =>
-    post(`/companies/${companyId}/employees/${employeeId}/attendance/start-break`, body),
-  endBreak: (
-    companyId: string,
-    employeeId: string,
-    body: { latitude: number; longitude: number },
-  ) =>
-    post(`/companies/${companyId}/employees/${employeeId}/attendance/end-break`, body),
+  checkIn: (companyId: string, employeeId: string) =>
+    post(`/companies/${companyId}/employees/${employeeId}/attendance/check-in`, {}),
+  checkOut: (companyId: string, employeeId: string) =>
+    post(`/companies/${companyId}/employees/${employeeId}/attendance/check-out`, {}),
+  startBreak: (companyId: string, employeeId: string) =>
+    post(`/companies/${companyId}/employees/${employeeId}/attendance/start-break`, {}),
+  endBreak: (companyId: string, employeeId: string) =>
+    post(`/companies/${companyId}/employees/${employeeId}/attendance/end-break`, {}),
   markAttendanceStartBreak: (companyId: string, employeeId: string) =>
     post(`/companies/${companyId}/hr/attendance/${employeeId}/start-break`, {}),
   markAttendanceEndBreak: (companyId: string, employeeId: string) =>

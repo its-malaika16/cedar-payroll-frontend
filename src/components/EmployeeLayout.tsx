@@ -21,7 +21,6 @@ import { useEffect, useRef, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { notificationsApi } from '../api'
 import { PortalSwitchButton } from './PortalSwitcher'
-import { useShiftLocationPing } from '../pages/hr/useShiftLocationPing'
 
 const CalendarUser = createLucideIcon('calendar-user', [
   ['path', { d: 'M8 2v4' }],
@@ -103,7 +102,6 @@ function SidebarLink({ item, unread = 0 }: { item: NavItem; unread?: number }) {
 export function EmployeeLayout() {
   const auth = useAuth()
   const navigate = useNavigate()
-  useShiftLocationPing(auth.companyId, auth.currentEmployee?.employee_id)
   const [menuOpen, setMenuOpen] = useState(false)
   const displayFirst =
     auth.currentEmployee?.first_name ?? auth.user?.first_name

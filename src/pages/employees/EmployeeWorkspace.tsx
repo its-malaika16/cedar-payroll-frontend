@@ -951,9 +951,7 @@ export function EmployeeWorkspace() {
                       })}
                     </div>
                     <p className="mt-1.5 text-[11px] text-muted">
-                      {draft.work_site === 'OFFSITE'
-                        ? 'Can check in from anywhere.'
-                        : 'Must be inside the workplace radius to check in and out.'}
+                      {draft.work_site === 'OFFSITE' ? 'Offsite worker.' : 'Onsite worker.'}
                     </p>
                   </Field>
                 </div>

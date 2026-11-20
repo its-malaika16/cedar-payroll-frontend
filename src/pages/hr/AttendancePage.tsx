@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { ChevronLeft, ChevronRight, User, UserCheck, UserX, Clock3, BadgeCheck, MapPin, X } from 'lucide-react'
+import { ChevronLeft, ChevronRight, User, UserCheck, UserX, Clock3, BadgeCheck } from 'lucide-react'
 import { hrApi } from '../../api'
 import { useAuth } from '../../auth/AuthContext'
 import { Alert, Button, EmptyState, Loading } from '../../components/ui'
@@ -10,7 +10,6 @@ import { StatCard } from './timesheets/TimesheetStatusBadge'
 import { addDays, dateKey, formatWeekRange, startOfWeek } from './rota/rotaDates'
 import { formatClock, formatTimeRange } from './rota/rotaModel'
 import { HrTitle } from './HrChrome'
-import { AttendancePlaceMap } from './AttendancePlaceMap'
 
 type AttendanceStatus =
   | 'Present'
@@ -111,31 +110,6 @@ function shiftLabel(cell?: Pick<DayCell, 'scheduled_start' | 'scheduled_end' | '
   return cell?.scheduled_shift && cell.scheduled_shift !== '—' ? cell.scheduled_shift : '—'
 }
 
-function metresLabel(value?: number | null) {
-  if (value == null || Number.isNaN(value)) return ''
-  if (value < 1000) return `${Math.round(value)} m`
-  const km = value / 1000
-  return Number.isInteger(km) ? `${km} km` : `${km.toFixed(1)} km`
-}
-
-function RadiusLine({
-  label,
-  within,
-  distance,
-}: {
-  label: string
-  within?: boolean | null
-  distance?: number | null
-}) {
-  if (within == null && distance == null) return null
-  return (
-    <p className={within ? 'text-xs font-medium text-[#2f8a4b]' : 'text-xs font-medium text-brand'}>
-      {label}: {within ? 'Within radius' : 'Outside radius'}
-      {distance != null ? ` · ${metresLabel(distance)}` : ''}
-    </p>
-  )
-}
-
 function BreakTimes({ row }: { row: Pick<DayCell, 'break_started_at' | 'break_ended_at' | 'break_minutes' | 'paid_break' | 'on_break'> }) {
   const started = clockLabel(row.break_started_at)
   const ended = row.on_break ? 'On break' : clockLabel(row.break_ended_at)
@@ -168,34 +142,6 @@ function overtimeLabel(cell?: Pick<DayCell, 'overtime_hours' | 'total_hours' | '
 
 function personName(row: AttendanceRow) {
   return fullName(row.first_name, row.last_name)
-}
-
-type LiveLocation = {
-  employee_id: string
-  first_name?: string | null
-  last_name?: string | null
-  work_site?: string | null
-  check_in_at?: string
-  last_seen_at?: string | null
-  latitude: number
-  longitude: number
-  place?: string | null
-  within_radius?: boolean | null
-  distance_m?: number | null
-  workplace_latitude?: number | null
-  workplace_longitude?: number | null
-  attendance_radius_meters?: number | null
-}
-
-function seenLabel(iso?: string | null) {
-  if (!iso) return 'Waiting for a location update'
-  const date = new Date(iso)
-  if (Number.isNaN(date.getTime())) return 'Waiting for a location update'
-  const minutes = Math.max(0, Math.round((Date.now() - date.getTime()) / 60_000))
-  if (minutes < 1) return 'Updated just now'
-  if (minutes === 1) return 'Updated 1 minute ago'
-  if (minutes < 60) return `Updated ${minutes} minutes ago`
-  return `Updated at ${date.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}`
 }
 
 function hasClock(iso?: string | null, fallback?: string) {
@@ -329,7 +275,6 @@ export function AttendancePage() {
   const [anchor, setAnchor] = useState(() => new Date())
   const [busyId, setBusyId] = useState<string | null>(null)
   const [notice, setNotice] = useState<{ tone: 'success' | 'danger'; text: string } | null>(null)
-  const [locationsOpen, setLocationsOpen] = useState(false)
   const date = dateKey(view === 'week' ? startOfWeek(anchor) : anchor)
   const isToday = view === 'day' && date === dateKey(new Date())
 
@@ -338,13 +283,6 @@ export function AttendancePage() {
     queryFn: () => hrApi.attendanceOverview(companyId!, date, view),
     enabled: Boolean(companyId),
   })
-  const locationsQuery = useQuery({
-    queryKey: ['attendance-live-locations', companyId],
-    queryFn: () => hrApi.liveAttendanceLocations(companyId!),
-    enabled: Boolean(companyId && locationsOpen),
-    refetchInterval: locationsOpen ? 15_000 : false,
-  })
-  const liveLocations = (locationsQuery.data?.data as LiveLocation[] | undefined) ?? []
 
   const payload = query.data?.data as
     | {
@@ -420,84 +358,11 @@ export function AttendancePage() {
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button variant="secondary" onClick={() => setLocationsOpen(true)}>
-            <MapPin size={16} />
-            Track Employees
-          </Button>
           <Link to="/timesheets">
             <Button variant="secondary">Review timesheets</Button>
           </Link>
         </div>
       </div>
-
-      {locationsOpen ? (
-        <div className="fixed inset-0 z-40 overflow-y-auto bg-navy/40 p-4">
-          <div className="mx-auto mt-8 w-full max-w-3xl rounded-[16px] bg-white p-5 shadow-lg">
-            <div className="mb-4 flex items-start justify-between gap-3">
-              <div>
-                <h2 className="text-lg font-semibold text-navy">Track Employees</h2>
-                <p className="mt-1 text-sm text-muted">
-                  Live position for employees who are checked in. Their phone keeps sharing location
-                  from check-in until check-out, including when the app is in the background.
-                </p>
-              </div>
-              <button
-                type="button"
-                className="rounded-full p-1 text-navy hover:bg-cream"
-                onClick={() => setLocationsOpen(false)}
-                aria-label="Close"
-              >
-                <X size={18} />
-              </button>
-            </div>
-            {locationsQuery.isLoading ? (
-              <Loading />
-            ) : liveLocations.length === 0 ? (
-              <p className="text-sm text-muted">Nobody is checked in at the moment.</p>
-            ) : (
-              <div className="space-y-4">
-                {liveLocations.map((item) => {
-                  const name = fullName(item.first_name, item.last_name) || 'Employee'
-                  const onsite = String(item.work_site ?? '').toUpperCase() !== 'OFFSITE'
-                  return (
-                    <div key={item.employee_id} className="rounded-[12px] border border-[#eceae6] p-4">
-                      <div className="mb-2 flex flex-wrap items-start justify-between gap-2">
-                        <div>
-                          <p className="font-semibold text-navy">{name}</p>
-                          <p className="text-xs text-muted">{seenLabel(item.last_seen_at)}</p>
-                        </div>
-                        {onsite ? (
-                          <p
-                            className={
-                              item.within_radius
-                                ? 'text-sm font-semibold text-[#2f8a4b]'
-                                : 'text-sm font-semibold text-brand'
-                            }
-                          >
-                            {item.within_radius ? 'Within radius' : 'Outside radius'}
-                            {item.distance_m != null ? ` · ${metresLabel(item.distance_m)}` : ''}
-                          </p>
-                        ) : (
-                          <p className="text-sm font-semibold text-navy">Offsite</p>
-                        )}
-                      </div>
-                      {item.place ? <p className="mb-2 text-xs text-navy/80">{item.place}</p> : null}
-                      <AttendancePlaceMap
-                        latitude={item.latitude}
-                        longitude={item.longitude}
-                        label={item.place}
-                        workplaceLatitude={item.workplace_latitude}
-                        workplaceLongitude={item.workplace_longitude}
-                        radiusMeters={onsite ? item.attendance_radius_meters : null}
-                      />
-                    </div>
-                  )
-                })}
-              </div>
-            )}
-          </div>
-        </div>
-      ) : null}
 
       {notice ? (
         <div className="mb-4">
@@ -620,64 +485,8 @@ export function AttendancePage() {
                   <td className="px-4 py-3 whitespace-nowrap text-navy/80">
                     {clockLabel(row.check_out_at, row.check_out)}
                   </td>
-                  <td className="min-w-[240px] max-w-[320px] px-4 py-3 text-navy/80">
-                    {row.work_site === 'OFFSITE' ? (
-                      <>
-                        <p className="mb-1 text-[10px] font-semibold uppercase tracking-[0.08em] text-muted">
-                          Offsite
-                        </p>
-                        {row.check_in_latitude != null || row.check_out_latitude != null ? (
-                          <div className="grid grid-cols-2 gap-2">
-                            <div>
-                              <p className="mb-1 truncate text-[11px] font-medium text-navy" title={row.check_in_place ?? undefined}>
-                                In {row.check_in_place || 'saved'}
-                              </p>
-                              <AttendancePlaceMap
-                                compact
-                                latitude={row.check_in_latitude}
-                                longitude={row.check_in_longitude}
-                                label={row.check_in_place}
-                              />
-                            </div>
-                            <div>
-                              <p className="mb-1 truncate text-[11px] font-medium text-navy" title={row.check_out_place ?? undefined}>
-                                Out {row.check_out_place || (row.check_out_latitude != null ? 'saved' : '—')}
-                              </p>
-                              <AttendancePlaceMap
-                                compact
-                                latitude={row.check_out_latitude}
-                                longitude={row.check_out_longitude}
-                                label={row.check_out_place}
-                              />
-                            </div>
-                          </div>
-                        ) : (
-                          <span>—</span>
-                        )}
-                      </>
-                    ) : (
-                      <div className="space-y-1">
-                        <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-muted">
-                          Onsite
-                        </p>
-                        {row.check_in_at ? (
-                          <RadiusLine
-                            label="In"
-                            within={row.check_in_within_radius}
-                            distance={row.check_in_distance_m}
-                          />
-                        ) : (
-                          <p className="text-xs text-muted">Not checked in</p>
-                        )}
-                        {row.check_out_at ? (
-                          <RadiusLine
-                            label="Out"
-                            within={row.check_out_within_radius}
-                            distance={row.check_out_distance_m}
-                          />
-                        ) : null}
-                      </div>
-                    )}
+                  <td className="px-4 py-3 text-navy/80">
+                    {row.work_site === 'OFFSITE' ? 'Offsite' : 'Onsite'}
                   </td>
                   <td className="px-4 py-3">
                     <BreakTimes row={row} />

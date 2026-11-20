@@ -503,8 +503,8 @@ export function EmployeeInformationPage() {
                       label="Work location"
                       value={
                         String(employee?.work_site ?? '').toUpperCase() === 'OFFSITE'
-                          ? 'Offsite worker — check in from anywhere'
-                          : 'Onsite worker — must be inside the workplace radius'
+                          ? 'Offsite worker'
+                          : 'Onsite worker'
                       }
                       readOnly
                     />
