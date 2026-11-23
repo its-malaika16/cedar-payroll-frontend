@@ -66,8 +66,17 @@ function isOnboardingStatus(status?: string | null) {
   return value === 'ONBOARDING' || value === 'PENDING_REVIEW'
 }
 
+function grantsCompanyPortal(status?: string | null) {
+  const value = String(status ?? '').toUpperCase()
+  return value !== 'REJECTED' && value !== 'ENQUIRY' && value !== 'INACTIVE'
+}
+
+function companyPortalMemberships(memberships: CompanyMembership[]) {
+  return memberships.filter((item) => grantsCompanyPortal(item.company_status))
+}
+
 function homePathFromAccess(payload: Partial<AuthPayload> | null | undefined) {
-  const memberships = membershipsFrom(payload)
+  const memberships = companyPortalMemberships(membershipsFrom(payload))
   const bureauAccess = payload?.bureau_access ?? []
   const employeeAccess = payload?.employee_access ?? []
   const isBureau = bureauAccess.some((item) => isBureauScopedRole(item.role_name))
@@ -142,7 +151,7 @@ function adminCompaniesFrom(
   bureauAccess: BureauAccess[],
 ) {
   const map = new Map<string, { id: string; name: string; modules: string[] }>()
-  for (const membership of memberships) {
+  for (const membership of companyPortalMemberships(memberships)) {
     map.set(membership.company_id, {
       id: membership.company_id,
       name: membership.company_name,
@@ -288,11 +297,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     companies.find((company) => company.id === companyId)?.modules ??
     []
 
+  const companyMemberships = companyPortalMemberships(memberships)
   const canUseEmployeePortal = employeeAccess.length > 0
   const canUseAdminPortal =
-    isSuperAdmin || memberships.length > 0 || bureauAccess.length > 0
+    isSuperAdmin || companyMemberships.length > 0 || bureauAccess.length > 0
   const isEmployeeOnly = canUseEmployeePortal && !canUseAdminPortal
-  const pendingMemberships = memberships.filter((item) => isOnboardingStatus(item.company_status))
+  const pendingMemberships = companyMemberships.filter((item) => isOnboardingStatus(item.company_status))
   const needsOnboarding =
     !isSuperAdmin &&
     !hasBureauScopedAccess &&

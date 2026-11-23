@@ -414,6 +414,9 @@ function EnquirySection({
                       </span>
                     </div>
                     <p className="truncate text-xs text-muted">{email}</p>
+                    {request.existing_employee ? (
+                      <p className="text-xs text-muted">Employee at {request.existing_employee.company_name}</p>
+                    ) : null}
                     <div className="flex items-center justify-between text-xs text-muted">
                       <span>{phone}</span>
                       <span className="font-semibold text-navy">Review</span>
@@ -464,7 +467,14 @@ function EnquirySection({
                         </div>
                       </td>
                       <td className="px-5 py-4 font-medium text-navy">{contact}</td>
-                      <td className="px-5 py-4 text-navy">{email}</td>
+                      <td className="px-5 py-4 text-navy">
+                        <p>{email}</p>
+                        {request.existing_employee ? (
+                          <p className="mt-1 text-xs text-muted">
+                            Employee at {request.existing_employee.company_name}
+                          </p>
+                        ) : null}
+                      </td>
                       <td className="px-5 py-4 text-navy">{phone}</td>
                       <td className="px-5 py-4 text-navy">{request.enquiry?.employees || '—'}</td>
                       <td className="px-5 py-4 text-navy">{createdLabel(request.created_at)}</td>

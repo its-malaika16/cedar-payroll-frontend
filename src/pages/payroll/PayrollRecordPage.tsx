@@ -743,18 +743,27 @@ export function PayrollRecordPage() {
   }, [pensionEnrolled, record])
 
   const ytdSections = useMemo(() => {
+    const amount = (value: unknown) => {
+      const number = Number(value ?? 0)
+      return Number.isFinite(number) ? number : 0
+    }
+    const roundMoney = (value: number) => Math.round((value + Number.EPSILON) * 100) / 100
     const ytd = record?.year_to_date
     const thisEmployment = ytd?.this_employment ?? ytd
     const starter = employee?.starters_leavers?.[0]
     const previousTaxable =
       ytd?.previous_employment?.taxable_gross ?? starter?.previous_gross_taxable_pay ?? 0
     const previousTax = ytd?.previous_employment?.tax ?? starter?.previous_gross_tax ?? 0
-    const combined = ytd?.combined ?? thisEmployment
+    const combined = {
+      ...thisEmployment,
+      taxable_gross: roundMoney(amount(thisEmployment?.taxable_gross) + amount(previousTaxable)),
+      tax: roundMoney(amount(thisEmployment?.tax) + amount(previousTax)),
+    }
     const combinedForNet = {
-      ...combined,
-      night_allowance: combined?.night_allowance ?? thisEmployment?.night_allowance,
-      employee_pension: combined?.employee_pension ?? thisEmployment?.employee_pension,
-      take_home_pay: combined?.take_home_pay ?? thisEmployment?.take_home_pay,
+      ...thisEmployment,
+      night_allowance: thisEmployment?.night_allowance,
+      employee_pension: thisEmployment?.employee_pension,
+      take_home_pay: thisEmployment?.take_home_pay,
     }
 
     function groupsFor(source: PayrollYearToDate | null | undefined, netSource = source) {
@@ -1747,7 +1756,7 @@ export function PayrollRecordPage() {
         />
       </div>
 
-      <div className="mt-6 grid min-h-0 gap-4 xl:grid-cols-[276px_minmax(0,1fr)_358px]">
+      <div className="mt-6 grid shrink-0 gap-4 xl:grid-cols-[276px_minmax(0,1fr)_358px]">
         <aside className="h-[min(798px,calc(100vh-16rem))] overflow-hidden rounded-[10px] border border-[#d9d9d9] bg-white">
           <div className="h-full overflow-y-auto">
             {sidebarRecords.map((item, index) => {
@@ -2350,9 +2359,9 @@ export function PayrollRecordPage() {
           </section>
         </div>
 
-        <aside className="overflow-hidden rounded-[10px] border border-[#d9d9d9] bg-white">
+        <aside className="flex h-[min(798px,calc(100vh-16rem))] flex-col overflow-hidden rounded-[10px] border border-[#d9d9d9] bg-white">
           <div
-            className={`flex gap-3 px-5 py-4 text-[13px] leading-[18px] text-white ${
+            className={`flex shrink-0 gap-3 px-5 py-4 text-[13px] leading-[18px] text-white ${
               locked ? 'bg-[#4289e4]' : 'bg-navy-mid'
             }`}
           >
@@ -2371,7 +2380,7 @@ export function PayrollRecordPage() {
               )}
             </p>
           </div>
-          <div className="flex items-start justify-between gap-3 px-5 py-4 text-xs text-navy">
+          <div className="flex shrink-0 items-start justify-between gap-3 px-5 py-4 text-xs text-navy">
             <div className="min-w-0 flex-1 space-y-2">
             {[
               ['Tax code', formatTaxCodeWithBasis(
@@ -2401,7 +2410,7 @@ export function PayrollRecordPage() {
               Edit Settings
             </Link>
           </div>
-          <div className="px-5">
+          <div className="shrink-0 px-5">
             <div className="flex rounded-[10px] bg-[#f0f5fe] p-0.5">
               <button
                 type="button"
@@ -2423,6 +2432,7 @@ export function PayrollRecordPage() {
               </button>
             </div>
           </div>
+          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
           {periodTab === 'ytd' ? (
             <div className="mt-2 px-5 pb-4">
               {ytdSections.map((section) => (
@@ -2457,6 +2467,7 @@ export function PayrollRecordPage() {
             ))}
           </div>
           )}
+          </div>
         </aside>
       </div>
       {typeEditor && !locked

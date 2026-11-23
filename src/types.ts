@@ -263,6 +263,7 @@ export type OnboardingCompany = {
     email: string
     is_registered?: boolean
   } | null
+  existing_employee?: { company_name: string } | null
   enquiry?: {
     full_name?: string | null
     email?: string | null

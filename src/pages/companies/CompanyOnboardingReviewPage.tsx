@@ -126,6 +126,12 @@ export function CompanyOnboardingReviewPage() {
             {company.enquiry?.needs ? (
               <p className="mt-2 text-sm text-navy">{company.enquiry.needs}</p>
             ) : null}
+            {company.existing_employee ? (
+              <p className="mt-3 text-sm text-navy">
+                This email already belongs to an employee at {company.existing_employee.company_name}.
+                Decline the request and their signup will open the employee account only, not a company portal.
+              </p>
+            ) : null}
             {!isEnquiry ? (
               <p className="mt-1 text-xs text-muted">
                 {company.owner?.is_registered ? 'Has created their account' : 'Has not signed up yet'}
