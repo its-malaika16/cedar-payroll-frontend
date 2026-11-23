@@ -140,6 +140,7 @@ export function buildPayslipViewModel(
     address_line_4?: string | null
     postcode?: string | null
     payslip_display_options?: Record<string, boolean> | null
+    employer_defaults?: { payslip_company_name?: string | null } | null
   } | Company | null,
 ): PayslipViewModel {
   const hourlyRate = amount(record.wage_per_hour)
@@ -260,7 +261,9 @@ export function buildPayslipViewModel(
   const totalDeductions = amount(deductions.reduce((sum, line) => sum + line.amount, 0))
   const payDate = run?.pay_date ?? record.pay_date
   const companyName =
-    String(company?.trading_name ?? '').trim() || String(company?.company_name ?? '').trim()
+    String(company?.employer_defaults?.payslip_company_name ?? '').trim() ||
+    String(company?.trading_name ?? '').trim() ||
+    String(company?.company_name ?? '').trim()
   const starter = firstRecord(employee?.starters_leavers)
   if (display.notionalPay) {
     const notional = extraPay

@@ -81,6 +81,7 @@ export type EmployerForm = {
   opt_out_credit_check: boolean
   rti_gateway_preference: 'NONE' | 'PAYE'
   payroll_start_mode: string
+  payslip_company_name: string
   rti_title: string
   rti_first_name: string
   rti_middle_name: string
@@ -118,6 +119,7 @@ export function emptyEmployerDefaults(): Required<
     opt_out_credit_check: false,
     rti_gateway_preference: 'NONE',
     payroll_start_mode: 'BEGINNING',
+    payslip_company_name: '',
     rti_contact: {
       title: '',
       first_name: '',
@@ -217,6 +219,7 @@ export function formFromCompany(company: Company): EmployerForm {
     opt_out_credit_check: Boolean(defaults.opt_out_credit_check),
     rti_gateway_preference: defaults.rti_gateway_preference === 'PAYE' ? 'PAYE' : 'NONE',
     payroll_start_mode: defaults.payroll_start_mode || 'BEGINNING',
+    payslip_company_name: str(defaults.payslip_company_name),
     rti_title: str(defaults.rti_contact.title),
     rti_first_name: str(defaults.rti_contact.first_name),
     rti_middle_name: str(defaults.rti_contact.middle_name),
@@ -293,6 +296,9 @@ export function payloadFromForm(form: EmployerForm) {
       opt_out_credit_check: form.opt_out_credit_check,
       rti_gateway_preference: form.rti_gateway_preference,
       payroll_start_mode: form.payroll_start_mode || 'BEGINNING',
+      ...(form.payslip_company_name.trim()
+        ? { payslip_company_name: form.payslip_company_name.trim() }
+        : { payslip_company_name: '' }),
       rti_contact: {
         title: form.rti_title.trim(),
         first_name: form.rti_first_name.trim(),

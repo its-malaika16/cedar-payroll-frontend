@@ -413,6 +413,18 @@ export function EmployerSettingsForm({ company }: { company: Company }) {
       {tab === 'PAYE Registration' ? (
         <div className="grid gap-4 xl:grid-cols-2">
           <Section title="Registration">
+            {isBureauAdmin || isSuperAdmin ? (
+              <Field label="Company name on payslip">
+                <Input
+                  value={form.payslip_company_name}
+                  onChange={(event) => patchForm({ payslip_company_name: event.target.value })}
+                  placeholder={form.trading_name.trim() || form.company_name || 'Shown on payslips'}
+                />
+                <p className="mt-2 text-xs text-muted">
+                  Printed on payslips for this company. Leave blank to use the trading name, or the company name.
+                </p>
+              </Field>
+            ) : null}
             <div>
               <span className="mb-2 block text-sm font-medium text-navy">Employer PAYE reference</span>
               <div className="flex items-center gap-2">

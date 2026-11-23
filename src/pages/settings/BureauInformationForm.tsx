@@ -48,7 +48,8 @@ export function BureauInformationForm() {
   const [error, setError] = useState<string | null>(null)
   const [message, setMessage] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
-  const [uploading, setUploading] = useState(false)
+  const [logoFile, setLogoFile] = useState<File | null>(null)
+  const [logoPreview, setLogoPreview] = useState<string | null>(null)
   const [ready, setReady] = useState(false)
 
   const query = useQuery({
@@ -56,7 +57,18 @@ export function BureauInformationForm() {
     queryFn: () => bureauApi.details(),
   })
   const bureau = query.data?.data as BureauDetails | undefined
-  const canSave = ready && isFormDirty(form, formFromBureau(bureau))
+  const detailsDirty = isFormDirty(form, formFromBureau(bureau))
+  const canSave = ready && (detailsDirty || Boolean(logoFile))
+  const savedLogo = bureau?.logo_path
+    ? `${assetUrl(bureau.logo_path)}${bureau.updated_at ? `?t=${encodeURIComponent(bureau.updated_at)}` : ''}`
+    : ''
+  const logoSrc = logoPreview || savedLogo
+
+  useEffect(() => {
+    return () => {
+      if (logoPreview) URL.revokeObjectURL(logoPreview)
+    }
+  }, [logoPreview])
 
   useEffect(() => {
     if (!bureau) return
@@ -68,22 +80,14 @@ export function BureauInformationForm() {
     setForm((current) => ({ ...current, ...next }))
   }
 
-  async function uploadLogo(file: File) {
+  function chooseLogo(file: File) {
     setError(null)
     setMessage(null)
-    setUploading(true)
-    try {
-      const data = new FormData()
-      data.append('file', file)
-      await bureauApi.uploadLogo(data)
-      await queryClient.invalidateQueries({ queryKey: ['bureau-details'] })
-      setMessage('Logo uploaded')
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not upload logo')
-    } finally {
-      setUploading(false)
-      if (fileInput.current) fileInput.current.value = ''
-    }
+    setLogoPreview((current) => {
+      if (current) URL.revokeObjectURL(current)
+      return URL.createObjectURL(file)
+    })
+    setLogoFile(file)
   }
 
   if (query.isLoading) return <Loading />
@@ -125,19 +129,32 @@ export function BureauInformationForm() {
             if (!form.name.trim()) {
               throw new Error('Enter the bureau name')
             }
-            await bureauApi.update({
-              name: form.name.trim(),
-              email: form.email.trim() || null,
-              phone: form.phone.trim() || null,
-              address: form.address.trim() || null,
-              postcode: form.postcode.trim() || null,
-              bank_sort_code: form.bank_sort_code.trim() || null,
-              bank_account_number: form.bank_account_number.trim() || null,
-              bank_account_holder: form.bank_account_holder.trim() || null,
-              bank_name: form.bank_name.trim() || null,
+            if (logoFile) {
+              const data = new FormData()
+              data.append('file', logoFile)
+              await bureauApi.uploadLogo(data)
+            }
+            if (detailsDirty) {
+              await bureauApi.update({
+                name: form.name.trim(),
+                email: form.email.trim() || null,
+                phone: form.phone.trim() || null,
+                address: form.address.trim() || null,
+                postcode: form.postcode.trim() || null,
+                bank_sort_code: form.bank_sort_code.trim() || null,
+                bank_account_number: form.bank_account_number.trim() || null,
+                bank_account_holder: form.bank_account_holder.trim() || null,
+                bank_name: form.bank_name.trim() || null,
+              })
+            }
+            setLogoFile(null)
+            setLogoPreview((current) => {
+              if (current) URL.revokeObjectURL(current)
+              return null
             })
+            if (fileInput.current) fileInput.current.value = ''
             await queryClient.invalidateQueries({ queryKey: ['bureau-details'] })
-            setMessage('Bureau information saved')
+            setMessage(logoFile ? 'Bureau information and logo saved' : 'Bureau information saved')
           }, setError, setSaving)}
         >
           <div className="grid gap-4 xl:grid-cols-2">
@@ -181,17 +198,15 @@ export function BureauInformationForm() {
               <section className="rounded-[10px] border border-[#d9d9d9] bg-white p-5">
                 <h3 className="mb-4 text-lg font-semibold uppercase tracking-[0.04em] text-navy">Logo image</h3>
                 <div className="flex flex-wrap items-start gap-5">
-                  <div className="flex size-[148px] items-center justify-center overflow-hidden rounded-[12px] border border-[#d9d9d9] bg-[#e8eef6] text-5xl font-semibold text-navy/30">
-                    {bureau?.logo_path ? (
+                  <div className="logo-preview flex size-[148px] items-center justify-center overflow-hidden rounded-[12px] border border-[#d9d9d9] bg-white">
+                    {logoSrc ? (
                       <img
-                        src={`${assetUrl(bureau.logo_path)}${
-                          bureau.updated_at ? `?t=${encodeURIComponent(bureau.updated_at)}` : ''
-                        }`}
+                        src={logoSrc}
                         alt={`${form.name.trim() || 'Bureau'} logo`}
-                        className="size-full object-contain"
+                        className="max-h-[124px] max-w-[124px] object-contain"
                       />
                     ) : (
-                      'Aa'
+                      <span className="text-5xl font-semibold text-navy/30">Aa</span>
                     )}
                   </div>
                   <div className="min-w-[220px] flex-1">
@@ -202,22 +217,25 @@ export function BureauInformationForm() {
                       className="hidden"
                       onChange={(event) => {
                         const file = event.target.files?.[0]
-                        if (file) void uploadLogo(file)
+                        if (file) chooseLogo(file)
                       }}
                     />
                     <button
                       type="button"
                       className="text-sm font-semibold text-[#3276ca]"
                       onClick={() => fileInput.current?.click()}
-                      disabled={uploading}
+                      disabled={saving}
                     >
-                      {uploading ? 'Uploading…' : 'Select a logo image'}
+                      Select a logo image
                     </button>
+                    {logoFile ? (
+                      <p className="mt-2 text-sm font-medium text-navy">{logoFile.name} — press Save to keep it</p>
+                    ) : null}
                     <p className="mt-3 text-xs font-semibold uppercase tracking-[0.12em] text-muted">
                       Recommendation
                     </p>
                     <p className="mt-1 text-sm text-muted">
-                      Use a PNG with a solid or transparent background. The logo appears on invoices.
+                      Use a PNG, JPG or WEBP with a solid or transparent background. The logo appears on invoices.
                     </p>
                   </div>
                 </div>

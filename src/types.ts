@@ -160,6 +160,7 @@ export type EmployerDefaults = {
   opt_out_credit_check?: boolean
   rti_gateway_preference?: 'NONE' | 'PAYE'
   payroll_start_mode?: 'BEGINNING' | 'START_PARTWAY' | 'CONTINUE_PARTWAY' | string
+  payslip_company_name?: string
   rti_contact?: {
     title?: string
     first_name?: string

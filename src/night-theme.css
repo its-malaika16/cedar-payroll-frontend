@@ -23,6 +23,9 @@ html[data-theme="night"] .theme-logo {
 html[data-theme="night"] .brand-icon[data-tone="light"] {
   background-color: #e8eef6 !important;
 }
+html[data-theme="night"] .logo-preview {
+  background-color: #ffffff !important;
+}
 html[data-theme="night"] input,
 html[data-theme="night"] textarea,
 html[data-theme="night"] select {

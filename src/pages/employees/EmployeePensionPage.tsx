@@ -48,6 +48,7 @@ export function EmployeePensionPage() {
   const [refund, setRefund] = useState(true)
   const [cessationDate, setCessationDate] = useState('')
   const [alreadyEnrolled, setAlreadyEnrolled] = useState<string | null>(null)
+  const [confirmUnder22, setConfirmUnder22] = useState(false)
 
   const query = useQuery({
     queryKey: ['employee-pension', companyId, employeeId],
@@ -62,6 +63,7 @@ export function EmployeePensionPage() {
     setError(null)
     setShowCriteria(false)
     setAlreadyEnrolled(null)
+    setConfirmUnder22(false)
     setAssessmentKind('ELIGIBLE')
   }, [employeeId])
 
@@ -296,8 +298,43 @@ export function EmployeePensionPage() {
           showCriteria={showCriteria}
           onToggleCriteria={() => setShowCriteria((open) => !open)}
           onStart={() => setView('enrol')}
+          onEnrolUnder22={() => {
+            setAssessmentKind('OPT_IN')
+            setConfirmUnder22(true)
+          }}
         />
       )}
+
+      {confirmUnder22 ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-navy/40 p-4">
+          <div className="w-full max-w-md rounded-[10px] bg-white p-6 shadow-lg">
+            <CircleAlert className="text-brand" size={32} />
+            <h3 className="mt-4 text-lg font-semibold text-navy">Age is below 22</h3>
+            <p className="mt-2 text-sm leading-relaxed text-[#607080]">
+              {name} is {data.age}. Automatic enrolment is not required under 22. You still want to enrol {object}?
+            </p>
+            <div className="mt-5 flex justify-end gap-3">
+              <button
+                type="button"
+                className="rounded-[8px] border border-[#d9d9d9] px-5 py-2 text-sm font-medium text-navy"
+                onClick={() => setConfirmUnder22(false)}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="rounded-[8px] bg-navy px-5 py-2 text-sm font-medium text-white"
+                onClick={() => {
+                  setConfirmUnder22(false)
+                  setView('enrol')
+                }}
+              >
+                Yes, enrol
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       {alreadyEnrolled ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-navy/40 p-4">
@@ -448,6 +485,7 @@ function StatusHome({
   showCriteria,
   onToggleCriteria,
   onStart,
+  onEnrolUnder22,
 }: {
   data: PensionAssessment
   name: string
@@ -455,6 +493,7 @@ function StatusHome({
   showCriteria: boolean
   onToggleCriteria: () => void
   onStart: () => void
+  onEnrolUnder22: () => void
 }) {
   if (data.status === 'opted_out') {
     return (
@@ -490,7 +529,9 @@ function StatusHome({
       ? `${name}’s assessment is postponed until ${formatLongDate(data.enrolment?.postponement_end_date)}. Pension contributions will not be calculated until you enrol ${object}.`
       : data.status === 'exempt'
         ? `${name} is marked as exempt or otherwise excluded from automatic enrolment. Pension contributions are not calculated.`
-        : `${name} is not an eligible jobholder, so you are not required to auto-enrol ${object}. Pension contributions are not calculated on the payslip.`
+        : data.age !== null && data.age < 22
+          ? `${name} is ${data.age}, so automatic enrolment is not required. You can still enrol ${object}. Pension contributions are calculated once ${object} is enrolled and pay is above the earnings trigger.`
+          : `${name} is not an eligible jobholder, so you are not required to auto-enrol ${object}. Pension contributions are not calculated on the payslip.`
 
   return (
     <>
@@ -501,6 +542,23 @@ function StatusHome({
         </button>
       ) : null}
       {showCriteria ? <CriteriaPanel data={data} /> : null}
+      {data.status === 'not_eligible' && data.age !== null && data.age < 22 ? (
+        <Card title="Available actions">
+          <div className="max-w-md rounded-[10px] border border-[#d9d9d9] px-6 py-6">
+            <p className="text-base font-semibold text-navy">Enrol in a qualifying scheme</p>
+            <p className="mt-2 text-sm text-[#607080]">
+              {name} is under 22. You can still enrol {object} if {data.pronouns.subject} should be in the pension scheme.
+            </p>
+            <button
+              type="button"
+              onClick={onEnrolUnder22}
+              className="mt-4 rounded-[8px] bg-navy px-5 py-2 text-sm font-medium text-white"
+            >
+              Enrol
+            </button>
+          </div>
+        </Card>
+      ) : null}
       {data.status === 'postponed' || data.status === 'exempt' ? <ReassessCard onStart={onStart} /> : null}
     </>
   )
@@ -544,6 +602,11 @@ function EnrolPanel({
   return (
     <>
       <StatusCard title="It’s enrolment time.">
+        {data.age !== null && data.age < 22 ? (
+          <p className="mb-3 font-medium text-navy">
+            {name} is {data.age}, which is below 22. You chose to enrol {object} anyway.
+          </p>
+        ) : null}
         {data.reasons.earnings ? (
           <>
             {name} is an{' '}
