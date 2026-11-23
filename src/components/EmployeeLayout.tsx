@@ -18,9 +18,10 @@ import { ResponsiveShell } from './ResponsiveShell'
 import { useAuth } from '../auth/AuthContext'
 import { fullName } from '../lib/format'
 import sidebarLogo from '../assets/brand/sidebar-logo.png'
-import { useEffect, useRef, useState } from 'react'
+import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { notificationsApi } from '../api'
+import { useDesktopNotifications } from '../lib/desktopNotifications'
 import { PortalSwitchButton } from './PortalSwitcher'
 
 const CalendarUser = createLucideIcon('calendar-user', [
@@ -115,7 +116,6 @@ export function EmployeeLayout() {
   const company = employeeCompanies.find((item) => item.id === auth.companyId) ?? employeeCompanies[0]
   const hasPayroll = auth.companyHasModule('PAYROLL')
   const navItems = mainNav.filter((item) => item.to !== '/portal/payslips' || hasPayroll)
-  const seenNotifications = useRef(new Set<string>())
   const notifications = useQuery({
     queryKey: ['notifications', auth.companyId],
     queryFn: () => notificationsApi.list(auth.companyId!),
@@ -126,33 +126,18 @@ export function EmployeeLayout() {
     (notifications.data?.data as Array<{ is_read?: boolean }> | undefined) ?? []
   ).filter((item) => !item.is_read).length
 
-  useEffect(() => {
-    if (typeof Notification === 'undefined' || Notification.permission !== 'default') return
-    void Notification.requestPermission()
-  }, [])
-
-  useEffect(() => {
-    const list =
-      (notifications.data?.data as Array<{
-        id: unknown
-        title?: string
-        body?: string
-        is_read?: boolean
-        type?: string
-      }> | undefined) ?? []
-    for (const item of list) {
-      const id = String(item.id ?? '')
-      if (!id || seenNotifications.current.has(id) || item.is_read) continue
-      seenNotifications.current.add(id)
-      const allowed = hasPayroll
-        ? ['ROTA_PUBLISHED', 'ROTA_UPDATED', 'DOCUMENT_EXPIRING', 'PAYSLIP_READY', 'LEAVE_APPROVED', 'LEAVE_REJECTED', 'CHAT_MESSAGE', 'INVOICE_APPROVED', 'INVOICE_DUE_TODAY', 'INVOICE_ACCEPTED', 'INVOICE_REJECTED', 'INVOICE_REASON_REQUESTED']
-        : ['ROTA_PUBLISHED', 'ROTA_UPDATED', 'DOCUMENT_EXPIRING', 'LEAVE_APPROVED', 'LEAVE_REJECTED', 'CHAT_MESSAGE', 'INVOICE_APPROVED', 'INVOICE_DUE_TODAY', 'INVOICE_ACCEPTED', 'INVOICE_REJECTED', 'INVOICE_REASON_REQUESTED']
-      if (!allowed.includes(item.type ?? '')) continue
-      if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
-        new Notification(item.title || 'Cedar Payroll', { body: item.body || '' })
-      }
-    }
-  }, [hasPayroll, notifications.data])
+  useDesktopNotifications(
+    notifications.data?.data as Array<{
+      id: unknown
+      title?: string
+      body?: string
+      is_read?: boolean
+      type?: string
+    }> | undefined,
+    hasPayroll
+      ? ['ROTA_PUBLISHED', 'ROTA_UPDATED', 'DOCUMENT_EXPIRING', 'PAYSLIP_READY', 'LEAVE_APPROVED', 'LEAVE_REJECTED', 'CHAT_MESSAGE', 'INVOICE_APPROVED', 'INVOICE_DUE_TODAY', 'INVOICE_ACCEPTED', 'INVOICE_REJECTED', 'INVOICE_REASON_REQUESTED']
+      : ['ROTA_PUBLISHED', 'ROTA_UPDATED', 'DOCUMENT_EXPIRING', 'LEAVE_APPROVED', 'LEAVE_REJECTED', 'CHAT_MESSAGE', 'INVOICE_APPROVED', 'INVOICE_DUE_TODAY', 'INVOICE_ACCEPTED', 'INVOICE_REJECTED', 'INVOICE_REASON_REQUESTED'],
+  )
 
   return (
     <ResponsiveShell

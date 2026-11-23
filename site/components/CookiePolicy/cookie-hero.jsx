@@ -6,8 +6,8 @@ export default function CookieHero() {
       <div className="policy-hero-container">
         <h1 className="policy-hero-title">Cookies at Cedar Payroll</h1>
         <p className="policy-hero-lead">
-          How Cedar Payroll uses cookies and similar technologies on our
-          website.
+          Cookies and browser storage used by this website and the Cedar
+          Payroll software. We do not use advertising cookies.
         </p>
       </div>
     </section>

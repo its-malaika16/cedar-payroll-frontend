@@ -20,9 +20,10 @@ import iconActivityCheck from '../assets/brand/icon-activity-check.png'
 import iconNotifications from '../assets/brand/icon-notifications.png'
 import iconHelp from '../assets/brand/icon-help.png'
 import iconSettings from '../assets/brand/icon-settings.png'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { notificationsApi } from '../api'
+import { useDesktopNotifications } from '../lib/desktopNotifications'
 import { PortalSwitchButton } from './PortalSwitcher'
 
 type NavItem = {
@@ -256,7 +257,6 @@ export function AppLayout() {
     ? 'Search Help Centre...'
     : 'Search...'
   const name = fullName(auth.user?.first_name, auth.user?.last_name)
-  const seenNotifications = useRef(new Set<string>())
   const notifications = useQuery({
     queryKey: ['notifications', auth.companyId],
     queryFn: () => notificationsApi.list(auth.companyId!),
@@ -274,44 +274,31 @@ export function AppLayout() {
     }
   }, [auth.adminCompanies, auth.companyId, auth.setCompanyId])
 
-  useEffect(() => {
-    if (typeof Notification === 'undefined' || Notification.permission !== 'default') return
-    void Notification.requestPermission()
-  }, [])
-
-  useEffect(() => {
-    const list = (notifications.data?.data as Array<{
+  useDesktopNotifications(
+    notifications.data?.data as Array<{
       id: unknown
       title?: string
       body?: string
       is_read?: boolean
       type?: string
-    }> | undefined) ?? []
-    for (const item of list) {
-      const id = String(item.id ?? '')
-      if (!id || seenNotifications.current.has(id) || item.is_read) continue
-      seenNotifications.current.add(id)
-      if (
-        item.type !== 'ROTA_PUBLISHED' &&
-        item.type !== 'ROTA_UPDATED' &&
-        item.type !== 'DOCUMENT_EXPIRING' &&
-        item.type !== 'LEAVE_REQUESTED' &&
-        item.type !== 'LEAVE_APPROVED' &&
-        item.type !== 'LEAVE_REJECTED' &&
-        item.type !== 'INVOICE_APPROVED' &&
-        item.type !== 'INVOICE_REQUESTED' &&
-        item.type !== 'INVOICE_REASON_REQUESTED' &&
-        item.type !== 'INVOICE_REASON_SUBMITTED' &&
-        item.type !== 'INVOICE_ACCEPTED' &&
-        item.type !== 'INVOICE_REJECTED' &&
-        item.type !== 'INVOICE_DUE_TODAY' &&
-        item.type !== 'CHAT_MESSAGE'
-      ) continue
-      if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
-        new Notification(item.title || 'Cedar Payroll', { body: item.body || '' })
-      }
-    }
-  }, [notifications.data])
+    }> | undefined,
+    [
+      'ROTA_PUBLISHED',
+      'ROTA_UPDATED',
+      'DOCUMENT_EXPIRING',
+      'LEAVE_REQUESTED',
+      'LEAVE_APPROVED',
+      'LEAVE_REJECTED',
+      'INVOICE_APPROVED',
+      'INVOICE_REQUESTED',
+      'INVOICE_REASON_REQUESTED',
+      'INVOICE_REASON_SUBMITTED',
+      'INVOICE_ACCEPTED',
+      'INVOICE_REJECTED',
+      'INVOICE_DUE_TODAY',
+      'CHAT_MESSAGE',
+    ],
+  )
 
   return (
     <ResponsiveShell

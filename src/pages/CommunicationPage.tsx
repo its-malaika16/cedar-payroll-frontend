@@ -6,7 +6,9 @@ import { ArrowLeft, History, Image, Mail, Paperclip, Search, Send, X } from 'luc
 import { communicationApi, companiesApi, employeesApi } from '../api'
 import { download, fetchBlob } from '../api/client'
 import { useAuth } from '../auth/AuthContext'
+import { EmailEditor, EmailHtmlBody } from '../components/EmailEditor'
 import { Alert, Button, EmptyState, Loading, PageHeader } from '../components/ui'
+import { emailPlainText, looksLikeEmailHtml } from '../lib/emailHtml'
 import { fullName, idOf } from '../lib/format'
 import type { CompanyUserRole, Employee } from '../types'
 
@@ -418,7 +420,7 @@ export function CommunicationPage() {
       employee_ids: audience === 'SPECIFIC' ? employeeIds : [],
       admin_ids: audience === 'SPECIFIC_ADMINS' ? adminIds : [],
       subject: subject.trim(),
-      body: body.trim(),
+      body: emailPlainText(body).length >= 2 ? body : '',
     }),
     [adminIds, audience, body, companyId, employeeIds, from, subject],
   )
@@ -624,13 +626,7 @@ export function CommunicationPage() {
                     <p className="text-xs text-muted">Each recipient sees their own name here.</p>
                   </div>
                 </div>
-                <textarea
-                  rows={9}
-                  value={body}
-                  onChange={(event) => setBody(event.target.value)}
-                  placeholder="Write the update or information request. Recipients can reply in Outlook."
-                  className="min-h-32 w-full resize-y border-0 bg-white px-4 py-4 text-sm leading-6 text-navy outline-none placeholder:text-muted"
-                />
+                <EmailEditor value={body} onChange={setBody} />
               </div>
             </div>
           </div>
@@ -894,8 +890,16 @@ export function CommunicationPage() {
                         <p className="text-xs font-semibold uppercase tracking-wide text-muted">Message</p>
                         <p className="mt-1 text-sm font-semibold text-navy">Hello [Name],</p>
                       </div>
-                      <div className="whitespace-pre-wrap px-4 py-4 text-sm leading-6 text-navy">
-                        {openedEmail.body?.trim() || 'No message was saved.'}
+                      <div className="px-4 py-4 text-sm leading-6 text-navy">
+                        {openedEmail.body?.trim() ? (
+                          looksLikeEmailHtml(openedEmail.body) ? (
+                            <EmailHtmlBody html={openedEmail.body} />
+                          ) : (
+                            <p className="whitespace-pre-wrap">{openedEmail.body}</p>
+                          )
+                        ) : (
+                          'No message was saved.'
+                        )}
                       </div>
                     </div>
                     <SentAttachments email={openedEmail} />
