@@ -169,6 +169,31 @@ function emptyMonthlyPay(label?: string): ExtraPay {
   return { id: `monthly-${Date.now()}`, kind: 'monthly', label, qty: '', rate: '', amount: '' }
 }
 
+function periodsForPayLabel(label: string, frequency?: string | null) {
+  const text = label.trim().toLowerCase()
+  if (text.startsWith('week')) return 52
+  if (text.startsWith('fortnight')) return 26
+  if (text.startsWith('4-week') || text.startsWith('four')) return 13
+  if (text.startsWith('month')) return 12
+  if (text.startsWith('quarter')) return 4
+  if (text.startsWith('year')) return 1
+  const key = String(frequency ?? '').toUpperCase()
+  if (key === 'WEEKLY') return 52
+  if (key === 'FORTNIGHTLY') return 26
+  if (key === 'FOUR_WEEKLY') return 13
+  if (key === 'QUARTERLY') return 4
+  if (key === 'YEARLY') return 1
+  return 12
+}
+
+const REVERSE_TARGETS = [
+  { id: 'net_pay', label: 'Net pay' },
+  { id: 'take_home_pay', label: 'Take home pay' },
+  { id: 'cost_to_employer', label: 'Cost to employer' },
+] as const
+
+type ReverseTarget = (typeof REVERSE_TARGETS)[number]['id']
+
 const mappedAdditionFields = new Set(
   ADDITION_ITEMS.filter((item) => item.field).map((item) => item.label),
 )
@@ -311,6 +336,11 @@ export function PayrollRecordPage() {
   const [error, setError] = useState<string | null>(null)
   const [message, setMessage] = useState<string | null>(null)
   const [openMenu, setOpenMenu] = useState<string | null>(null)
+  const [reverseLine, setReverseLine] = useState<ExtraPay | null>(null)
+  const [reverseTarget, setReverseTarget] = useState<ReverseTarget>('net_pay')
+  const [reverseAmount, setReverseAmount] = useState('')
+  const [reverseResult, setReverseResult] = useState<number | null>(null)
+  const [reverseBusy, setReverseBusy] = useState(false)
   const [periodTab, setPeriodTab] = useState<'period' | 'ytd'>('period')
   const [ytdOpen, setYtdOpen] = useState({
     thisEmployment: true,
@@ -948,7 +978,7 @@ export function PayrollRecordPage() {
   }
 
   async function persistAndCalculate() {
-    if (!companyId || locked) return
+    if (!companyId || locked) return false
     const seq = ++calcSeq.current
     const form = latestRef.current
     setCalculating(true)
@@ -980,12 +1010,14 @@ export function PayrollRecordPage() {
         ...mappedAdditionPayload(form.visibleAdditions, form.additionAmounts),
         recalculate: true,
       })
-      if (seq !== calcSeq.current) return
+      if (seq !== calcSeq.current) return false
       queryClient.setQueryData(['payroll-record', companyId, runId, recordId], result)
+      return true
     } catch (err) {
-      if (seq !== calcSeq.current) return
+      if (seq !== calcSeq.current) return false
       skipHydrate.current = false
       setError(err instanceof Error ? err.message : 'Could not calculate this payslip')
+      return false
     } finally {
       if (seq === calcSeq.current) setCalculating(false)
     }
@@ -1216,6 +1248,61 @@ export function PayrollRecordPage() {
       void persistPayLines(next)
       return next
     })
+  }
+
+  function openReverse(line: ExtraPay) {
+    setReverseLine(line)
+    setReverseTarget('net_pay')
+    setReverseAmount('')
+    setReverseResult(null)
+    setError(null)
+  }
+
+  async function calculateReverse() {
+    if (!companyId || !reverseLine) return
+    const target = Number(reverseAmount)
+    if (!reverseAmount.trim() || Number.isNaN(target) || target < 0) {
+      setError('Enter the amount you want to achieve')
+      return
+    }
+    setReverseBusy(true)
+    setError(null)
+    setReverseResult(null)
+    try {
+      window.clearTimeout(calcTimer.current)
+      const saved = await persistAndCalculate()
+      if (!saved) return
+      const result = await payrollApi.reversePay(companyId, runId, recordId, {
+        line_id: reverseLine.id,
+        target: reverseTarget,
+        amount: target,
+      })
+      setReverseResult(Number(result.data?.amount ?? 0))
+      skipHydrate.current = true
+      queryClient.setQueryData(
+        ['payroll-record', companyId, runId, recordId],
+        await payrollApi.getRecord(companyId, runId, recordId),
+      )
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not reverse calculate this pay')
+    } finally {
+      setReverseBusy(false)
+    }
+  }
+
+  function acceptReverse() {
+    if (!reverseLine || reverseResult == null) return
+    const amount = reverseResult.toFixed(2)
+    const lineId = reverseLine.id
+    setExtraPay((current) => {
+      const next = current.map((item) => (item.id === lineId ? { ...item, amount } : item))
+      latestRef.current = { ...latestRef.current, extraPay: next }
+      return next
+    })
+    setReverseLine(null)
+    setReverseResult(null)
+    window.clearTimeout(calcTimer.current)
+    void persistAndCalculate()
   }
 
   async function confirmRatePrompt() {
@@ -1936,6 +2023,13 @@ export function PayrollRecordPage() {
                     window.clearTimeout(calcTimer.current)
                     void persistAndCalculate()
                   }}
+                  annualSalary={
+                    line.kind === 'monthly'
+                      ? Number(line.amount || 0) *
+                        periodsForPayLabel(line.label || periodPayLabel(run?.pay_frequency), run?.pay_frequency)
+                      : undefined
+                  }
+                  onReverse={line.kind === 'monthly' && !locked ? () => openReverse(line) : undefined}
                 />
                 )
               })}
@@ -1955,6 +2049,90 @@ export function PayrollRecordPage() {
             </PortalMenu>
             )}
           </section>
+
+          {reverseLine
+            ? createPortal(
+                <div
+                  className="fixed inset-0 z-[80] flex items-center justify-center bg-navy/40 px-4"
+                  role="presentation"
+                  onClick={() => {
+                    if (!reverseBusy) setReverseLine(null)
+                  }}
+                >
+                  <div
+                    role="dialog"
+                    aria-modal="true"
+                    aria-labelledby="reverse-calculation-title"
+                    className="w-full max-w-[520px] rounded-[16px] bg-white p-6 shadow-xl"
+                    onClick={(event) => event.stopPropagation()}
+                  >
+                    <h3 id="reverse-calculation-title" className="text-lg font-semibold text-navy">
+                      Reverse calculation
+                    </h3>
+                    <p className="mt-4 text-sm text-navy">I want to achieve a</p>
+                    <div className="mt-2 flex items-center gap-2">
+                      <select
+                        className={`${inputClass} min-w-0 flex-1`}
+                        value={reverseTarget}
+                        disabled={reverseBusy}
+                        onChange={(event) => {
+                          setReverseTarget(event.target.value as ReverseTarget)
+                          setReverseResult(null)
+                        }}
+                      >
+                        {REVERSE_TARGETS.map((option) => (
+                          <option key={option.id} value={option.id}>
+                            {option.label}
+                          </option>
+                        ))}
+                      </select>
+                      <span className="shrink-0 text-sm text-navy">of</span>
+                      <span className="flex w-[148px] shrink-0">
+                        <span className="flex h-[35px] items-center rounded-l-[6px] border-[0.5px] border-r-0 border-[#d9d9d9] bg-white px-2 text-xs text-navy">
+                          £
+                        </span>
+                        <input
+                          className={`${inputClass} min-w-0 flex-1 rounded-l-none`}
+                          value={reverseAmount}
+                          inputMode="decimal"
+                          aria-label="Amount to achieve"
+                          disabled={reverseBusy}
+                          onChange={(event) => {
+                            setReverseAmount(event.target.value)
+                            setReverseResult(null)
+                          }}
+                        />
+                      </span>
+                    </div>
+                    <div className="mt-4 flex justify-center">
+                      <Button type="button" disabled={reverseBusy} onClick={() => void calculateReverse()}>
+                        {reverseBusy ? 'Calculating…' : 'Calculate'}
+                      </Button>
+                    </div>
+                    {reverseResult != null ? (
+                      <p className="mt-4 text-sm font-medium text-emerald-700">
+                        The {(reverseLine.label || periodPayLabel(run?.pay_frequency)).replace(/\s*pay$/i, '').toLowerCase()}{' '}
+                        payment amount has been set to {money(reverseResult)}.
+                      </p>
+                    ) : null}
+                    <div className="mt-6 flex justify-end gap-3">
+                      <Button
+                        variant="secondary"
+                        type="button"
+                        disabled={reverseBusy}
+                        onClick={() => setReverseLine(null)}
+                      >
+                        Undo and Cancel
+                      </Button>
+                      <Button type="button" disabled={reverseBusy || reverseResult == null} onClick={acceptReverse}>
+                        Accept
+                      </Button>
+                    </div>
+                  </div>
+                </div>,
+                document.body,
+              )
+            : null}
 
           <section className="rounded-[10px] border border-[#d9d9d9] bg-white p-5">
             <h3 className="mb-3 flex items-center gap-3 text-xl font-semibold text-navy">
@@ -2622,6 +2800,8 @@ function PayRow({
   onTotalChange,
   onTotalBlur,
   onRemove,
+  annualSalary,
+  onReverse,
 }: {
   qty: string
   qtySuffix: string
@@ -2640,8 +2820,19 @@ function PayRow({
   onTotalChange?: (value: string) => void
   onTotalBlur?: () => void
   onRemove?: () => void
+  annualSalary?: number
+  onReverse?: () => void
 }) {
   const [customRate, setCustomRate] = useState<string | null>(null)
+  const [editOpen, setEditOpen] = useState(false)
+  useEffect(() => {
+    if (!editOpen) return
+    function close(event: MouseEvent) {
+      if (!(event.target as HTMLElement).closest('[data-menu]')) setEditOpen(false)
+    }
+    document.addEventListener('mousedown', close)
+    return () => document.removeEventListener('mousedown', close)
+  }, [editOpen])
   const cancelCustom = useRef(false)
   const selected = rate === '' ? '' : Number(rate || 0).toFixed(2)
 
@@ -2740,19 +2931,51 @@ function PayRow({
           )}
         </>
       )}
-      <div className="ml-auto flex w-[138px]">
-        <span className="flex h-[35px] items-center rounded-l-[6px] border-[0.5px] border-r-0 border-[#d9d9d9] bg-white px-2 text-xs text-navy">
-          £
-        </span>
-        <input
-          readOnly={!totalEditable}
-          className={`${inputClass} min-w-0 flex-1 rounded-l-none ${totalEditable ? 'bg-white' : 'bg-[#f8f7f4]'}`}
-          value={total}
-          placeholder=""
-          disabled={locked}
-          onChange={(event) => onTotalChange?.(event.target.value)}
-          onBlur={onTotalBlur}
-        />
+      <div className="ml-auto flex items-center gap-2">
+        {onReverse ? (
+          <PortalMenu
+            open={editOpen}
+            width={280}
+            trigger={
+              <button
+                type="button"
+                className="flex size-[35px] shrink-0 items-center justify-center rounded-[6px] border-[0.5px] border-[#d9d9d9] bg-white text-navy hover:bg-cream"
+                aria-label={`Edit ${label || 'pay'}`}
+                onClick={() => setEditOpen((open) => !open)}
+              >
+                <Pencil size={14} />
+              </button>
+            }
+          >
+            <div className="flex items-center justify-between gap-3 px-3 py-2 text-xs text-navy">
+              <span>Equivalent annual salary</span>
+              <span className="font-semibold tabular-nums">{money(annualSalary ?? 0)}</span>
+            </div>
+            <MenuDivider />
+            <MenuItem
+              onClick={() => {
+                setEditOpen(false)
+                onReverse()
+              }}
+            >
+              Reverse calculation
+            </MenuItem>
+          </PortalMenu>
+        ) : null}
+        <div className="flex w-[138px]">
+          <span className="flex h-[35px] items-center rounded-l-[6px] border-[0.5px] border-r-0 border-[#d9d9d9] bg-white px-2 text-xs text-navy">
+            £
+          </span>
+          <input
+            readOnly={!totalEditable}
+            className={`${inputClass} min-w-0 flex-1 rounded-l-none ${totalEditable ? 'bg-white' : 'bg-[#f8f7f4]'}`}
+            value={total}
+            placeholder=""
+            disabled={locked}
+            onChange={(event) => onTotalChange?.(event.target.value)}
+            onBlur={onTotalBlur}
+          />
+        </div>
       </div>
     </div>
   )

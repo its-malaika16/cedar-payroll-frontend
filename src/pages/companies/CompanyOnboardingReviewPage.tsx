@@ -1,8 +1,9 @@
 import { useState } from 'react'
+import { createPortal } from 'react-dom'
 import { Link, Navigate, useNavigate, useParams } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Check, Download, Eye, FileUp, Trash2 } from 'lucide-react'
-import { onboardingApi } from '../../api'
+import { companiesApi, onboardingApi } from '../../api'
 import { useAuth } from '../../auth/AuthContext'
 import { DocumentPreviewModal } from '../../components/DocumentPreviewModal'
 import { Alert, Button, Field, Input, Loading, PageHeader, Select } from '../../components/ui'
@@ -44,6 +45,7 @@ export function CompanyOnboardingReviewPage() {
   const [module, setModule] = useState('PAYROLL')
   const [file, setFile] = useState<File | null>(null)
   const [busy, setBusy] = useState(false)
+  const [confirmDelete, setConfirmDelete] = useState(false)
   const [preview, setPreview] = useState<{ id: string; title: string; filename: string } | null>(null)
 
   const query = useQuery({
@@ -64,6 +66,7 @@ export function CompanyOnboardingReviewPage() {
   }
   const isEnquiry = company.status === 'ENQUIRY'
   const canApprove = company.status === 'PENDING_REVIEW'
+  const canDelete = company.status === 'ONBOARDING' || company.status === 'PENDING_REVIEW'
 
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-y-auto pb-8">
@@ -264,10 +267,86 @@ export function CompanyOnboardingReviewPage() {
               {company.contracts.length ? ' and sign every contract' : ''}.
             </p>
           )}
+          {canDelete ? (
+            <div className="mt-6 border-t border-[#eef1f5] pt-5">
+              <p className="text-sm text-muted">
+                If they have not sent their details in time, delete the company. That administrator will not be able to sign in again.
+              </p>
+              <Button
+                variant="danger"
+                type="button"
+                className="mt-3"
+                disabled={busy}
+                onClick={() => setConfirmDelete(true)}
+              >
+                <Trash2 size={15} />
+                Delete company
+              </Button>
+            </div>
+          ) : null}
             </>
           )}
         </section>
       </div>
+
+      {confirmDelete
+        ? createPortal(
+            <div
+              className="fixed inset-0 z-[80] flex items-center justify-center bg-navy/40 px-4"
+              role="presentation"
+              onClick={() => {
+                if (!busy) setConfirmDelete(false)
+              }}
+            >
+              <div
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="delete-onboarding-company-title"
+                className="w-full max-w-[420px] rounded-[16px] bg-white p-6 shadow-xl"
+                onClick={(event) => event.stopPropagation()}
+              >
+                <h3 id="delete-onboarding-company-title" className="text-lg font-semibold text-navy">
+                  Delete {company.company_name}?
+                </h3>
+                <p className="mt-2 text-sm text-muted">
+                  This removes the company and its onboarding records. The administrator cannot sign in or register with this account again, unless they already belong to another company.
+                </p>
+                <div className="mt-6 flex justify-end gap-3">
+                  <Button
+                    variant="secondary"
+                    type="button"
+                    disabled={busy}
+                    onClick={() => setConfirmDelete(false)}
+                  >
+                    Keep company
+                  </Button>
+                  <Button
+                    variant="danger"
+                    type="button"
+                    disabled={busy}
+                    onClick={async () => {
+                      setBusy(true)
+                      setError(null)
+                      try {
+                        await companiesApi.remove(company.id)
+                        await auth.refresh()
+                        navigate('/companies')
+                      } catch (err) {
+                        setError(err instanceof Error ? err.message : 'Could not delete this company')
+                        setConfirmDelete(false)
+                      } finally {
+                        setBusy(false)
+                      }
+                    }}
+                  >
+                    {busy ? 'Deleting…' : 'Delete'}
+                  </Button>
+                </div>
+              </div>
+            </div>,
+            document.body,
+          )
+        : null}
 
       {isEnquiry ? null : (
       <section className="mt-6 rounded-[16px] border border-[#e6eaf0] bg-white p-6 shadow-[0_1px_8px_rgba(23,55,94,0.04)]">

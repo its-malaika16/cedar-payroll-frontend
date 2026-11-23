@@ -351,6 +351,16 @@ export const payrollApi = {
     ),
   calculateRecord: (companyId: string, runId: string, recordId: string) =>
     post(`/companies/${companyId}/payroll/${runId}/records/${recordId}/calculate`),
+  reversePay: (
+    companyId: string,
+    runId: string,
+    recordId: string,
+    body: { line_id: string; target: 'net_pay' | 'take_home_pay' | 'cost_to_employer'; amount: number },
+  ) =>
+    post<{ amount: number; achieved: number; target: number; target_kind: string }>(
+      `/companies/${companyId}/payroll/${runId}/records/${recordId}/reverse-pay`,
+      body,
+    ),
   calculateRun: (companyId: string, runId: string) =>
     post(`/companies/${companyId}/payroll/${runId}/calculate`),
   calculateStep: (
