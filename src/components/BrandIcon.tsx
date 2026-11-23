@@ -20,7 +20,8 @@ export function BrandIcon({
       role={alt ? 'img' : undefined}
       aria-label={alt || undefined}
       aria-hidden={alt ? undefined : true}
-      className={`inline-block shrink-0 ${className}`}
+      data-tone={onDark ? 'navy' : 'light'}
+      className={`brand-icon inline-block shrink-0 ${className}`}
       style={{
         backgroundColor: onDark ? '#ffffff' : ICON_NAVY,
         WebkitMaskImage: `url("${src}")`,

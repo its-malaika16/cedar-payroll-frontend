@@ -4,7 +4,11 @@ import { createRoot } from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
 import { AuthProvider } from './auth/AuthContext'
 import App from './App.tsx'
+import { restoreTheme } from './theme'
 import './index.css'
+import './night-theme.css'
+
+restoreTheme()
 
 const queryClient = new QueryClient({
   defaultOptions: {

@@ -3,7 +3,6 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import {
   Check,
-  ChevronDown,
   RefreshCw,
   Star,
 } from 'lucide-react'
@@ -53,45 +52,15 @@ function isCompleted(status?: string) {
 }
 
 function PayRunTotals({ stats }: { stats: { label: string; value: ReactNode }[] }) {
-  const [open, setOpen] = useState(false)
-  const employees = stats.find((item) => item.label === 'Employees')?.value ?? '—'
-  const gross = stats.find((item) => item.label === 'Gross pay')?.value ?? '—'
-  const takeHome = stats.find((item) => item.label === 'Take-home Pay')?.value ?? '—'
   return (
-    <div className="mt-6 border-t border-[#eceae6] pt-5">
-      <button
-        type="button"
-        className="flex w-full items-center justify-between gap-3 rounded-[12px] bg-[#f8f7f4] px-4 py-3 text-left"
-        onClick={() => setOpen((value) => !value)}
-        aria-expanded={open}
-      >
-        <span>
-          <span className="block text-sm font-semibold text-navy">Pay totals</span>
-          <span className="mt-1 block text-xs font-medium text-muted">
-            {employees} employee{String(employees) === '1' ? '' : 's'} · Gross {gross} · Take-home {takeHome}
-          </span>
-        </span>
-        <ChevronDown
-          size={18}
-          className={`shrink-0 text-navy transition-transform ${open ? 'rotate-180' : ''}`}
-        />
-      </button>
-      {open ? (
-        <div className="mt-2 overflow-hidden rounded-[12px] border border-[#eceae6]">
-          {stats.map((stat, index) => (
-            <div
-              key={stat.label}
-              className={`flex items-center justify-between gap-4 px-4 py-3 ${
-                index === 0 ? '' : 'border-t border-[#eceae6]'
-              }`}
-            >
-              <span className="text-sm font-medium text-muted">{stat.label}</span>
-              <span className="text-sm font-semibold text-navy">{stat.value}</span>
-            </div>
-          ))}
+    <dl className="mt-6 grid grid-cols-2 gap-x-6 gap-y-4 border-t border-[#eceae6] pt-5 sm:grid-cols-4">
+      {stats.map((stat) => (
+        <div key={stat.label} className="min-w-0">
+          <dt className="text-xs font-medium text-muted">{stat.label}</dt>
+          <dd className="mt-1 text-base font-semibold text-navy tabular-nums">{stat.value}</dd>
         </div>
-      ) : null}
-    </div>
+      ))}
+    </dl>
   )
 }
 

@@ -25,6 +25,7 @@ import { useQuery } from '@tanstack/react-query'
 import { notificationsApi } from '../api'
 import { useDesktopNotifications } from '../lib/desktopNotifications'
 import { PortalSwitchButton } from './PortalSwitcher'
+import { ThemeToggle } from './ThemeToggle'
 
 type NavItem = {
   to: string
@@ -369,6 +370,7 @@ export function AppLayout() {
       headerRight={
         <>
           <PortalSwitchButton variant="admin" />
+          <ThemeToggle />
           <label className="relative min-w-0 w-full max-w-[353px] basis-full sm:basis-auto">
             <Search
               size={16}

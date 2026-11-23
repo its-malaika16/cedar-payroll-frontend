@@ -4,6 +4,7 @@ import { Eye, EyeOff } from 'lucide-react'
 import { authApi } from '../api'
 import { useAuth } from '../auth/AuthContext'
 import { Alert, onSubmit } from '../components/ui'
+import { ThemeToggle } from '../components/ThemeToggle'
 import logoLogin from '../assets/brand/logo-login.png'
 import loginIllustration from '../assets/brand/login-illustration.png'
 import { EmployeeTermsPage } from './EmployeeTermsPage'
@@ -223,6 +224,9 @@ export function LoginPage() {
   return (
     <>
     <div className="grid min-h-screen bg-white lg:grid-cols-2">
+      <div className="fixed top-4 right-4 z-20 print:hidden">
+        <ThemeToggle />
+      </div>
       <section className="relative hidden min-h-screen flex-col bg-white lg:flex">
         <div className="flex flex-1 items-center justify-center px-10 xl:px-16">
           <img
@@ -284,7 +288,7 @@ export function LoginPage() {
             alt="Cedar Payroll"
             width={171}
             height={59}
-            className="h-[59px] w-[171px] object-contain object-left"
+            className="theme-logo h-[59px] w-[171px] object-contain object-left"
           />
           <h1 className="mt-8 text-[32px] font-semibold leading-none text-navy sm:text-[40px]">
             {resetStep ? (

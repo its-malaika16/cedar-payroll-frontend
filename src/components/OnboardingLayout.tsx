@@ -3,6 +3,7 @@ import { useAuth } from '../auth/AuthContext'
 import { Loading } from './ui'
 import { fullName } from '../lib/format'
 import sidebarLogo from '../assets/brand/sidebar-logo.png'
+import { ThemeToggle } from './ThemeToggle'
 
 export function OnboardingLayout() {
   const auth = useAuth()
@@ -20,6 +21,7 @@ export function OnboardingLayout() {
           <span className="text-sm font-semibold">Onboarding</span>
         </NavLink>
         <div className="flex items-center gap-3 text-sm">
+          <ThemeToggle />
           <span className="hidden sm:inline">
             {fullName(auth.user?.first_name, auth.user?.last_name) || auth.user?.email}
           </span>

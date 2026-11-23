@@ -2,6 +2,14 @@
 <html lang="en-GB">
   <head>
     <meta charset="UTF-8" />
+    <script>
+      try {
+        if (localStorage.getItem('cedar.theme') === 'night') {
+          document.documentElement.dataset.theme = 'night'
+          document.documentElement.style.colorScheme = 'dark'
+        }
+      } catch (e) {}
+    </script>
     <link rel="icon" href="/favicon.ico" sizes="48x48" />
     <link rel="icon" type="image/png" href="/favicon-48.png" sizes="48x48" />
     <link rel="icon" type="image/png" href="/favicon-192.png" sizes="192x192" />
