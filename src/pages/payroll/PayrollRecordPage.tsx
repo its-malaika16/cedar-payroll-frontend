@@ -25,13 +25,13 @@ import { useAuth } from '../../auth/AuthContext'
 import { Alert, Button, Loading } from '../../components/ui'
 import { BrandIcon } from '../../components/BrandIcon'
 import {
-  clockQtyToHours,
+  decimalHours,
   formatLongDate,
   formatPeriodEndingLabel,
   formatPeriodRange,
   formatTaxCodeWithBasis,
   fullName,
-  hoursToClockQty,
+  formatDecimalHours,
   idOf,
   isEmployeeOnPayrollRun,
   money,
@@ -466,7 +466,7 @@ export function PayrollRecordPage() {
       return
     }
     const hasHours = Number(record.total_hours ?? 0) > 0
-    setHours(hasHours ? hoursToClockQty(Number(record.total_hours)) : '')
+    setHours(hasHours ? formatDecimalHours(Number(record.total_hours)) : '')
     const hourlyFromEmployee = firstPositiveRate(
       asRecord(employee?.employment_details).basic_rate_per_hour,
       asRecord(employee?.employment_details).extra_hourly_rates,
@@ -529,7 +529,7 @@ export function PayrollRecordPage() {
           name: line.label || 'Addition',
           amount: moneyInput(line.amount),
           qty: qty > 0 ? qty : undefined,
-          qtyText: qty > 0 ? hoursToClockQty(qty) : undefined,
+          qtyText: qty > 0 ? formatDecimalHours(qty) : undefined,
           rate: rate > 0 ? rate : undefined,
           calculationMethod: line.calculationMethod,
           repetition: line.repetition ?? 'Include in this period only',
@@ -620,7 +620,7 @@ export function PayrollRecordPage() {
   const employment = asRecord(employee?.employment_details)
   const pension = asRecord(employee?.employee_pension_details)
   const hasBank = Boolean(employee?.bank_details?.length)
-  const payTotal = clockQtyToHours(hours) * Number(rate || 0)
+  const payTotal = decimalHours(hours) * Number(rate || 0)
   const minWageWarning = useMemo(() => {
     if (!showHourlyPay && !(Number(record?.wage_per_hour ?? 0) > 0)) return null
     return assessHourlyMinimumWage({
@@ -986,7 +986,7 @@ export function PayrollRecordPage() {
     skipHydrate.current = true
     try {
       const leave = Number(form.leaveAmount)
-      const hoursWorked = form.hours === '' ? undefined : clockQtyToHours(form.hours)
+      const hoursWorked = form.hours === '' ? undefined : decimalHours(form.hours)
       const result = await payrollApi.updateRecord(companyId, runId, recordId, {
         total_hours: hoursWorked,
         wage_per_hour: form.rate === '' ? undefined : Number(form.rate),
@@ -1043,7 +1043,7 @@ export function PayrollRecordPage() {
     if (next?.hours !== undefined) setHours(next.hours)
     if (next?.rate !== undefined) setRate(next.rate)
     const hoursWorked =
-      (next?.hours ?? hours) === '' ? undefined : clockQtyToHours(next?.hours ?? hours)
+      (next?.hours ?? hours) === '' ? undefined : decimalHours(next?.hours ?? hours)
     await patchRecord(
       {
         total_hours: hoursWorked,
@@ -2247,7 +2247,7 @@ export function PayrollRecordPage() {
                     <PayRow
                       key={row.id || row.name}
                       label={row.name}
-                      qty={row.qtyText ?? (row.qty != null ? hoursToClockQty(Number(row.qty)) : '')}
+                      qty={row.qtyText ?? (row.qty != null ? formatDecimalHours(Number(row.qty)) : '')}
                       qtySuffix="hours"
                       rate={row.rate != null ? Number(row.rate).toFixed(2) : ''}
                       rateOptions={[
@@ -2270,11 +2270,11 @@ export function PayrollRecordPage() {
                         setCustomAdditions((current) => {
                           const next = current.map((item) => {
                             if (item.name !== row.name) return item
-                            const qty = clockQtyToHours(item.qtyText ?? '')
+                            const qty = decimalHours(item.qtyText ?? '')
                             return {
                               ...item,
                               qty,
-                              qtyText: hoursToClockQty(qty) || item.qtyText,
+                              qtyText: formatDecimalHours(qty) || item.qtyText,
                               amount: (qty * Number(item.rate || 0)).toFixed(2),
                             }
                           })

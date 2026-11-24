@@ -61,7 +61,7 @@ export function PayrollCsvImport({
   const duplicateField = assignedFields.find(
     (fieldId, index) => assignedFields.indexOf(fieldId) !== index,
   )
-  const previewRows = file.rows.slice(0, 5)
+  const previewRows = file.rows
 
   function setHeaderField(header: string, fieldId: string) {
     const next = { ...headerToField }
@@ -211,7 +211,7 @@ export function PayrollCsvImport({
 
         <div>
           <h3 className="mb-2 text-sm font-semibold text-navy">Preview</h3>
-          <div className="overflow-auto rounded-[10px] border border-[#eceae6]">
+          <div className="max-h-[360px] overflow-x-auto overflow-y-auto rounded-[10px] border border-[#eceae6]">
             <table className="min-w-full text-left text-xs text-navy">
               <thead>
                 <tr className="border-b border-[#eceae6] bg-[#f8f7f4]">
@@ -220,7 +220,7 @@ export function PayrollCsvImport({
                     return (
                       <th
                         key={header}
-                        className={`whitespace-nowrap px-3 py-2 font-semibold ${field ? 'text-navy' : 'text-muted'}`}
+                        className={`sticky top-0 z-10 whitespace-nowrap bg-[#f8f7f4] px-3 py-2 font-semibold ${field ? 'text-navy' : 'text-muted'}`}
                       >
                         {field?.label ?? header}
                         {!field ? (
