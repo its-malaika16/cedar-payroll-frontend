@@ -4,7 +4,7 @@ export default function PrivacyPolicy() {
   return (
     <section className="policy-doc">
       <div className="policy-doc-container">
-        <p className="policy-updated">Last updated: 23 November 2026</p>
+        <p className="policy-updated">Last updated: 24 November 2026</p>
 
         <h2>1. Who we are</h2>
         <p>
@@ -20,8 +20,9 @@ export default function PrivacyPolicy() {
         </p>
         <p>
           We are registered with the Information Commissioner’s Office (ICO) as
-          a data controller for our own business operations. You can complain
-          to the ICO at <a href="https://ico.org.uk">ico.org.uk</a>.
+          a data controller for our own business operations. ICO registration
+          reference: ZC308310. You can complain to the ICO at{" "}
+          <a href="https://ico.org.uk">ico.org.uk</a>.
         </p>
 
         <h2>2. What this policy covers</h2>

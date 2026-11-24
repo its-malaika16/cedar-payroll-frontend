@@ -4,13 +4,13 @@ export default function TermsPolicy() {
   return (
     <section className="policy-doc">
       <div className="policy-doc-container">
-        <p className="policy-updated">Last updated: 23 November 2026</p>
+        <p className="policy-updated">Last updated: 24 November 2026</p>
 
         <h2>1. These terms</h2>
         <p>
           These Terms &amp; Conditions (“Terms”) are between you and Cedar
           Payroll Limited, company number 17483590 (“Cedar Payroll”, “we”,
-          “us”). They cover this website at{" "}
+          “us”). ICO registration reference: ZC308310. They cover this website at{" "}
           <a href="https://cedarpayroll.com">cedarpayroll.com</a> and the
           Cedar Payroll software on the web and in the iOS and Android apps.
         </p>
@@ -230,7 +230,8 @@ export default function TermsPolicy() {
 
         <h2>15. Contact</h2>
         <p>
-          Cedar Payroll Limited, company number 17483590.{" "}
+          Cedar Payroll Limited, company number 17483590. ICO registration
+          reference: ZC308310.{" "}
           <a href="mailto:support@cedarpayroll.com">support@cedarpayroll.com</a>{" "}
           · <a href="tel:+971504294194">+971 50 429 4194</a>.
         </p>
