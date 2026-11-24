@@ -69,7 +69,7 @@ type AttendanceRow = DayCell & {
 
 const STATUS_STYLE: Record<AttendanceStatus, string> = {
   Present: 'border-[#bfe3c6] bg-[#eef8f0] text-[#2f8a4b]',
-  Working: 'border-[#c9daf4] bg-[#eaf3fb] text-[#17375e]',
+  Working: 'border-[#1f8a46] bg-[#e7f6ec] text-[#1f8a46]',
   Scheduled: 'border-[#d4dde8] bg-[#e8eef6] text-[#17375e]',
   Absent: 'border-[#f3c4c6] bg-[#fdecec] text-[#d32027]',
   Late: 'border-[#f3d2a8] bg-[#fff6ea] text-[#c2782a]',
@@ -78,7 +78,7 @@ const STATUS_STYLE: Record<AttendanceStatus, string> = {
 }
 
 const LEGEND: { status: AttendanceStatus; swatch: string; label: string }[] = [
-  { status: 'Working', swatch: 'bg-[#7eb6d9]', label: 'Working' },
+  { status: 'Working', swatch: 'bg-[#1f8a46]', label: 'Working' },
   { status: 'Scheduled', swatch: 'bg-[#17375e]', label: 'Scheduled' },
   { status: 'Present', swatch: 'bg-[#2f8a4b]', label: 'Present' },
   { status: 'Absent', swatch: 'bg-[#d32027]', label: 'Absent' },
