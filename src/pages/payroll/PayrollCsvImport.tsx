@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
-import { employeesApi, payrollApi } from '../../api'
+import { companiesApi, employeesApi, payrollApi } from '../../api'
 import { Alert, Button, Card } from '../../components/ui'
 import { fullName, idOf } from '../../lib/format'
 import type { PayrollRecord, PayrollRun } from '../../types'
@@ -11,7 +11,9 @@ import {
   type ParsedCsv,
 } from '../employees/csvImport'
 import { periodPayLabel } from './scheduleWizard/payDateRules'
+import { resolveCompanyPayTypes, type CompanyPayTypeEntry } from './companyPayTypes'
 import {
+  additionImportFlags,
   fieldsForKind,
   hasIdentityMapping,
   IMPORT_KIND_LABEL,
@@ -85,13 +87,15 @@ export function PayrollCsvImport({
     const failed: { row: number; name: string; reason: string }[] = []
     let imported = 0
     try {
-      const [detail, peopleRes] = await Promise.all([
+      const [detail, peopleRes, companyRes] = await Promise.all([
         payrollApi.getRun(companyId, runId),
         employeesApi.list(companyId),
+        companiesApi.get(companyId),
       ])
       const run = detail.data as PayrollRun
       const records = (run.payroll_records ?? []) as PayrollRecord[]
       const companyPeople = peopleRes.data ?? []
+      const additionTypes = resolveCompanyPayTypes(companyRes.data?.employer_defaults).additions
       const used = new Set<string>()
       const fieldHeader = invertCsvMapping(headerToField)
 
@@ -126,7 +130,15 @@ export function PayrollCsvImport({
           continue
         }
         used.add(recordId)
-        const body = buildRecordPayload(row, file.headers, headerToField, fields, record, payFrequency)
+        const body = buildRecordPayload(
+          row,
+          file.headers,
+          headerToField,
+          fields,
+          record,
+          payFrequency,
+          additionTypes,
+        )
         if (!body) {
           failed.push({ row: index + 2, name, reason: 'No mapped payroll values in this row' })
           continue
@@ -323,11 +335,20 @@ function buildRecordPayload(
   fields: PayrollCsvField[],
   record: PayrollRecord,
   payFrequency?: string | null,
+  additionTypes: CompanyPayTypeEntry[] = [],
 ) {
   const fieldHeader = invertCsvMapping(headerToField)
   const value = (fieldId: string) => cellFor(row, headers, fieldHeader[fieldId])
   const body: Record<string, unknown> = {}
-  const extraAdditions: { label: string; amount: number }[] = []
+  const extraAdditions: {
+    label: string
+    amount: number
+    tax?: boolean
+    nics?: boolean
+    employeePension?: boolean
+    employerPension?: boolean
+    notional?: boolean
+  }[] = []
   const deductions: { label: string; amount: number }[] = []
   let dailyQty: number | undefined
   let dailyRate: number | undefined
@@ -367,8 +388,22 @@ function buildRecordPayload(
     }
     const amount = parseCsvNumber(raw)
     if (amount == null) continue
+    if (field.group === 'Additions' || field.lineKind === 'addition') {
+      if (field.dtoField === 'night_allowance') {
+        body.night_allowance = amount
+        continue
+      }
+      // Keep the amount on a pay line so its pension setting is used.
+      // Clear the matching column so the same addition is not counted twice.
+      if (field.dtoField) body[field.dtoField] = 0
+      extraAdditions.push({
+        label: field.label,
+        amount,
+        ...additionImportFlags(field.label, additionTypes),
+      })
+      continue
+    }
     if (field.dtoField) body[field.dtoField] = amount
-    else if (field.lineKind === 'addition') extraAdditions.push({ label: field.label, amount })
     else if (field.lineKind === 'deduction') deductions.push({ label: field.label, amount })
   }
 

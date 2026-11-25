@@ -287,6 +287,7 @@ export function AppLayout() {
       'ROTA_PUBLISHED',
       'ROTA_UPDATED',
       'DOCUMENT_EXPIRING',
+      'DOCUMENT_EXPIRED',
       'LEAVE_REQUESTED',
       'LEAVE_APPROVED',
       'LEAVE_REJECTED',

@@ -105,8 +105,10 @@ export function additionTreatmentFromRecord(record: PayrollRecord | null | undef
     paid: fromFields,
     taxable: fromFields,
     nicable: fromFields,
-    employeePension: 0,
-    employerPension: 0,
+    // Overtime, bonus, holiday pay and the other mapped earnings are pensionable.
+    // A pay line for the same label can turn pension off.
+    employeePension: fromFields,
+    employerPension: fromFields,
     netPay: 0,
   }
 

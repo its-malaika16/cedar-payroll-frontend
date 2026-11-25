@@ -321,13 +321,62 @@ export function matchPayrollRecord(
   )
 }
 
+export type ImportedAddition = {
+  label: string
+  amount: number
+  tax?: boolean
+  nics?: boolean
+  employeePension?: boolean
+  employerPension?: boolean
+  notional?: boolean
+}
+
+type PayTypePensionFlags = {
+  name: string
+  tax?: boolean
+  nics?: boolean
+  employeePension?: boolean
+  employerPension?: boolean
+  notional?: boolean
+}
+
+const PENSIONABLE_ADDITION_NAMES = new Set([
+  'additional pay',
+  'bonus',
+  'car allowance',
+  'commission',
+  'holiday adjustment',
+  'holiday pay',
+  'overtime',
+  'overtime 1 5x',
+  'overtime 2x',
+  'service charge',
+])
+
+/** Pension follows the company pay type. Standard earnings are pensionable unless that type says otherwise. */
+export function additionImportFlags(label: string, catalog: PayTypePensionFlags[] = []): Pick<
+  ImportedAddition,
+  'tax' | 'nics' | 'employeePension' | 'employerPension' | 'notional'
+> {
+  const nameKey = key(label)
+  const entry = catalog.find((item) => key(item.name) === nameKey)
+  const pensionable = PENSIONABLE_ADDITION_NAMES.has(nameKey)
+  return {
+    tax: entry?.tax ?? true,
+    nics: entry?.nics ?? true,
+    employeePension: entry?.employeePension ?? pensionable,
+    employerPension: entry?.employerPension ?? pensionable,
+    notional: entry?.notional ?? false,
+  }
+}
+
 export function mergePayLines(
   existing: PayrollPayLine[] | null | undefined,
   imported: {
     daily?: { qty: number; rate: number }
     periodAmount?: number
     periodLabel?: string
-    extraAdditions: { label: string; amount: number }[]
+    extraAdditions: ImportedAddition[]
   },
 ): PayrollPayLine[] {
   let lines = (existing ?? []).map((line) => ({ ...line }))
@@ -364,14 +413,24 @@ export function mergePayLines(
   }
   for (const addition of imported.extraAdditions) {
     const labelKey = key(addition.label)
+    const flags = {
+      tax: addition.tax,
+      nics: addition.nics,
+      employeePension: addition.employeePension,
+      employerPension: addition.employerPension,
+      notional: addition.notional,
+    }
     const current = lines.find((line) => line.kind === 'addition' && key(line.label) === labelKey)
-    if (current) current.amount = addition.amount
-    else {
+    if (current) {
+      current.amount = addition.amount
+      Object.assign(current, flags)
+    } else {
       lines.push({
         id: `addition-${addition.label}`,
         kind: 'addition',
         label: addition.label,
         amount: addition.amount,
+        ...flags,
       })
     }
   }

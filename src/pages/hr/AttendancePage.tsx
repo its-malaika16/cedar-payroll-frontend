@@ -10,6 +10,17 @@ import { StatCard } from './timesheets/TimesheetStatusBadge'
 import { addDays, dateKey, formatWeekRange, startOfWeek } from './rota/rotaDates'
 import { formatClock, formatTimeRange } from './rota/rotaModel'
 import { HrTitle } from './HrChrome'
+import { AttendancePlaceMap } from './AttendancePlaceMap'
+
+const ARABIC = /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]/
+
+function englishPlace(value?: string | null) {
+  const parts = String(value ?? '')
+    .split(',')
+    .map((part) => part.trim())
+    .filter((part) => part && !ARABIC.test(part))
+  return parts.join(', ')
+}
 
 type AttendanceStatus =
   | 'Present'
@@ -232,6 +243,41 @@ function MarkAttendanceButtons({
   return <span className="text-xs text-muted">—</span>
 }
 
+function AttendanceLocation({ row }: { row: DayCell }) {
+  const place = englishPlace(row.check_in_place)
+  const checkout = englishPlace(row.check_out_place)
+  const latitude = row.check_in_latitude
+  const longitude = row.check_in_longitude
+  if (row.work_site === 'OFFSITE' && latitude != null && longitude != null) {
+    return (
+      <div className="min-w-[220px]">
+        <AttendancePlaceMap
+          latitude={latitude}
+          longitude={longitude}
+          label={place || 'Checked in here'}
+          compact
+          checkoutLatitude={row.check_out_latitude}
+          checkoutLongitude={row.check_out_longitude}
+          checkoutLabel={checkout ? `Checked out: ${checkout}` : 'Checked out here'}
+        />
+        {place ? <p className="mt-1 text-xs font-medium text-navy">{place}</p> : null}
+        {checkout && checkout !== place ? (
+          <p className="mt-0.5 text-[11px] text-muted">Checked out: {checkout}</p>
+        ) : null}
+      </div>
+    )
+  }
+  if (row.work_site === 'OFFSITE') {
+    return (
+      <span>
+        Offsite
+        {row.check_in_at ? <span className="mt-0.5 block text-[11px] text-muted">No phone location</span> : null}
+      </span>
+    )
+  }
+  return <span>Onsite</span>
+}
+
 function WeekCell({ cell }: { cell?: DayCell }) {
   const status = cell?.status ?? 'Day Off'
   const checkIn = clockLabel(cell?.check_in_at, cell?.check_in)
@@ -260,6 +306,9 @@ function WeekCell({ cell }: { cell?: DayCell }) {
           </p>
           {overtimeHours(cell) > 0.01 ? (
             <p className="mt-0.5 text-[10px] font-semibold text-navy/70">OT {overtimeLabel(cell)}</p>
+          ) : null}
+          {englishPlace(cell?.check_in_place) ? (
+            <p className="mt-0.5 truncate text-[10px] text-navy/70">{englishPlace(cell?.check_in_place)}</p>
           ) : null}
         </>
       )}
@@ -486,7 +535,7 @@ export function AttendancePage() {
                     {clockLabel(row.check_out_at, row.check_out)}
                   </td>
                   <td className="px-4 py-3 text-navy/80">
-                    {row.work_site === 'OFFSITE' ? 'Offsite' : 'Onsite'}
+                    <AttendanceLocation row={row} />
                   </td>
                   <td className="px-4 py-3">
                     <BreakTimes row={row} />

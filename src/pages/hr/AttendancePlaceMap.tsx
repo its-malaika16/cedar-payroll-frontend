@@ -23,6 +23,9 @@ export function AttendancePlaceMap({
   workplaceLatitude,
   workplaceLongitude,
   radiusMeters,
+  checkoutLatitude,
+  checkoutLongitude,
+  checkoutLabel,
 }: {
   latitude?: number | null
   longitude?: number | null
@@ -31,6 +34,9 @@ export function AttendancePlaceMap({
   workplaceLatitude?: number | null
   workplaceLongitude?: number | null
   radiusMeters?: number | null
+  checkoutLatitude?: number | null
+  checkoutLongitude?: number | null
+  checkoutLabel?: string | null
 }) {
   const host = useRef<HTMLDivElement>(null)
   const mapRef = useRef<L.Map | null>(null)
@@ -40,17 +46,33 @@ export function AttendancePlaceMap({
     if (Number.isNaN(latitude) || Number.isNaN(longitude)) return
     const map = L.map(host.current, {
       zoomControl: false,
-      attributionControl: true,
+      attributionControl: !compact,
       dragging: true,
       scrollWheelZoom: false,
-    }).setView([latitude, longitude], 16)
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '&copy; OpenStreetMap',
+    }).setView([latitude, longitude], 18)
+    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {
+      attribution: 'Tiles &copy; Esri',
+      maxZoom: 19,
     }).addTo(map)
     const marker = L.marker([latitude, longitude], { icon: pinIcon }).addTo(map)
     if (label) {
       const popup = marker.bindPopup(label, { autoClose: false, closeOnClick: false })
       if (!compact) popup.openPopup()
+    }
+    const checkoutMoved =
+      checkoutLatitude != null &&
+      checkoutLongitude != null &&
+      (Math.abs(checkoutLatitude - latitude) > 0.00015 || Math.abs(checkoutLongitude - longitude) > 0.00015)
+    if (checkoutMoved && checkoutLatitude != null && checkoutLongitude != null) {
+      const checkout = L.circleMarker([checkoutLatitude, checkoutLongitude], {
+        radius: 7,
+        weight: 2,
+        color: '#ffffff',
+        fillColor: '#1f8a46',
+        fillOpacity: 1,
+      }).addTo(map)
+      if (checkoutLabel) checkout.bindPopup(checkoutLabel)
+      map.fitBounds(L.latLngBounds([latitude, longitude], [checkoutLatitude, checkoutLongitude]).pad(0.15))
     }
     if (
       workplaceLatitude != null &&
@@ -74,7 +96,7 @@ export function AttendancePlaceMap({
       map.remove()
       mapRef.current = null
     }
-  }, [latitude, longitude, label, compact, workplaceLatitude, workplaceLongitude, radiusMeters])
+  }, [latitude, longitude, label, compact, workplaceLatitude, workplaceLongitude, radiusMeters, checkoutLatitude, checkoutLongitude, checkoutLabel])
 
   if (latitude == null || longitude == null) return null
 
@@ -83,7 +105,7 @@ export function AttendancePlaceMap({
       {label && !compact ? (
         <p className="bg-[#f8f7f4] px-3 py-2 text-xs font-medium text-navy">{label}</p>
       ) : null}
-      <div ref={host} className={compact ? 'h-24 w-full' : 'h-40 w-full'} />
+      <div ref={host} className={compact ? 'h-36 w-full' : 'h-40 w-full'} />
     </div>
   )
 }
