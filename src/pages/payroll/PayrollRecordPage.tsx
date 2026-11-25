@@ -64,6 +64,7 @@ import {
   pensionableGrossForPayslip,
   payslipNetPay,
   payslipNetPayToDate,
+  pensionAmountAddedAsNetPay,
   allowableDeductionsFromRecord,
   additionTreatmentFromRecord,
   type PayBenefitId,
@@ -745,10 +746,16 @@ export function PayrollRecordPage() {
       rows.push(['Postgraduate loan', record.postgraduate_loan])
     }
     rows.push(['Net pay', payslipNetPay(record)])
+    const employeePension = Number(record.employee_pension ?? 0)
+    const pensionAddedBack = pensionAmountAddedAsNetPay(
+      Number(record.non_tax_non_nic_additions ?? 0),
+      employeePension,
+    )
     const additionsToNet =
       Number(record.non_tax_non_nic_additions ?? 0) +
       Number(record.night_allowance ?? 0) +
-      additions.netPay
+      additions.netPay -
+      pensionAddedBack
     if (additionsToNet > 0) {
       rows.push(['Additions to net pay', additionsToNet])
     }
@@ -765,8 +772,14 @@ export function PayrollRecordPage() {
         ['Employer pension', record.employer_pension],
       )
     }
+    const storedTakeHome = Number(record.take_home_pay ?? 0)
     rows.push(
-      ['Take-home pay', record.take_home_pay],
+      [
+        'Take-home pay',
+        pensionAddedBack > 0
+          ? Math.round((storedTakeHome - pensionAddedBack + Number.EPSILON) * 100) / 100
+          : record.take_home_pay,
+      ],
       ['Cost to employer', record.cost_to_employer],
     )
     return rows
@@ -2849,7 +2862,7 @@ function PayRow({
   }
 
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex flex-wrap items-center gap-2">
       <button
           type="button"
           className="flex size-[35px] shrink-0 items-center justify-center rounded-[6px] border-[0.5px] border-[#d9d9d9] bg-white text-lg leading-none text-navy hover:bg-cream disabled:cursor-not-allowed disabled:opacity-40"
@@ -2861,31 +2874,31 @@ function PayRow({
         </button>
       {label ? <span className="shrink-0 text-xs font-medium text-navy">{label}</span> : null}
       {hideQty ? null : (
-        <div className="flex min-w-[138px]">
+        <div className="flex shrink-0">
           <input
-            className={`${inputClass} w-[72px] min-w-0 rounded-r-none`}
+            className={`${inputClass} pay-line-control w-[72px] shrink-0 rounded-r-none`}
             value={qty}
             placeholder=""
             disabled={locked}
             onChange={(event) => onQtyChange?.(event.target.value)}
             onBlur={onQtyBlur}
           />
-          <span className="flex h-[35px] items-center whitespace-nowrap rounded-r-[6px] border-[0.5px] border-l-0 border-[#d9d9d9] bg-[#f8f7f4] px-3 text-xs text-navy">
+          <span className="flex h-[35px] shrink-0 items-center whitespace-nowrap rounded-r-[6px] border-[0.5px] border-l-0 border-[#d9d9d9] bg-[#f8f7f4] px-3 text-xs text-navy">
             {qtySuffix}
           </span>
         </div>
       )}
       {hideRate ? null : (
         <>
-          <span className="text-xs text-navy">at</span>
+          <span className="shrink-0 text-xs text-navy">at</span>
           {customRate != null ? (
-            <div className="flex min-w-[210px]">
+            <div className="flex shrink-0">
               <span className="flex h-[35px] items-center rounded-l-[6px] border-[0.5px] border-r-0 border-[#d9d9d9] bg-white px-2 text-xs text-navy">
                 £
               </span>
               <input
                 autoFocus
-                className={`${inputClass} w-[72px] rounded-none px-2`}
+                className={`${inputClass} pay-line-control w-[72px] shrink-0 rounded-none px-2`}
                 value={customRate}
                 placeholder="0.00"
                 inputMode="decimal"
@@ -2909,7 +2922,7 @@ function PayRow({
             </div>
           ) : (
           <select
-            className={`${inputClass} min-w-[150px] text-[#718daa] underline`}
+            className={`${inputClass} pay-line-control w-[12.75rem] shrink-0 pr-8 text-[#718daa] underline`}
             value={selected}
             disabled={locked}
             onChange={(event) => {
@@ -2931,7 +2944,7 @@ function PayRow({
           )}
         </>
       )}
-      <div className="ml-auto flex items-center gap-2">
+      <div className="ml-auto flex shrink-0 items-center gap-2">
         {onReverse ? (
           <PortalMenu
             open={editOpen}
@@ -2962,13 +2975,13 @@ function PayRow({
             </MenuItem>
           </PortalMenu>
         ) : null}
-        <div className="flex w-[138px]">
+        <div className="flex w-[8.75rem] shrink-0">
           <span className="flex h-[35px] items-center rounded-l-[6px] border-[0.5px] border-r-0 border-[#d9d9d9] bg-white px-2 text-xs text-navy">
             £
           </span>
           <input
             readOnly={!totalEditable}
-            className={`${inputClass} min-w-0 flex-1 rounded-l-none ${totalEditable ? 'bg-white' : 'bg-[#f8f7f4]'}`}
+            className={`${inputClass} pay-line-control w-[6.25rem] shrink-0 rounded-l-none ${totalEditable ? 'bg-white' : 'bg-[#f8f7f4]'}`}
             value={total}
             placeholder=""
             disabled={locked}

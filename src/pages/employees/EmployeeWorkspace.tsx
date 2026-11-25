@@ -59,6 +59,7 @@ import {
   recommendedNiCategory as recommendedNiFromAge,
   niCategoryLabel,
 } from './niCategories'
+import { MidYearCsvButton } from './MidYearCsvImport'
 import {
   derivedMidYearCost,
   draftFromMidYear,
@@ -1792,11 +1793,26 @@ export function EmployeeWorkspace() {
 
         {tab === 'Mid Year Totals' ? (
           <MidYearTotalsPanel
+            companyId={companyId}
             companyName={company?.company_name || 'This company'}
             employeeName={employeeName}
+            currentEmployeeId={employeeId}
             taxYear={taxYearLabel(taxYearStartFromDate(new Date()))}
             draft={draft.mid_year}
             onChange={(mid_year) => setDraft((current) => ({ ...current, mid_year }))}
+            onStored={(storedId, mid_year) => {
+              if (storedId !== employeeId) return
+              setDraft((current) => ({ ...current, mid_year }))
+              setSavedSnapshot((snapshot) => {
+                if (!snapshot) return snapshot
+                try {
+                  const parsed = JSON.parse(snapshot) as Draft
+                  return JSON.stringify({ ...parsed, mid_year })
+                } catch {
+                  return snapshot
+                }
+              })
+            }}
           />
         ) : null}
 
@@ -2665,17 +2681,23 @@ function parsePaySchedule(value: string) {
 }
 
 function MidYearTotalsPanel({
+  companyId,
   companyName,
   employeeName,
+  currentEmployeeId,
   taxYear,
   draft,
   onChange,
+  onStored,
 }: {
+  companyId?: string | null
   companyName: string
   employeeName: string
+  currentEmployeeId?: string | null
   taxYear: string
   draft: MidYearTotalsDraft
   onChange: (next: MidYearTotalsDraft) => void
+  onStored: (employeeId: string, draft: MidYearTotalsDraft) => void
 }) {
   function setField<K extends keyof Omit<MidYearTotalsDraft, 'ni_rows'>>(
     key: K,
@@ -2696,7 +2718,8 @@ function MidYearTotalsPanel({
   return (
     <div className="grid gap-5">
       <section className="rounded-[10px] border border-[#d9d9d9] bg-white p-5">
-        <div className="grid gap-4 lg:grid-cols-2">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+        <div className="grid min-w-0 flex-1 gap-4 lg:grid-cols-2">
           <p className="text-sm leading-6 text-navy">
             {companyName} is set up to start payroll midway in the {taxYear} tax year, after
             already having processed payroll for part of the year elsewhere. To ensure that
@@ -2708,6 +2731,12 @@ function MidYearTotalsPanel({
             {employeeName} had a previous employment in the tax year, the totals for that previous
             employment should be entered separately in the Starter/Leaver tab.
           </p>
+        </div>
+        <MidYearCsvButton
+          companyId={companyId}
+          currentEmployeeId={currentEmployeeId}
+          onStored={onStored}
+        />
         </div>
       </section>
 

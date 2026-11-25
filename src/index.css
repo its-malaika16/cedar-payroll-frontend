@@ -76,6 +76,10 @@ body,
   max-width: 100%;
 }
 
+.app-main .pay-line-control {
+  max-width: none;
+}
+
 .app-main .overflow-x-auto {
   max-width: 100%;
   -webkit-overflow-scrolling: touch;

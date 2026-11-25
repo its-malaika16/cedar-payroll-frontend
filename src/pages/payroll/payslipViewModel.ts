@@ -8,6 +8,7 @@ import {
 } from '../../lib/format'
 import type { Company, Employee, PayrollPayLine, PayrollRecord, PayrollRun } from '../../types'
 import { parsePayslipDisplayOptions, type PayslipDisplayOptions } from './payslipDisplayOptions'
+import { payslipNetPay } from './payslipMenus'
 
 export type PayslipUnit = 'hours' | 'days'
 
@@ -63,6 +64,7 @@ export type PayslipViewModel = {
     employeeNi: number
     employerNi: number
     employerPension: number
+    payrollNet: number
     netPay: number
   }
   year: number
@@ -317,6 +319,7 @@ export function buildPayslipViewModel(
       employeeNi: amount(record.employee_nic),
       employerNi: amount(record.employer_nic),
       employerPension: amount(record.employer_pension),
+      payrollNet: payslipNetPay(record),
       netPay,
     },
     year: payDate ? new Date(payDate).getUTCFullYear() : new Date().getFullYear(),

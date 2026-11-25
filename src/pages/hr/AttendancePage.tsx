@@ -243,38 +243,58 @@ function MarkAttendanceButtons({
   return <span className="text-xs text-muted">—</span>
 }
 
-function AttendanceLocation({ row }: { row: DayCell }) {
-  const place = englishPlace(row.check_in_place)
-  const checkout = englishPlace(row.check_out_place)
-  const latitude = row.check_in_latitude
-  const longitude = row.check_in_longitude
-  if (row.work_site === 'OFFSITE' && latitude != null && longitude != null) {
+function PunchMap({
+  title,
+  latitude,
+  longitude,
+  place,
+}: {
+  title: string
+  latitude?: number | null
+  longitude?: number | null
+  place?: string | null
+}) {
+  if (latitude == null || longitude == null) {
     return (
-      <div className="min-w-[220px]">
-        <AttendancePlaceMap
-          latitude={latitude}
-          longitude={longitude}
-          label={place || 'Checked in here'}
-          compact
-          checkoutLatitude={row.check_out_latitude}
-          checkoutLongitude={row.check_out_longitude}
-          checkoutLabel={checkout ? `Checked out: ${checkout}` : 'Checked out here'}
+      <div className="min-w-[180px] flex-1">
+        <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.06em] text-muted">{title}</p>
+        <p className="text-xs text-muted">No phone location</p>
+      </div>
+    )
+  }
+  return (
+    <div className="min-w-[200px] flex-1">
+      <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.06em] text-navy">{title}</p>
+      <AttendancePlaceMap latitude={latitude} longitude={longitude} label={place || title} compact />
+      {place ? <p className="mt-1 text-xs font-medium text-navy">{place}</p> : null}
+    </div>
+  )
+}
+
+function AttendanceLocation({ row }: { row: DayCell }) {
+  const checkedIn = row.check_in_latitude != null && row.check_in_longitude != null
+  const checkedOut = row.check_out_latitude != null && row.check_out_longitude != null
+  if (row.work_site === 'OFFSITE' && (checkedIn || checkedOut || row.check_in_at)) {
+    return (
+      <div className="flex min-w-[220px] gap-3">
+        <PunchMap
+          title="Check in"
+          latitude={row.check_in_latitude}
+          longitude={row.check_in_longitude}
+          place={englishPlace(row.check_in_place)}
         />
-        {place ? <p className="mt-1 text-xs font-medium text-navy">{place}</p> : null}
-        {checkout && checkout !== place ? (
-          <p className="mt-0.5 text-[11px] text-muted">Checked out: {checkout}</p>
+        {row.check_out_at || checkedOut ? (
+          <PunchMap
+            title="Check out"
+            latitude={row.check_out_latitude}
+            longitude={row.check_out_longitude}
+            place={englishPlace(row.check_out_place)}
+          />
         ) : null}
       </div>
     )
   }
-  if (row.work_site === 'OFFSITE') {
-    return (
-      <span>
-        Offsite
-        {row.check_in_at ? <span className="mt-0.5 block text-[11px] text-muted">No phone location</span> : null}
-      </span>
-    )
-  }
+  if (row.work_site === 'OFFSITE') return <span>Offsite</span>
   return <span>Onsite</span>
 }
 

@@ -107,7 +107,7 @@ export function PayslipDocument({ model }: { model: PayslipViewModel }) {
           {display.netPay ? (
             <div className="text-right">
               <p className="text-[11px] font-semibold tracking-[0.08em]" style={{ color: NAVY }}>
-                NET PAY
+                TAKE HOME PAY
               </p>
               <p className="mt-1 text-[28px] font-semibold leading-none" style={{ color: NAVY }}>
                 {money(model.netPay)}
@@ -243,8 +243,8 @@ export function PayslipDocument({ model }: { model: PayslipViewModel }) {
           </section>
           ) : null}
           {hasMoney(model.period.taxableGross) ||
-          hasMoney(model.period.taxPaid) ||
           hasMoney(model.period.employeeNi) ||
+          hasMoney(model.period.payrollNet) ||
           hasMoney(model.period.netPay) ||
           (display.employerNi && hasMoney(model.period.employerNi)) ||
           (display.employerPension && hasMoney(model.period.employerPension)) ? (
@@ -253,13 +253,13 @@ export function PayslipDocument({ model }: { model: PayslipViewModel }) {
               THIS PAY PERIOD
             </div>
             <SummaryRow label="Taxable Gross Pay" value={model.period.taxableGross} />
-            <SummaryRow label="Tax Paid" value={model.period.taxPaid} />
             <SummaryRow label="Employee NI" value={model.period.employeeNi} />
             {display.employerNi ? <SummaryRow label="Employer NI" value={model.period.employerNi} /> : null}
             {display.employerPension ? (
               <SummaryRow label="Employer Pension" value={model.period.employerPension} />
             ) : null}
-            {display.netPay ? <SummaryRow label="NET PAY" value={model.period.netPay} highlight /> : null}
+            <SummaryRow label="Net Pay" value={model.period.payrollNet} />
+            {display.netPay ? <SummaryRow label="Take Home Pay" value={model.period.netPay} highlight /> : null}
           </section>
           ) : null}
         </div>

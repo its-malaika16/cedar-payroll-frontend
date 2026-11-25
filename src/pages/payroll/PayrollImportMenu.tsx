@@ -1,4 +1,4 @@
-import { CircleEllipsis, Download, Import } from 'lucide-react'
+import { CircleEllipsis, Import, Upload } from 'lucide-react'
 import { menuItemClass, menuPanel, useMenuOpen } from './CreateSendMenu'
 import type { PayrollImportKind } from './payrollCsv'
 
@@ -38,7 +38,7 @@ export function PayrollImportMenu({
         className="flex h-[47px] w-[49px] items-center justify-center rounded-[8px] bg-navy text-white hover:bg-[#123052]"
         onClick={() => setOpen((value) => !value)}
       >
-        <Download size={20} />
+        <Upload size={20} />
       </button>
       {open ? (
         <div className={`${menuPanel} right-0 w-[420px]`}>

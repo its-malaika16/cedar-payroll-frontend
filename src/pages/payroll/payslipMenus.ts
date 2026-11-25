@@ -54,6 +54,32 @@ function roundMoney(value: number) {
   return Math.round((value + Number.EPSILON) * 100) / 100
 }
 
+/** Round a positive amount up to the next penny when any fraction of a penny remains. */
+function roundPensionUp(value: number) {
+  const pence = value * 100
+  const whole = Math.floor(pence + 1e-8)
+  if (pence - whole > 1e-8) return roundMoney((whole + 1) / 100)
+  return roundMoney(whole / 100)
+}
+
+/**
+ * Relief at source stores the net 4% deduction. The full 5% is that
+ * amount divided by 0.8, rounded up. It is not extra pay.
+ */
+export function reliefAtSourceGrossPension(employeePension: number) {
+  if (!(employeePension > 0)) return 0
+  return roundPensionUp(employeePension / 0.8)
+}
+
+export function pensionAmountAddedAsNetPay(amount: number, employeePension: number) {
+  const gross = reliefAtSourceGrossPension(employeePension)
+  if (!(gross > 0) || !(amount > 0)) return 0
+  if (Math.abs(amount - gross) < 0.005 || Math.abs(amount - employeePension) < 0.005) {
+    return roundMoney(amount)
+  }
+  return 0
+}
+
 const TAXABLE_ADDITION_FIELDS: (keyof PayrollRecord)[] = [
   ...ADDITION_ITEMS.flatMap((item) =>
     item.field && item.field !== 'night_allowance' ? [item.field] : [],
