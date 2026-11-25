@@ -7,7 +7,7 @@ const contacts = [
     width: 36,
     height: 36,
     title: "Phone Number",
-    line1: "+971 50 429 4194",
+    line1: "020 3780 5573",
     line2: "Mon–Fri, 9:00 AM – 5:00 PM",
   },
   {

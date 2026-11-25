@@ -27,7 +27,7 @@ const PAGES: Record<string, { title: string; description: string }> = {
   },
   '/contact': {
     title: 'Contact | Cedar Payroll',
-    description: 'Contact Cedar Payroll Limited: support@cedarpayroll.com or +971 50 429 4194.',
+    description: 'Contact Cedar Payroll Limited: support@cedarpayroll.com or 020 3780 5573.',
   },
   '/support': {
     title: 'Support | Cedar Payroll',

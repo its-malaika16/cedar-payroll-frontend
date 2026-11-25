@@ -3,7 +3,7 @@
 Ask for a quote or support. We reply on working days.
 
 - Email: <support@cedarpayroll.com>
-- Phone: +971 50 429 4194
+- Phone: 020 3780 5573
 - Address: United Kingdom
 - Hours: Monday to Friday, 9:00 to 17:30
 

@@ -16,7 +16,7 @@ export default function PrivacyPolicy() {
         <p>
           Company number: 17483590. Contact:{" "}
           <a href="mailto:support@cedarpayroll.com">support@cedarpayroll.com</a>{" "}
-          or <a href="tel:+971504294194">+971 50 429 4194</a>.
+          or <a href="tel:+442037805573">020 3780 5573</a>.
         </p>
         <p>
           We are registered with the Information Commissioner’s Office (ICO) as

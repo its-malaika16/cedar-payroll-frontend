@@ -12,4 +12,4 @@ A single platform for pay, HMRC, leave, and employee self-service, on the web an
 
 ## Contact
 
-support@cedarpayroll.com · +971 50 429 4194 · United Kingdom
+support@cedarpayroll.com · 020 3780 5573 · United Kingdom

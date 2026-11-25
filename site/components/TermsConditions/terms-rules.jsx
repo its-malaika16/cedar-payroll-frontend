@@ -233,7 +233,7 @@ export default function TermsPolicy() {
           Cedar Payroll Limited, company number 17483590. ICO registration
           reference: ZC308310.{" "}
           <a href="mailto:support@cedarpayroll.com">support@cedarpayroll.com</a>{" "}
-          · <a href="tel:+971504294194">+971 50 429 4194</a>.
+          · <a href="tel:+442037805573">020 3780 5573</a>.
         </p>
       </div>
     </section>

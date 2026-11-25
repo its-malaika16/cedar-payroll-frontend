@@ -14,7 +14,7 @@ Cedar Payroll is UK payroll software for employers, bureau staff, and employees.
 Cedar Payroll Limited. United Kingdom.
 
 - Email: support@cedarpayroll.com
-- Phone: +971 50 429 4194
+- Phone: 020 3780 5573
 - Hours: Monday to Friday, 9:00 to 17:30
 
 ## Links
