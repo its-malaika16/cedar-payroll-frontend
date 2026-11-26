@@ -14,8 +14,10 @@ import iconPerson from '../../assets/brand/icon-person.png'
 import iconPlus from '../../assets/brand/icon-plus.svg'
 import iconBenefits from '../../assets/brand/icon-benefits.png'
 import iconPensions from '../../assets/brand/icon-pensions.svg'
+import { CsvTemplateDialog } from '../../components/CsvTemplateDownload'
+import { assignCsvHeaders } from '../../components/csvTemplate'
 import { EmployeeCsvImport } from './EmployeeCsvImport'
-import { guessCsvMapping, parseCsvText, type ParsedCsv } from './csvImport'
+import { CSV_FIELD_GROUPS, EMPLOYEE_CSV_FIELDS, guessCsvMapping, parseCsvText, type ParsedCsv } from './csvImport'
 import { EmployeesFormsMenu } from './EmployeesFormsMenu'
 import { formLabel, isFormType } from './formsOptions'
 
@@ -66,6 +68,7 @@ export function EmployeesPage() {
   const [departmentFilter, setDepartmentFilter] = useState('')
   const [scheduleFilter, setScheduleFilter] = useState('')
   const [addOpen, setAddOpen] = useState(false)
+  const [templateOpen, setTemplateOpen] = useState(false)
   const [csvFile, setCsvFile] = useState<ParsedCsv | null>(null)
   const [csvMapping, setCsvMapping] = useState<Record<string, string>>({})
   const [csvError, setCsvError] = useState<string | null>(null)
@@ -269,6 +272,16 @@ export function EmployeesPage() {
             }}
           >
             Upload CSV
+          </button>
+          <button
+            type="button"
+            className="flex w-full px-3 py-2 text-left text-xs font-medium text-navy hover:bg-cream"
+            onClick={() => {
+              setAddOpen(false)
+              setTemplateOpen(true)
+            }}
+          >
+            Download template
           </button>
           <button
             type="button"
@@ -676,6 +689,17 @@ export function EmployeesPage() {
             document.body,
           )
         : null}
+      {templateOpen ? (
+        <CsvTemplateDialog
+          title="Employee details template"
+          description="Choose the columns to include. First name, last name, date of birth and gender stay in the file because every employee row needs them."
+          filename="employee-details-template.csv"
+          columns={assignCsvHeaders(
+            CSV_FIELD_GROUPS.flatMap((group) => EMPLOYEE_CSV_FIELDS.filter((field) => field.group === group)),
+          )}
+          onClose={() => setTemplateOpen(false)}
+        />
+      ) : null}
     </div>
   )
 }

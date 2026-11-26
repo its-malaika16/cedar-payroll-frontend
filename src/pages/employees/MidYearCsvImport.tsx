@@ -1,6 +1,8 @@
 import { useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { employeesApi } from '../../api'
+import { CsvTemplateDialog } from '../../components/CsvTemplateDownload'
+import { assignCsvHeaders } from '../../components/csvTemplate'
 import { Alert, Button } from '../../components/ui'
 import { fullName, idOf } from '../../lib/format'
 import type { Employee } from '../../types'
@@ -32,6 +34,7 @@ export function MidYearCsvButton({
   const [file, setFile] = useState<ParsedCsv | null>(null)
   const [mapping, setMapping] = useState<Record<string, string>>({})
   const [error, setError] = useState<string | null>(null)
+  const [templateOpen, setTemplateOpen] = useState(false)
 
   async function onPicked(picked: File | undefined) {
     if (!picked) return
@@ -47,15 +50,25 @@ export function MidYearCsvButton({
 
   return (
     <>
-      <Button
-        type="button"
-        variant="secondary"
-        className="h-10 shrink-0 px-3 text-xs"
-        disabled={!companyId}
-        onClick={() => inputRef.current?.click()}
-      >
-        Upload CSV
-      </Button>
+      <div className="flex shrink-0 flex-col gap-2">
+        <Button
+          type="button"
+          variant="secondary"
+          className="h-10 px-3 text-xs"
+          disabled={!companyId}
+          onClick={() => inputRef.current?.click()}
+        >
+          Upload CSV
+        </Button>
+        <Button
+          type="button"
+          variant="secondary"
+          className="h-10 px-3 text-xs"
+          onClick={() => setTemplateOpen(true)}
+        >
+          Download template
+        </Button>
+      </div>
       <input
         ref={inputRef}
         type="file"
@@ -84,6 +97,17 @@ export function MidYearCsvButton({
             document.body,
           )
         : null}
+      {templateOpen ? (
+        <CsvTemplateDialog
+          title="Mid year totals template"
+          description="Choose the columns to include. First name and last name stay in the file so each row can be matched to an employee."
+          filename="mid-year-totals-template.csv"
+          columns={assignCsvHeaders(
+            MID_YEAR_CSV_GROUPS.flatMap((group) => MID_YEAR_CSV_FIELDS.filter((field) => field.group === group)),
+          )}
+          onClose={() => setTemplateOpen(false)}
+        />
+      ) : null}
     </>
   )
 }
