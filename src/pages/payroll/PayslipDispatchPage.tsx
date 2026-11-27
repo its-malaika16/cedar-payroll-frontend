@@ -24,6 +24,8 @@ import {
   type PayslipDisplayOptions,
 } from './payslipDisplayOptions'
 import { hmrcPeriodLabel, parseDateKey } from './scheduleWizard/payDateRules'
+import { payslipCompanyName } from './payslipViewModel'
+import type { Company } from '../../types'
 
 const DEFAULT_BODY = `Dear [First name] [Surname],
 
@@ -109,7 +111,6 @@ export function PayslipDispatchPage() {
   const { companyId, user, companies } = useAuth()
   const isDownload = mode === 'download'
   const preselect = params.get('recordId') ?? ''
-  const companyName = companies.find((company) => company.id === companyId)?.name ?? 'your employer'
 
   const [selected, setSelected] = useState<string[]>(preselect ? [preselect] : [])
   const [error, setError] = useState<string | null>(null)
@@ -131,6 +132,10 @@ export function PayslipDispatchPage() {
     queryFn: () => companiesApi.get(companyId!),
     enabled: Boolean(companyId),
   })
+  const companyName =
+    payslipCompanyName(companyQuery.data?.data as Company | undefined) ||
+    companies.find((company) => company.id === companyId)?.name ||
+    'your employer'
 
   const runQuery = useQuery({
     queryKey: ['payroll-run', companyId, runId],

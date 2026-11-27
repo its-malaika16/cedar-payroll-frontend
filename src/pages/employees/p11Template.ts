@@ -8,6 +8,7 @@ import {
   money,
   moneyWhole,
   sheetDate,
+  sheetPageCss,
 } from './sheetFormat'
 
 function genderLabel(value?: string | null) {
@@ -66,13 +67,8 @@ ${SHEET_FIELD_CSS}
 .p11-table thead th { border-bottom: 1px solid #d9d9d9; }
 .p11-table tfoot td { font-weight: 700; border-bottom: none; }
 .p11-table .empty { text-align: left; color: #7a8794; }
-.sheet-page { padding: 10px 12px 16px; }
-@media print {
-  .p11-sheet { width: auto; }
-  .sheet-page { page-break-after: always; padding: 0; }
-  .sheet-page:last-child { page-break-after: auto; }
-}
-@page { size: A4 landscape; margin: 8mm; }
+${sheetPageCss('landscape')}
+@media print { .p11-sheet { width: auto; } }
 `
 
 function headRow(headers: string[], widths?: string[]) {

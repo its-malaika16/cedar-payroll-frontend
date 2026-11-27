@@ -2,12 +2,13 @@ import { useEffect, useMemo, useState } from 'react'
 import { useMatch, useNavigate, useParams } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { CheckSquare, ChevronLeft, HelpCircle, Square } from 'lucide-react'
-import { documentsApi, employeesApi } from '../../api'
+import { companiesApi, documentsApi, employeesApi } from '../../api'
 import { useAuth } from '../../auth/AuthContext'
 import { Alert, Button } from '../../components/ui'
 import { BrandIcon } from '../../components/BrandIcon'
 import { fullName, idOf } from '../../lib/format'
-import type { Employee } from '../../types'
+import type { Company, Employee } from '../../types'
+import { payslipCompanyName } from '../payroll/payslipViewModel'
 import iconPerson from '../../assets/brand/icon-person.png'
 import type { FormPreview } from './formPreview'
 import { EMAIL_INSERTS, currentTaxYear, formLabel, isFormType } from './formsOptions'
@@ -31,7 +32,15 @@ export function EmployeeFormsBulkPage() {
   const type = isFormType(formType) ? formType : 'p11'
   const printable = hasSheetTemplate(type)
   const packTitle = printable ? sheetPackTitle(type, year.name) : `${formLabel(type)} ${year.name}`
-  const companyName = companies.find((company) => company.id === companyId)?.name ?? ''
+  const companyQuery = useQuery({
+    queryKey: ['company', companyId],
+    queryFn: () => companiesApi.get(companyId!),
+    enabled: Boolean(companyId),
+  })
+  const companyName =
+    payslipCompanyName(companyQuery.data?.data as Company | undefined) ||
+    companies.find((company) => company.id === companyId)?.name ||
+    ''
   const [selected, setSelected] = useState<string[]>([])
   const [replyTo, setReplyTo] = useState(user?.email ?? '')
   const [cc, setCc] = useState('')

@@ -8,6 +8,7 @@ import {
   fieldHtml as field,
   money,
   moneyWhole,
+  sheetPageCss,
 } from './sheetFormat'
 
 export const P60_CSS = `
@@ -41,13 +42,8 @@ ${SHEET_FIELD_CSS}
 .p60-amount span:last-child { font-variant-numeric: tabular-nums; }
 .p60-note { margin: 0 0 8px; font-size: 9.5px; color: #7a8794; }
 .p60-footer { margin-top: 14px; font-size: 9.5px; line-height: 1.5; color: #17375e; }
-.sheet-page { padding: 10px 12px 16px; }
-@media print {
-  .p60-sheet { width: auto; }
-  .sheet-page { page-break-after: always; padding: 0; }
-  .sheet-page:last-child { page-break-after: auto; }
-}
-@page { size: A4 portrait; margin: 12mm; }
+${sheetPageCss('portrait')}
+@media print { .p60-sheet { width: auto; } }
 `
 
 function amount(label: string, value: string) {

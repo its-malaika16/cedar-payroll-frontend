@@ -1,6 +1,6 @@
 import type { FormPreview } from './formPreview'
 import { p11dSections, type P11dRow } from './p11dRows'
-import { SHEET_FIELD_CSS, dash, employeeName, esc, fieldHtml as field, sheetDate } from './sheetFormat'
+import { SHEET_FIELD_CSS, dash, employeeName, esc, fieldHtml as field, sheetDate, sheetPageCss } from './sheetFormat'
 
 function genderLabel(value?: string | null) {
   const raw = (value ?? '').trim()
@@ -40,13 +40,8 @@ ${SHEET_FIELD_CSS}
 .p11d-box { display: inline-flex; align-items: center; justify-content: center; min-width: 15px; height: 15px; padding: 0 3px; background: #17375e; color: #fff; font-size: 8.5px; font-weight: 700; }
 .p11d-1a { display: inline-flex; align-items: center; justify-content: center; min-width: 17px; height: 15px; padding: 0 3px; border: 1px solid #d32027; color: #d32027; font-size: 8.5px; font-weight: 700; }
 .p11d-empty { margin-top: 14px; border: 1px solid #d9d9d9; background: #f8f7f4; padding: 26px 16px; text-align: center; font-size: 11px; }
-.sheet-page { padding: 10px 12px 16px; }
-@media print {
-  .p11d-sheet { width: auto; }
-  .sheet-page { page-break-after: always; padding: 0; }
-  .sheet-page:last-child { page-break-after: auto; }
-}
-@page { size: A4 portrait; margin: 12mm; }
+${sheetPageCss('portrait')}
+@media print { .p11d-sheet { width: auto; } }
 `
 
 function rowHtml(row: P11dRow) {

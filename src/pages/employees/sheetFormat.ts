@@ -57,6 +57,41 @@ export function fieldHtml(label: string, value: string) {
   return `<p class="sheet-field"><span class="sheet-label">${esc(label)}</span><span class="sheet-value">${value}</span></p>`
 }
 
+/** On-screen A4 sheet. Print uses the matching @page size and drops the fixed box. */
+export function sheetPageCss(orientation: 'portrait' | 'landscape') {
+  const landscape = orientation === 'landscape'
+  const width = landscape ? '297mm' : '210mm'
+  const height = landscape ? '210mm' : '297mm'
+  const pad = landscape ? '8mm' : '12mm'
+  return `
+html, body { margin: 0; padding: 0; background: #e8ebe9; }
+.sheet-page {
+  width: ${width};
+  min-height: ${height};
+  margin: 12px auto;
+  padding: ${pad};
+  background: #fff;
+  box-shadow: 0 1px 8px rgba(23,55,94,0.12);
+  box-sizing: border-box;
+  page-break-after: always;
+}
+.sheet-page:last-child { page-break-after: auto; }
+@media print {
+  html, body { background: #fff; }
+  .sheet-page {
+    width: auto;
+    min-height: 0;
+    margin: 0;
+    padding: 0;
+    box-shadow: none;
+    page-break-after: always;
+  }
+  .sheet-page:last-child { page-break-after: auto; }
+}
+@page { size: A4 ${orientation}; margin: ${pad}; }
+`
+}
+
 export const SHEET_FIELD_CSS = `
 .sheet-field { margin: 0 0 8px; }
 .sheet-label { display: block; font-size: 9.5px; font-style: italic; color: #7a8794; }

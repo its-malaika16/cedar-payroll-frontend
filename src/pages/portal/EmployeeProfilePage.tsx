@@ -5,7 +5,6 @@ import { fullName } from '../../lib/format'
 
 export function EmployeeProfilePage() {
   const auth = useAuth()
-  const company = auth.companies.find((item) => item.id === auth.companyId)
   const employee = auth.currentEmployee
 
   return (
@@ -29,7 +28,7 @@ export function EmployeeProfilePage() {
           </div>
           <div>
             <dt className="text-xs font-medium text-muted">Company</dt>
-            <dd className="mt-1 text-sm font-semibold text-navy">{company?.name || '—'}</dd>
+            <dd className="mt-1 text-sm font-semibold text-navy">{employee?.company_name || '—'}</dd>
           </div>
           <div>
             <dt className="text-xs font-medium text-muted">Employee number</dt>

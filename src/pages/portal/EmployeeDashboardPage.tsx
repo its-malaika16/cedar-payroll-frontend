@@ -495,11 +495,11 @@ function hoursLabel(value: number) {
 }
 
 export function EmployeeDashboardPage() {
-  const { companyId, currentEmployee, user, companies, companyHasModule } = useAuth()
+  const { companyId, currentEmployee, user, companyHasModule } = useAuth()
   const hasPayroll = companyHasModule('PAYROLL')
   const hasHr = companyHasModule('HR')
   const employeeId = currentEmployee?.employee_id
-  const company = companies.find((item) => item.id === companyId)
+  const companyLabel = currentEmployee?.company_name || 'Your company'
   const query = useQuery({
     queryKey: ['employee-dashboard', companyId, employeeId],
     queryFn: () => employeesApi.portalDashboard(companyId!, employeeId!),
@@ -541,7 +541,7 @@ export function EmployeeDashboardPage() {
     <div>
       <h1 className="text-[32px] font-semibold leading-none text-navy">Dashboard</h1>
       <p className="mt-3 text-lg font-medium text-navy">Welcome, {name}</p>
-      <p className="mt-1 text-sm text-muted">{company?.name || 'Your company'}</p>
+      <p className="mt-1 text-sm text-muted">{companyLabel}</p>
 
       {hasHr ? <TodayShiftPanel today={todayShift} now={now} /> : null}
 

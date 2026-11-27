@@ -52,7 +52,7 @@ function SheetDocument({
       title={title}
       className="w-full rounded-[10px] border border-[#d9d9d9] bg-[#e8ebe9]"
       srcDoc={html}
-      style={{ minHeight: type === 'p45' ? 1680 : 1200 }}
+      style={{ minHeight: type === 'p45' ? 4600 : type === 'p11' ? 820 : 1140 }}
       onLoad={(event) => {
         const frame = event.currentTarget
         const height = frame.contentDocument?.documentElement.scrollHeight

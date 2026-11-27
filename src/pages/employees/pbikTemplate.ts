@@ -1,7 +1,7 @@
 import { money } from '../../lib/format'
 import type { FormPreview } from './formPreview'
 import { p11dSections, sectionTaxedTotal, type P11dRow } from './p11dRows'
-import { SHEET_FIELD_CSS, dash, employeeName, esc, fieldHtml as field, sheetDate } from './sheetFormat'
+import { SHEET_FIELD_CSS, dash, employeeName, esc, fieldHtml as field, sheetDate, sheetPageCss } from './sheetFormat'
 
 function genderLabel(value?: string | null) {
   const raw = (value ?? '').trim()
@@ -39,13 +39,8 @@ ${SHEET_FIELD_CSS}
 .pbik-total { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 6px 10px; border-top: 2px solid #17375e; font-size: 10.5px; font-weight: 700; text-transform: uppercase; }
 .pbik-total .amount { font-variant-numeric: tabular-nums; }
 .pbik-empty { margin-top: 14px; border: 1px solid #d9d9d9; background: #f8f7f4; padding: 26px 16px; text-align: center; font-size: 11px; }
-.sheet-page { padding: 10px 12px 16px; }
-@media print {
-  .pbik-sheet { width: auto; }
-  .sheet-page { page-break-after: always; padding: 0; }
-  .sheet-page:last-child { page-break-after: auto; }
-}
-@page { size: A4 portrait; margin: 12mm; }
+${sheetPageCss('portrait')}
+@media print { .pbik-sheet { width: auto; } }
 `
 
 function rowHtml(row: P11dRow) {

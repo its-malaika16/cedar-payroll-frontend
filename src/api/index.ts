@@ -244,6 +244,12 @@ export const employeesApi = {
         generated_at?: string
       }>
     >(`/companies/${companyId}/employees/${employeeId}/me/forms`),
+  myForm: (companyId: string, employeeId: string, documentId: string) =>
+    get<{
+      document_type?: string
+      form_name?: string
+      preview?: Record<string, unknown>
+    }>(`/companies/${companyId}/employees/${employeeId}/me/forms/${documentId}`),
   myFormHtml: (companyId: string, employeeId: string, documentId: string, filename?: string) =>
     filename
       ? download(

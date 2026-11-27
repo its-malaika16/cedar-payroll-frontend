@@ -115,6 +115,9 @@ export function EmployeeLayout() {
     auth.employeeAccess.some((access) => access.company_id === item.id),
   )
   const company = employeeCompanies.find((item) => item.id === auth.companyId) ?? employeeCompanies[0]
+  const payslipName = (id: string, fallback = '') =>
+    auth.employeeAccess.find((item) => item.company_id === id)?.company_name || fallback
+  const shownCompanyName = company ? payslipName(company.id, '') : ''
   const hasPayroll = auth.companyHasModule('PAYROLL')
   const navItems = mainNav.filter((item) => item.to !== '/portal/payslips' || hasPayroll)
   const notifications = useQuery({
@@ -200,7 +203,7 @@ export function EmployeeLayout() {
         </>
       }
       headerLeft={
-        company?.name ? (
+        shownCompanyName ? (
           <label className="relative min-w-0 w-full max-w-none shrink-0 sm:w-auto sm:min-w-[180px] sm:max-w-[280px]">
             <Building2
               size={16}
@@ -215,13 +218,13 @@ export function EmployeeLayout() {
               >
                 {employeeCompanies.map((item) => (
                   <option key={item.id} value={item.id}>
-                    {item.name}
+                    {payslipName(item.id)}
                   </option>
                 ))}
               </select>
             ) : (
               <span className="flex h-[42px] items-center truncate rounded-[15px] border border-[#d9d9d9] bg-white pr-4 pl-11 text-[15px] font-medium text-navy">
-                {company.name}
+                {shownCompanyName}
               </span>
             )}
           </label>
@@ -244,7 +247,7 @@ export function EmployeeLayout() {
         </>
       }
     >
-      <Outlet context={{ companyName: company?.name ?? '' }} />
+      <Outlet context={{ companyName: shownCompanyName }} />
     </ResponsiveShell>
   )
 }

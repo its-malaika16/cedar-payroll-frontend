@@ -125,6 +125,18 @@ function formatAddress(employee?: Employee) {
   return String(address.address ?? '').trim()
 }
 
+export function payslipCompanyName(company?: {
+  company_name?: string | null
+  trading_name?: string | null
+  employer_defaults?: { payslip_company_name?: string | null } | null
+} | null) {
+  return (
+    String(company?.employer_defaults?.payslip_company_name ?? '').trim() ||
+    String(company?.trading_name ?? '').trim() ||
+    String(company?.company_name ?? '').trim()
+  )
+}
+
 export function buildPayslipViewModel(
   record: PayrollRecord,
   run: PayrollRun | undefined,
@@ -261,10 +273,7 @@ export function buildPayslipViewModel(
   const combined = ytd?.combined ?? thisEmployment
   const totalDeductions = amount(deductions.reduce((sum, line) => sum + line.amount, 0))
   const payDate = run?.pay_date ?? record.pay_date
-  const companyName =
-    String(company?.employer_defaults?.payslip_company_name ?? '').trim() ||
-    String(company?.trading_name ?? '').trim() ||
-    String(company?.company_name ?? '').trim()
+  const companyName = payslipCompanyName(company)
   const starter = firstRecord(employee?.starters_leavers)
   if (display.notionalPay) {
     const notional = extraPay

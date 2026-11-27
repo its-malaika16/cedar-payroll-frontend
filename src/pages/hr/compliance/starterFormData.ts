@@ -308,7 +308,10 @@ export async function loadStarterFormData(
   const lastName = text(employee.last_name)
 
   const form: StarterFormData = {
-    employerName: text(company.trading_name) || text(company.company_name),
+    employerName:
+      text(company.employer_defaults?.payslip_company_name) ||
+      text(company.trading_name) ||
+      text(company.company_name),
     title: text(employee.title),
     gender: genderMark(employee.gender),
     maritalStatus: '',

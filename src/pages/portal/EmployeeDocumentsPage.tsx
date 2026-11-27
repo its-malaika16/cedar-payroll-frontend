@@ -15,13 +15,18 @@ import {
   MoreVertical,
   Search,
   UserRound,
+  X,
   XCircle,
 } from 'lucide-react'
-import { hrApi } from '../../api'
+import { employeesApi, hrApi } from '../../api'
 import { download } from '../../api/client'
 import { useAuth } from '../../auth/AuthContext'
 import { DocumentPreviewModal } from '../../components/DocumentPreviewModal'
 import { Alert, Button, Loading } from '../../components/ui'
+import { FormDocument } from '../employees/FormDocuments'
+import type { FormPreview } from '../employees/formPreview'
+import { isFormType, type FormType } from '../employees/formsOptions'
+import { downloadBlobFile, sheetsFromPreviews } from '../employees/formPdf'
 import {
   ALL_COMPLIANCE_TYPES,
   typesFor,
@@ -80,6 +85,23 @@ function typeLabel(item: ComplianceDocumentType) {
   return item.requiresExpiry && !/\(expiry\)/i.test(item.label) ? `${item.label} (expiry)` : item.label
 }
 
+type PayrollForm = {
+  id: string
+  form_name?: string
+  document_type?: string
+  tax_year_start?: number
+  tax_year_end?: number
+  generated_at?: string
+}
+
+function formTitle(item: PayrollForm) {
+  const year =
+    item.tax_year_start && item.tax_year_end
+      ? ` ${item.tax_year_start}/${String(item.tax_year_end).slice(-2)}`
+      : ''
+  return `${item.form_name || 'Form'}${year}`
+}
+
 export function EmployeeDocumentsPage() {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
@@ -93,6 +115,8 @@ export function EmployeeDocumentsPage() {
   const [viewer, setViewer] = useState<ComplianceFile | null>(null)
   const [confirmDelete, setConfirmDelete] = useState<ComplianceFile | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [openForm, setOpenForm] = useState<{ type: FormType; data: FormPreview } | null>(null)
+  const [formBusy, setFormBusy] = useState<string | null>(null)
 
   const query = useQuery({
     queryKey: ['my-compliance', companyId, employeeId],
@@ -100,6 +124,12 @@ export function EmployeeDocumentsPage() {
     enabled: Boolean(companyId && employeeId),
   })
   const documents = (query.data?.data as ComplianceFile[] | undefined) ?? []
+  const formsQuery = useQuery({
+    queryKey: ['my-forms', companyId, employeeId],
+    queryFn: () => employeesApi.myForms(companyId!, employeeId!),
+    enabled: Boolean(companyId && employeeId),
+  })
+  const forms = (formsQuery.data?.data as PayrollForm[] | undefined) ?? []
   const remove = useMutation({
     mutationFn: (id: string) => hrApi.deleteCompliance(companyId!, id),
     onSuccess: async () => {
@@ -129,12 +159,68 @@ export function EmployeeDocumentsPage() {
     })
   }, [documents, search, statusFilter, tab])
 
+  const visibleForms = useMemo(() => {
+    const needle = search.trim().toLowerCase()
+    return forms.filter((item) => {
+      if (tab === 'mine') return false
+      if (statusFilter === 'soon' || statusFilter === 'expired') return false
+      if (!needle) return true
+      return formTitle(item).toLowerCase().includes(needle)
+    })
+  }, [forms, search, statusFilter, tab])
+
   const stats = {
-    total: documents.length,
-    valid: documents.filter((doc) => doc.expiry_state !== 'soon' && doc.expiry_state !== 'expired').length,
+    total: documents.length + forms.length,
+    valid:
+      documents.filter((doc) => doc.expiry_state !== 'soon' && doc.expiry_state !== 'expired').length +
+      forms.length,
     soon: documents.filter((doc) => doc.expiry_state === 'soon').length,
     expired: documents.filter((doc) => doc.expiry_state === 'expired').length,
   }
+
+  async function loadEmployeeForm(item: PayrollForm) {
+    const typeName = String(item.document_type || item.form_name || '').toLowerCase()
+    if (!isFormType(typeName) || !companyId || !employeeId) {
+      throw new Error('This form cannot be opened.')
+    }
+    const result = await employeesApi.myForm(companyId, employeeId, String(item.id))
+    const data = result.data?.preview as FormPreview | undefined
+    if (!data) throw new Error('This form could not be opened.')
+    if (data.eligible === false) {
+      throw new Error(data.message || data.detail || 'This form could not be opened.')
+    }
+    return { type: typeName, data }
+  }
+
+  async function viewForm(item: PayrollForm) {
+    const id = String(item.id)
+    setFormBusy(id)
+    setError(null)
+    try {
+      setOpenForm(await loadEmployeeForm(item))
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'This form could not be opened.')
+    } finally {
+      setFormBusy(null)
+    }
+  }
+
+  async function downloadForm(item: PayrollForm) {
+    const id = String(item.id)
+    setFormBusy(id)
+    setError(null)
+    try {
+      const loaded = await loadEmployeeForm(item)
+      const [sheet] = await sheetsFromPreviews(loaded.type, [loaded.data])
+      downloadBlobFile(new Blob([sheet.html], { type: 'text/html' }), sheet.filename)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'This form could not be downloaded.')
+    } finally {
+      setFormBusy(null)
+    }
+  }
+
+  const listedCount = visible.length + visibleForms.length
 
   return (
     <div>
@@ -256,11 +342,11 @@ export function EmployeeDocumentsPage() {
           </div>
         </div>
 
-        {query.isLoading ? (
+        {query.isLoading || formsQuery.isLoading ? (
           <div className="px-5 py-8">
             <Loading />
           </div>
-        ) : visible.length === 0 ? (
+        ) : listedCount === 0 ? (
           <p className="px-5 py-10 text-sm text-muted">No documents match this view yet.</p>
         ) : (
           <div className="overflow-x-auto">
@@ -277,6 +363,63 @@ export function EmployeeDocumentsPage() {
                 </tr>
               </thead>
               <tbody>
+                {visibleForms.map((item) => {
+                  const id = String(item.id)
+                  const title = formTitle(item)
+                  return (
+                    <tr key={`form-${id}`} className="border-t border-[#f3f1ec]">
+                      <td className="px-5 py-4">
+                        <div className="flex min-w-0 items-start gap-3">
+                          <span className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-[10px] bg-[#eef2f6] text-navy">
+                            <FileText size={16} />
+                          </span>
+                          <div className="min-w-0">
+                            <p className="truncate font-semibold text-navy">{title}</p>
+                            <p className="truncate text-xs text-muted">Payroll form</p>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-5 py-4 text-sm text-navy">Company</td>
+                      <td className="px-5 py-4">
+                        <span className="inline-flex items-center gap-2 text-sm text-navy">
+                          <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-[#eef2f6] text-navy">
+                            <UserRound size={14} />
+                          </span>
+                          Admin
+                        </span>
+                      </td>
+                      <td className="whitespace-nowrap px-5 py-4 text-navy">{prettyDate(item.generated_at)}</td>
+                      <td className="whitespace-nowrap px-5 py-4 text-navy">—</td>
+                      <td className="px-5 py-4">
+                        <span className="inline-flex rounded-full bg-[#e7f6ec] px-2.5 py-1 text-xs font-semibold text-[#1b7d4f]">
+                          Valid
+                        </span>
+                      </td>
+                      <td className="px-5 py-4">
+                        <div className="flex flex-nowrap items-center justify-end gap-0.5 text-navy">
+                          <button
+                            type="button"
+                            aria-label="View"
+                            disabled={formBusy === id}
+                            className="flex size-8 shrink-0 items-center justify-center rounded-[6px] text-navy hover:bg-[#f7f6f3] disabled:opacity-40"
+                            onClick={() => void viewForm(item)}
+                          >
+                            <Eye size={16} />
+                          </button>
+                          <button
+                            type="button"
+                            aria-label="Download"
+                            disabled={formBusy === id}
+                            className="flex size-8 shrink-0 items-center justify-center rounded-[6px] text-navy hover:bg-[#f7f6f3] disabled:opacity-40"
+                            onClick={() => void downloadForm(item)}
+                          >
+                            <Download size={16} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  )
+                })}
                 {visible.map((doc) => {
                   const status = displayStatus(doc)
                   return (
@@ -337,9 +480,27 @@ export function EmployeeDocumentsPage() {
           </div>
         )}
         <p className="border-t border-[#eceae6] px-5 py-3 text-xs text-muted">
-          Showing {visible.length ? 1 : 0} to {visible.length} out of {visible.length} documents
+          Showing {listedCount ? 1 : 0} to {listedCount} out of {listedCount} documents
         </p>
       </section>
+
+      {openForm ? (
+        <div className="fixed inset-0 z-50 overflow-auto bg-[#f8f7f4] px-4 py-6 md:px-8">
+          <div className={`mx-auto ${openForm.type === 'p11' ? 'max-w-[1240px]' : 'max-w-[900px]'}`}>
+            <div className="mb-4 flex justify-end">
+              <button
+                type="button"
+                className="inline-flex h-10 items-center gap-2 rounded-full border border-navy bg-white px-4 text-sm font-semibold text-navy"
+                onClick={() => setOpenForm(null)}
+              >
+                <X size={16} />
+                Close
+              </button>
+            </div>
+            <FormDocument type={openForm.type} data={openForm.data} />
+          </div>
+        </div>
+      ) : null}
 
       {viewer ? (
         <DocumentPreviewModal
