@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type ComponentProps } from 'react'
 import { isFormDirty } from '../../lib/formDirty'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { bureauApi } from '../../api'
-import { assetUrl } from '../../api/client'
+import { logoAssetUrl } from '../../api/client'
 import { Alert, Button, Field, Input as UiInput, Loading, Textarea, onSubmit } from '../../components/ui'
 import type { BureauDetails } from '../../types'
 import { BureauTeamPanel } from './BureauTeamPanel'
@@ -59,9 +59,7 @@ export function BureauInformationForm() {
   const bureau = query.data?.data as BureauDetails | undefined
   const detailsDirty = isFormDirty(form, formFromBureau(bureau))
   const canSave = ready && (detailsDirty || Boolean(logoFile))
-  const savedLogo = bureau?.logo_path
-    ? `${assetUrl(bureau.logo_path)}${bureau.updated_at ? `?t=${encodeURIComponent(bureau.updated_at)}` : ''}`
-    : ''
+  const savedLogo = logoAssetUrl(bureau?.logo_path, bureau?.updated_at)
   const logoSrc = logoPreview || savedLogo
 
   useEffect(() => {

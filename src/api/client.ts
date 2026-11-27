@@ -142,3 +142,9 @@ export const assetUrl = (path?: string | null) => {
   if (path.startsWith('http')) return path
   return `${API_URL}${path.startsWith('/') ? '' : '/'}${path}`
 }
+
+export function logoAssetUrl(path?: string | null, version?: string | null) {
+  const url = assetUrl(path)
+  if (!url || !version) return url
+  return `${url}${url.includes('?') ? '&' : '?'}t=${encodeURIComponent(version)}`
+}

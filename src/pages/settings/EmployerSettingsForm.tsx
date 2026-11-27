@@ -3,7 +3,7 @@ import { Pencil, Plus, Trash2 } from 'lucide-react'
 import { isFormDirty } from '../../lib/formDirty'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { companiesApi } from '../../api'
-import { assetUrl } from '../../api/client'
+import { logoAssetUrl } from '../../api/client'
 import { useAuth } from '../../auth/AuthContext'
 import { Alert, Button, Field, Input as UiInput, Select as UiSelect, onSubmit } from '../../components/ui'
 import type { Company } from '../../types'
@@ -115,7 +115,7 @@ export function EmployerSettingsForm({ company }: { company: Company }) {
     }
   }
 
-  const logoSrc = assetUrl(company.logo_path)
+  const logoSrc = logoAssetUrl(company.logo_path, company.updated_at)
   const employerName = form.company_name.trim() || 'this employer'
   const canSave = isFormDirty(form, savedForm)
 
